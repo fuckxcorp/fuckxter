@@ -33,4 +33,4 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: deploy dist --project-name=fuckxter
+          command: deploy --name fuckxter
