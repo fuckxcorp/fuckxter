@@ -47,9 +47,27 @@ export interface R2Bucket {
   ): Promise<unknown>;
 }
 
+export interface ImageTransformer {
+  transform(options: {
+    width?: number;
+    height?: number;
+    fit?: "scale-down";
+  }): ImageTransformer;
+  output(options: {
+    format: "image/avif";
+    quality: number;
+    anim: boolean;
+  }): Promise<{ response(): Response }>;
+}
+
+export interface ImagesBinding {
+  input(stream: ReadableStream): ImageTransformer;
+}
+
 export interface Env {
   DB: D1Database;
   MEDIA_CACHE: R2Bucket;
+  IMAGES: ImagesBinding;
   FUCKXTER_ORIGINS: string;
   FUCKXTER_SECRET?: string;
 }

@@ -7,4 +7,3 @@
 /user/:handle /user/ 200
 /post /post/ 200
 /post/:handle/:slug /post/ 200
-/:handle/:slug /post/ 200

@@ -1,6 +1,6 @@
 # FuckXter
 
-FuckXter 是一个基于 Astro 和 Cloudflare Workers 的轻量社交平台。
+FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ## 功能
 
@@ -14,24 +14,18 @@ FuckXter 是一个基于 Astro 和 Cloudflare Workers 的轻量社交平台。
 
 ## 架构
 
+前端是静态站点，运行时通过 `PUBLIC_FUCKXTER_API_URL` 访问 Worker。
+本地开发默认使用 `http://localhost:4321`，生产环境默认使用`https://api.fuckxter.site`。
+
+## 媒体存储
+
+R2 bucket 名称为 `fuckxter`。头像统一使用可预测的对象键：
+
 ```text
-Astro static site
-  └── src/lib/fuckxter      浏览器端 API 客户端和页面逻辑
-Cloudflare Worker
-  └── worker/index.ts       HTTP 路由
-      ├── accounts.ts       账号与认证
-      ├── posts.ts          帖子、时间线和互动
-      ├── media.ts          图片与头像
-      └── users.ts          用户资料与关注
-Cloudflare D1
-  └── worker/migrations     数据库结构迁移
-Cloudflare R2
-  └── MEDIA_CACHE           缓存头像和媒体
+avatars/<username>.avif
 ```
 
-前端是静态站点，运行时通过 `PUBLIC_FUCKXTER_API_URL` 访问 Worker。
-本地开发默认使用 `http://localhost:8787`，生产环境默认使用
-`https://api.fuckxter.site`。
+上传头像和帖子图片时会通过 Cloudflare Images binding 转换为高质量 AVIF（quality `92`）。头像最大 512×512，帖子图片最大 2048×2048，均保持宽高比且不会上采样。
 
 ## 开发
 
@@ -71,3 +65,9 @@ FUCKXTER_SECRET=replace-with-a-long-random-secret
 
 Worker 的允许来源在 `wrangler.jsonc` 的 `FUCKXTER_ORIGINS` 中配置。
 新增前端域名时，必须同时加入该列表。
+
+## 条款与授权
+
+FuckXter的代码基于[MoPL](https://867678.xyz/docs/mopl)开源
+
+FuckXter平台内的内容基于[FuckXter规则](https://fuckxter.site/rules)处理和授权

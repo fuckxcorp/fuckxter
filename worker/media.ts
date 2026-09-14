@@ -6,6 +6,9 @@ import { getStorageConfig } from "./storage";
 import { usernameKey } from "./usernames";
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const AVATAR_MAX_DIMENSION = 512;
+const MEDIA_MAX_DIMENSION = 2048;
+const AVIF_QUALITY = 92;
 const ALLOWED_MEDIA = new Set([
   "image/jpeg",
   "image/png",
@@ -42,18 +45,6 @@ function detectImageType(bytes: Uint8Array): string | null {
   return null;
 }
 
-function extensionFor(contentType: string): string {
-  return (
-    {
-      "image/jpeg": "jpg",
-      "image/png": "png",
-      "image/gif": "gif",
-      "image/webp": "webp",
-      "image/avif": "avif",
-    }[contentType] ?? "bin"
-  );
-}
-
 function safeFileName(value: string | null): string {
   let decoded = value ?? "image";
   try {
@@ -64,6 +55,50 @@ function safeFileName(value: string | null): string {
     .trim()
     .slice(0, 120);
   return cleaned || "image";
+}
+
+async function convertToAvif(
+  env: Env,
+  bytes: ArrayBuffer,
+  options: {
+    maxDimension: number;
+    animated: boolean;
+  },
+): Promise<ArrayBuffer> {
+  const body = new Response(bytes).body;
+  if (!body) {
+    throw new HttpError(
+      500,
+      "IMAGE_CONVERSION_FAILED",
+      "Image conversion could not read the source.",
+    );
+  }
+
+  try {
+    const output = await env.IMAGES.input(body)
+      .transform({
+        width: options.maxDimension,
+        height: options.maxDimension,
+        fit: "scale-down",
+      })
+      .output({
+        format: "image/avif",
+        quality: AVIF_QUALITY,
+        anim: options.animated,
+      });
+    const response = output.response();
+    if (!response.ok) {
+      throw new Error(`Images binding returned ${response.status}`);
+    }
+    return response.arrayBuffer();
+  } catch (error) {
+    console.error("Image conversion failed", error);
+    throw new HttpError(
+      502,
+      "IMAGE_CONVERSION_FAILED",
+      "Image conversion failed.",
+    );
+  }
 }
 
 async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
@@ -118,7 +153,12 @@ export async function uploadMedia(
   userId: string,
   handle: string,
 ) {
-  const { bytes, contentType, originalName } = await readImage(request);
+  const { bytes: sourceBytes, originalName } = await readImage(request);
+  const bytes = await convertToAvif(env, sourceBytes, {
+    maxDimension: MEDIA_MAX_DIMENSION,
+    animated: true,
+  });
+  const contentType = "image/avif";
 
   const config = await getStorageConfig(env, userId);
   if (!config) {
@@ -129,7 +169,7 @@ export async function uploadMedia(
     );
   }
 
-  const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.${extensionFor(contentType)}`;
+  const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.avif`;
   const { response } = await signedS3Request(
     config,
     "PUT",
@@ -194,8 +234,13 @@ export async function uploadAvatar(
   userId: string,
   handle: string,
 ): Promise<string> {
-  const { bytes, contentType } = await readImage(request);
-  const objectKey = `avatars/${handle}/avatar.avif`;
+  const { bytes: sourceBytes } = await readImage(request);
+  const bytes = await convertToAvif(env, sourceBytes, {
+    maxDimension: AVATAR_MAX_DIMENSION,
+    animated: false,
+  });
+  const contentType = "image/avif";
+  const objectKey = `avatars/${handle}.avif`;
   const current = await env.DB.prepare(
     "SELECT avatar_key FROM users WHERE id = ?",
   )
@@ -227,7 +272,7 @@ export async function moveAvatar(
     .first<{ avatar_key: string | null }>();
   if (!user?.avatar_key) return;
 
-  const nextKey = `avatars/${nextHandle}/avatar.avif`;
+  const nextKey = `avatars/${nextHandle}.avif`;
   if (user.avatar_key === nextKey) return;
 
   const object = await env.MEDIA_CACHE.get(user.avatar_key);
@@ -293,10 +338,25 @@ export async function getMedia(
   const cacheKey = `media/${row.sha256}`;
   const cached = await env.MEDIA_CACHE.get(cacheKey);
   if (cached) {
+    if (cached.httpMetadata?.contentType === "image/avif") {
+      return {
+        body: cached.body,
+        contentType: "image/avif",
+        size: cached.size,
+        etag: row.sha256,
+      };
+    }
+    const avifBytes = await convertToAvif(env, await cached.arrayBuffer(), {
+      maxDimension: MEDIA_MAX_DIMENSION,
+      animated: true,
+    });
+    await env.MEDIA_CACHE.put(cacheKey, avifBytes, {
+      httpMetadata: { contentType: "image/avif" },
+    });
     return {
-      body: cached.body,
-      contentType: cached.httpMetadata?.contentType ?? row.content_type,
-      size: cached.size,
+      body: avifBytes,
+      contentType: "image/avif",
+      size: avifBytes.byteLength,
       etag: row.sha256,
     };
   }
@@ -337,13 +397,20 @@ export async function getMedia(
       "Source media content has changed.",
     );
   }
-  await env.MEDIA_CACHE.put(cacheKey, bytes, {
-    httpMetadata: { contentType: detected },
+  const avifBytes =
+    detected === "image/avif"
+      ? bytes
+      : await convertToAvif(env, bytes, {
+          maxDimension: MEDIA_MAX_DIMENSION,
+          animated: true,
+        });
+  await env.MEDIA_CACHE.put(cacheKey, avifBytes, {
+    httpMetadata: { contentType: "image/avif" },
   });
   return {
-    body: bytes,
-    contentType: detected,
-    size: bytes.byteLength,
+    body: avifBytes,
+    contentType: "image/avif",
+    size: avifBytes.byteLength,
     etag: row.sha256,
   };
 }

@@ -6,6 +6,10 @@
   "observability": {
     "enabled": true,
   },
+  "images": {
+    "binding": "IMAGES",
+    "remote": true,
+  },
   "vars": {
     "FUCKXTER_ORIGINS": "http://localhost:4321,http://127.0.0.1:4321,https://fuckxter.site,https://www.fuckxter.site,https://fuckxter.pages.dev,https://*.fuckxter.pages.dev",
   },
@@ -26,7 +30,7 @@
   "r2_buckets": [
     {
       "binding": "MEDIA_CACHE",
-      "bucket_name": "fuckxter-r2",
+      "bucket_name": "fuckxter",
     },
   ],
 }
