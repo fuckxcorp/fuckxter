@@ -66,6 +66,7 @@ export interface ImagesBinding {
 
 export interface Env {
   DB: D1Database;
+  ASSETS: { fetch(request: Request): Promise<Response> };
   MEDIA_CACHE: R2Bucket;
   IMAGES: ImagesBinding;
   FUCKXTER_ORIGINS: string;

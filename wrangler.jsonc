@@ -3,6 +3,12 @@
   "name": "fuckxter-api",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-13",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"],
+  },
   "observability": {
     "enabled": true,
   },
@@ -14,6 +20,14 @@
     "FUCKXTER_ORIGINS": "http://localhost:4321,http://127.0.0.1:4321,https://fuckxter.site,https://www.fuckxter.site,https://fuckxter.pages.dev,https://*.fuckxter.pages.dev",
   },
   "routes": [
+    {
+      "pattern": "fuckxter.site/*",
+      "zone_name": "fuckxter.site",
+    },
+    {
+      "pattern": "www.fuckxter.site/*",
+      "zone_name": "fuckxter.site",
+    },
     {
       "pattern": "api.fuckxter.site",
       "custom_domain": true,

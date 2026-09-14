@@ -535,13 +535,18 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname !== "/api" && !url.pathname.startsWith("/api/")) {
+      return env.ASSETS.fetch(request);
+    }
+
     const headers = corsHeaders(request, env);
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers });
     }
     try {
       assertTrustedOrigin(request, env);
-      return await route(request, env, new URL(request.url));
+      return await route(request, env, url);
     } catch (error) {
       return errorResponse(error, request, env);
     }
