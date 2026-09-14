@@ -15,6 +15,7 @@ import {
   verifyTotp,
 } from "./security";
 import { usernameKey, validateUsername } from "./usernames";
+import { createNotification } from "./notifications";
 
 const RESERVED_HANDLES = new Set(["user", "post", "settings", "api", "assets"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -168,6 +169,15 @@ export async function loginOrRegister(
   if (!user) {
     throw new HttpError(500, "USER_CREATE_FAILED", "Failed to create account.");
   }
+  await createNotification(env, {
+    recipientId: user.id,
+    type: "system",
+    eventKey: `system:welcome:${user.id}`,
+    data: {
+      title: "Welcome to FuckXter",
+      body: "Your account is ready. Complete your profile to get started.",
+    },
+  });
   return { userId: user.id, account: await getAccount(env, user.id) };
 }
 

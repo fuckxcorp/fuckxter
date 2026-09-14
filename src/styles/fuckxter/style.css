@@ -2017,3 +2017,164 @@
     overflow: visible;
   }
 }
+
+/* 通知 */
+.fk-notice-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.fk-notice-panel {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.fk-notice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fk-notice-head h1 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 1.35rem;
+}
+
+.fk-notice-head p {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.fk-notice-read-all,
+.fk-notice-more {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 0.48rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.fk-notice-read-all:hover:not(:disabled),
+.fk-notice-more:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.fk-notice-read-all:disabled,
+.fk-notice-more:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.fk-notice-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.fk-notice-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.8rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 14px;
+  background: var(--color-bg-raised);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.fk-notice-item.is-unread {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent) 45%,
+    var(--color-border)
+  );
+  background: var(--color-accent-soft);
+}
+
+.fk-notice-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.fk-notice-avatar.is-system {
+  background: linear-gradient(135deg, #0f766e, #0891b2);
+}
+
+.fk-notice-copy {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.fk-notice-copy:hover .fk-notice-action {
+  text-decoration: underline;
+}
+
+.fk-notice-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fk-notice-action {
+  min-width: 0;
+  color: var(--color-text-strong);
+  font-size: 0.92rem;
+}
+
+.fk-notice-time {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.fk-notice-text {
+  display: -webkit-box;
+  margin: 0.3rem 0 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.fk-notice-more {
+  display: block;
+  margin: 1rem auto 0;
+}
+
+.fk-notice-login {
+  display: inline-block;
+  width: auto;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .fk-notice-main {
+    padding: 1rem 0.75rem 2rem;
+  }
+
+  .fk-notice-item {
+    padding: 0.8rem;
+  }
+}

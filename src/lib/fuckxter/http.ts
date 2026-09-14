@@ -52,13 +52,17 @@ async function performRequest<T>(
     });
   } catch (error) {
     if (timeout.aborted) {
-      throw new ApiError("请求超时，请稍后重试。", 408, "TIMEOUT");
+      throw new ApiError(
+        "Request timed out. Please try again.",
+        408,
+        "TIMEOUT",
+      );
     }
     if (options.signal?.aborted) {
-      throw new ApiError("请求已取消。", 0, "ABORTED");
+      throw new ApiError("Request was cancelled.", 0, "ABORTED");
     }
     throw new ApiError(
-      "无法连接服务器，请检查网络或确认 API 已启动。",
+      "Unable to reach the server. Check your network and try again.",
       0,
       "NETWORK",
     );
@@ -79,7 +83,9 @@ async function performRequest<T>(
   if (!response.ok) {
     const error = (body ?? {}) as ApiErrorBody;
     throw new ApiError(
-      error.error?.message ?? error.message ?? `请求失败（${response.status}）`,
+      error.error?.message ??
+        error.message ??
+        `Request failed (${response.status}).`,
       response.status,
       error.error?.code,
     );

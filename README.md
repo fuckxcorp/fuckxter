@@ -4,6 +4,7 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ## 功能
 
+- 类似X的体验
 - 发帖、图片上传、编辑和删除
 - 推荐流、关注流、搜索与话题标签
 - 点赞、转发、收藏、分享和 `@提及`
@@ -65,6 +66,15 @@ FUCKXTER_SECRET=replace-with-a-long-random-secret
 
 Worker 的允许来源在 `wrangler.jsonc` 的 `FUCKXTER_ORIGINS` 中配置。
 新增前端域名时，必须同时加入该列表。
+
+## 自动部署
+
+GitHub Actions 在推送到 `main` 后执行检查、构建并部署 Worker 和 Pages。
+工作流位于 `.github/workflows/build.yml`，使用仓库 Secret：
+
+```text
+CLOUDFLARE_API_TOKEN
+```
 
 ## 条款与授权
 

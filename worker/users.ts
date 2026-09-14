@@ -2,6 +2,7 @@ import { HttpError } from "./http";
 import type { Env } from "./platform";
 import { usernameKey } from "./usernames";
 import { buildAvatarUrl } from "./avatar";
+import { createNotification, deleteNotification } from "./notifications";
 
 interface ProfileRow {
   id: string;
@@ -106,6 +107,7 @@ export async function setFollow(
     );
   }
 
+  const eventKey = `follow:${followerId}:${target.id}`;
   if (active) {
     await env.DB.prepare(
       `INSERT INTO follows (follower_id, followee_id, created_at)
@@ -114,12 +116,19 @@ export async function setFollow(
     )
       .bind(followerId, target.id, new Date().toISOString())
       .run();
+    await createNotification(env, {
+      recipientId: target.id,
+      actorId: followerId,
+      type: "follow",
+      eventKey,
+    });
   } else {
     await env.DB.prepare(
       "DELETE FROM follows WHERE follower_id = ? AND followee_id = ?",
     )
       .bind(followerId, target.id)
       .run();
+    await deleteNotification(env, eventKey);
   }
 
   const count = await env.DB.prepare(

@@ -3,6 +3,7 @@ import type { D1PreparedStatement, Env, PostRow } from "./platform";
 import { randomId } from "./security";
 import { usernameKey } from "./usernames";
 import { buildAvatarUrl } from "./avatar";
+import { createNotification, deleteNotification } from "./notifications";
 
 const POST_SELECT = `
   SELECT
@@ -349,10 +350,14 @@ export async function deletePost(
   if (post.author_id !== userId) {
     throw new HttpError(403, "FORBIDDEN", "You cannot delete this post.");
   }
+  const now = new Date().toISOString();
   await env.DB.prepare(
     "UPDATE posts SET deleted_at = ?, updated_at = ? WHERE id = ?",
   )
-    .bind(new Date().toISOString(), new Date().toISOString(), postId)
+    .bind(now, now, postId)
+    .run();
+  await env.DB.prepare("DELETE FROM notifications WHERE post_id = ?")
+    .bind(postId)
     .run();
 }
 
@@ -363,11 +368,12 @@ export async function setLike(
   active: boolean,
 ) {
   const post = await env.DB.prepare(
-    "SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL",
+    "SELECT id, author_id FROM posts WHERE id = ? AND deleted_at IS NULL",
   )
     .bind(postId)
-    .first<{ id: string }>();
+    .first<{ id: string; author_id: string }>();
   if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
+  const eventKey = `like:${userId}:${postId}`;
   if (active) {
     await env.DB.prepare(
       `INSERT INTO likes (user_id, post_id, created_at)
@@ -376,10 +382,18 @@ export async function setLike(
     )
       .bind(userId, postId, new Date().toISOString())
       .run();
+    await createNotification(env, {
+      recipientId: post.author_id,
+      actorId: userId,
+      type: "like",
+      postId,
+      eventKey,
+    });
   } else {
     await env.DB.prepare("DELETE FROM likes WHERE user_id = ? AND post_id = ?")
       .bind(userId, postId)
       .run();
+    await deleteNotification(env, eventKey);
   }
   const count = await env.DB.prepare(
     "SELECT COUNT(*) AS count FROM likes WHERE post_id = ?",
@@ -396,11 +410,12 @@ export async function setRepost(
   active: boolean,
 ) {
   const post = await env.DB.prepare(
-    "SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL",
+    "SELECT id, author_id FROM posts WHERE id = ? AND deleted_at IS NULL",
   )
     .bind(postId)
-    .first<{ id: string }>();
+    .first<{ id: string; author_id: string }>();
   if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
+  const eventKey = `repost:${userId}:${postId}`;
   if (active) {
     await env.DB.prepare(
       `INSERT INTO reposts (user_id, post_id, created_at)
@@ -409,12 +424,20 @@ export async function setRepost(
     )
       .bind(userId, postId, new Date().toISOString())
       .run();
+    await createNotification(env, {
+      recipientId: post.author_id,
+      actorId: userId,
+      type: "repost",
+      postId,
+      eventKey,
+    });
   } else {
     await env.DB.prepare(
       "DELETE FROM reposts WHERE user_id = ? AND post_id = ?",
     )
       .bind(userId, postId)
       .run();
+    await deleteNotification(env, eventKey);
   }
   const count = await env.DB.prepare(
     "SELECT COUNT(*) AS count FROM reposts WHERE post_id = ?",
@@ -569,10 +592,10 @@ export async function createComment(
     );
   }
   const post = await env.DB.prepare(
-    "SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL",
+    "SELECT id, author_id FROM posts WHERE id = ? AND deleted_at IS NULL",
   )
     .bind(postId)
-    .first<{ id: string }>();
+    .first<{ id: string; author_id: string }>();
   if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
 
   const id = randomId();
@@ -600,6 +623,16 @@ export async function createComment(
     }>();
   if (!user)
     throw new HttpError(401, "UNAUTHORIZED", "Authentication required.");
+
+  await createNotification(env, {
+    recipientId: post.author_id,
+    actorId: userId,
+    type: "reply",
+    postId,
+    commentId: id,
+    eventKey: `reply:${id}`,
+    data: { excerpt: cleanText.slice(0, 120) },
+  });
 
   return {
     id,
@@ -641,4 +674,5 @@ export async function deleteComment(
   await env.DB.prepare("UPDATE comments SET deleted_at = ? WHERE id = ?")
     .bind(new Date().toISOString(), commentId)
     .run();
+  await deleteNotification(env, `reply:${commentId}`);
 }

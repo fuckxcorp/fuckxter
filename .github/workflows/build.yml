@@ -1,0 +1,42 @@
+name: Cuanto por una tarta de queso
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Esta revolucion no la va a televisiar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@main
+        with:
+          node-version: latest
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@master
+
+      - name: Build
+        shell: bash
+        run: |
+          pnpm install
+          pnpm build
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy
+
+      - name: Deploy Pages
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: pages deploy dist --project-name=fuckxter --branch=main

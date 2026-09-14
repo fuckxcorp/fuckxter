@@ -129,7 +129,8 @@ export async function signIn(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
-  if (!response.account) throw new ApiError("登录响应缺少账号信息");
+  if (!response.account)
+    throw new ApiError("Sign-in response did not include an account.");
   const next = normalizeAccount(response.account);
   setAccount(next);
   sessionPromise = Promise.resolve(next);
@@ -157,7 +158,8 @@ export async function updateProfile(input: {
     method: "PATCH",
     body: JSON.stringify(input),
   });
-  if (!response.account) throw new ApiError("资料响应缺少账号信息");
+  if (!response.account)
+    throw new ApiError("Profile response did not include an account.");
   const next = normalizeAccount(response.account);
   setAccount(next);
   return next;
@@ -171,7 +173,8 @@ export async function changeEmail(input: {
     method: "PUT",
     body: JSON.stringify(input),
   });
-  if (!response.account) throw new ApiError("邮箱响应缺少账号信息");
+  if (!response.account)
+    throw new ApiError("Email response did not include an account.");
   const next = normalizeAccount(response.account);
   setAccount(next);
   return next;
@@ -198,7 +201,8 @@ export async function confirmTwoFactor(code: string): Promise<Account> {
     method: "POST",
     body: JSON.stringify({ code }),
   });
-  if (!response.account) throw new ApiError("2FA 响应缺少账号信息");
+  if (!response.account)
+    throw new ApiError("2FA response did not include an account.");
   const next = normalizeAccount(response.account);
   setAccount(next);
   return next;

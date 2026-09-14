@@ -1,12 +1,12 @@
 {
   "name": "fuckxter",
   "type": "module",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "node": ">=24.21.0"
   },
   "scripts": {
-    "api:dev": "wrangler dev --port 4321",
+    "api:dev": "wrangler dev --port 8787",
     "api:deploy": "wrangler deploy",
     "api:migrate:local": "wrangler d1 migrations apply DB --local",
     "api:migrate:remote": "wrangler d1 migrations apply DB --remote",

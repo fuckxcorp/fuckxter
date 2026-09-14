@@ -1,13 +1,7 @@
 import type { Env } from "./platform";
 
-const originCache = new WeakMap<Env, string[]>();
-
 function allowedOrigins(env: Env): string[] {
-  const cached = originCache.get(env);
-  if (cached) return cached;
-  const origins = env.FUCKXTER_ORIGINS.split(",").map((item) => item.trim());
-  originCache.set(env, origins);
-  return origins;
+  return env.FUCKXTER_ORIGINS.split(",").map((item) => item.trim());
 }
 
 function originAllowed(origin: string, patterns: string[]): boolean {

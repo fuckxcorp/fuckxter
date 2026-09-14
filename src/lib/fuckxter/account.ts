@@ -216,6 +216,9 @@ export function mountAccountControls(
       if (open.dataset.accountOpen === "profile" && account) {
         closeAccountMenu();
         navigate(userPath(account.profile.handle));
+      } else if (open.dataset.accountOpen === "notice" && account) {
+        closeAccountMenu();
+        navigate("/notice");
       } else if (open.dataset.accountOpen === "settings" && account) {
         closeAccountMenu();
         navigate("/settings");

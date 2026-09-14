@@ -98,3 +98,31 @@ export interface UserProfile {
     following: boolean;
   };
 }
+
+export type NotificationType =
+  "reply" | "like" | "repost" | "follow" | "system";
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  createdAt: string;
+  read: boolean;
+  actor: FeedUser | null;
+  post: {
+    id: string;
+    slug: string;
+    authorHandle: string;
+    text: string;
+  } | null;
+  comment: {
+    id: string;
+    text: string;
+  } | null;
+  data: Record<string, unknown>;
+}
+
+export interface NotificationPage {
+  notices: Notification[];
+  nextCursor: string | null;
+  unread: number;
+}

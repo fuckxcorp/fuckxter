@@ -1,0 +1,254 @@
+---
+import "../styles/fuckxter/style.css";
+
+import FuckxterSubpageHeader from "../components/FuckxterSubpageHeader.astro";
+import FuckxterLayout from "../layouts/FuckxterLayout.astro";
+---
+
+<FuckxterLayout title="通知">
+  <div class="fk-app fk-subpage" data-fk-notice>
+    <FuckxterSubpageHeader />
+
+    <main class="fk-notice-main">
+      <section class="fk-notice-panel">
+        <header class="fk-notice-head">
+          <div>
+            <h1>通知</h1>
+            <p data-role="notice-summary">正在加载…</p>
+          </div>
+          <button
+            type="button"
+            class="fk-notice-read-all"
+            data-role="notice-read-all"
+            disabled
+          >
+            全部已读
+          </button>
+        </header>
+        <div class="fk-notice-list" data-role="notice-list"></div>
+        <button
+          type="button"
+          class="fk-notice-more"
+          data-role="notice-more"
+          hidden
+        >
+          加载更多
+        </button>
+      </section>
+    </main>
+  </div>
+</FuckxterLayout>
+
+<script>
+  import { getNotifications, markNotificationsRead } from "../lib/fuckxter/api";
+  import { hydrateSession } from "../lib/fuckxter/auth";
+  import { avatarGradient, el, relativeTime } from "../lib/fuckxter/dom";
+  import { apiEndpoint } from "../lib/fuckxter/http";
+  import { onFuckxterPageReady } from "../lib/fuckxter/page";
+  import type { Notification } from "../lib/fuckxter/types";
+
+  function noticeTarget(notice: Notification): string | null {
+    if (
+      notice.post &&
+      (notice.type === "reply" ||
+        notice.type === "like" ||
+        notice.type === "repost")
+    ) {
+      return `/post/${encodeURIComponent(notice.post.authorHandle)}/${encodeURIComponent(notice.post.slug)}`;
+    }
+    if (notice.actor && notice.type === "follow") {
+      return `/user/${encodeURIComponent(notice.actor.handle)}`;
+    }
+    return null;
+  }
+
+  function noticeMessage(notice: Notification): {
+    action: string;
+    detail: string;
+  } {
+    const actor = notice.actor?.name ?? "系统";
+    if (notice.type === "reply") {
+      return {
+        action: `${actor} 回复了你的帖子`,
+        detail: notice.comment?.text ?? notice.post?.text ?? "",
+      };
+    }
+    if (notice.type === "like") {
+      return {
+        action: `${actor} 赞了你的帖子`,
+        detail: notice.post?.text ?? "",
+      };
+    }
+    if (notice.type === "repost") {
+      return {
+        action: `${actor} 转发了你的帖子`,
+        detail: notice.post?.text ?? "",
+      };
+    }
+    if (notice.type === "follow") {
+      return { action: `${actor} 关注了你`, detail: "" };
+    }
+    return {
+      action: String(notice.data.title ?? "系统通知"),
+      detail: String(notice.data.body ?? ""),
+    };
+  }
+
+  function noticeAvatar(notice: Notification): HTMLElement {
+    const avatar = el("span", "fk-notice-avatar");
+    if (!notice.actor) {
+      avatar.classList.add("is-system");
+      avatar.textContent = "SYS";
+      return avatar;
+    }
+    avatar.setAttribute("style", avatarGradient(notice.actor.handle));
+    const image = el("img", "fk-avatar-image");
+    image.src = notice.actor.avatarUrl
+      ? notice.actor.avatarUrl.startsWith("/")
+        ? apiEndpoint(notice.actor.avatarUrl)
+        : notice.actor.avatarUrl
+      : "/user.webp";
+    image.alt = "";
+    image.loading = "lazy";
+    image.decoding = "async";
+    avatar.append(image);
+    return avatar;
+  }
+
+  const mount = async () => {
+    const container = document.querySelector<HTMLElement>("[data-fk-notice]");
+    if (!container || container.dataset.fkNoticeMounted === "true") return;
+    container.dataset.fkNoticeMounted = "true";
+
+    const list = container.querySelector<HTMLElement>(
+      "[data-role=notice-list]",
+    )!;
+    const summary = container.querySelector<HTMLElement>(
+      "[data-role=notice-summary]",
+    )!;
+    const readAll = container.querySelector<HTMLButtonElement>(
+      "[data-role=notice-read-all]",
+    )!;
+    const more = container.querySelector<HTMLButtonElement>(
+      "[data-role=notice-more]",
+    )!;
+
+    const current = await hydrateSession();
+    if (!current) {
+      summary.textContent = "登录后查看通知";
+      const link = el("a", "fk-primary-btn fk-notice-login");
+      link.href = "/";
+      link.textContent = "返回首页登录";
+      list.append(link);
+      return;
+    }
+
+    let cursor: string | null = null;
+    let unread = 0;
+    const seen = new Set<string>();
+
+    const updateSummary = () => {
+      summary.textContent =
+        unread > 0 ? `${unread} 条未读通知` : "没有未读通知";
+      readAll.disabled = unread === 0;
+    };
+
+    const markRead = async (notice: Notification, item: HTMLElement) => {
+      if (notice.read) return;
+      await markNotificationsRead(notice.id);
+      notice.read = true;
+      unread = Math.max(0, unread - 1);
+      item.classList.remove("is-unread");
+      updateSummary();
+    };
+
+    const render = (notices: Notification[], append: boolean) => {
+      if (!append) {
+        list.replaceChildren();
+        unread = 0;
+      }
+      for (const notice of notices) {
+        if (seen.has(notice.id)) continue;
+        seen.add(notice.id);
+        if (!notice.read) unread += 1;
+
+        const item = el("article", "fk-notice-item");
+        item.classList.toggle("is-unread", !notice.read);
+        const target = noticeTarget(notice);
+        const copy = el(target ? "a" : "div", "fk-notice-copy");
+        if (target && copy instanceof HTMLAnchorElement) copy.href = target;
+
+        const message = noticeMessage(notice);
+        const action = el("strong", "fk-notice-action");
+        action.textContent = message.action;
+        const time = el("time", "fk-notice-time");
+        time.dateTime = notice.createdAt;
+        time.textContent = relativeTime(notice.createdAt);
+        const head = el("div", "fk-notice-meta");
+        head.append(action, time);
+        copy.append(head);
+
+        if (message.detail) {
+          const detail = el("p", "fk-notice-text");
+          detail.textContent = message.detail;
+          copy.append(detail);
+        }
+
+        copy.addEventListener("click", (event) => {
+          if (!target) return;
+          if (notice.read) return;
+          event.preventDefault();
+          void markRead(notice, item).finally(() => {
+            location.href = target;
+          });
+        });
+
+        item.append(noticeAvatar(notice), copy);
+        list.append(item);
+      }
+      updateSummary();
+    };
+
+    const load = async (append: boolean) => {
+      more.disabled = true;
+      try {
+        const page = await getNotifications(append ? cursor : null);
+        cursor = page.nextCursor;
+        render(page.notices, append);
+        if (!append) {
+          unread = page.unread;
+          updateSummary();
+        }
+        more.hidden = !cursor;
+      } catch (error) {
+        summary.textContent =
+          error instanceof Error ? error.message : "通知加载失败";
+      } finally {
+        more.disabled = false;
+      }
+    };
+
+    readAll.addEventListener("click", async () => {
+      readAll.disabled = true;
+      try {
+        await markNotificationsRead();
+        unread = 0;
+        for (const item of list.querySelectorAll(".fk-notice-item")) {
+          item.classList.remove("is-unread");
+        }
+        updateSummary();
+      } catch (error) {
+        summary.textContent =
+          error instanceof Error ? error.message : "操作失败";
+        readAll.disabled = false;
+      }
+    });
+
+    more.addEventListener("click", () => void load(true));
+    await load(false);
+  };
+
+  onFuckxterPageReady(() => {
+    void mount();
+  });
+</script>

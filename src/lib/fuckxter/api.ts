@@ -4,6 +4,7 @@ import type {
   FeedPage,
   FeedTab,
   LikeResult,
+  NotificationPage,
   Post,
   PostMedia,
   RepostResult,
@@ -58,6 +59,22 @@ export async function uploadMedia(file: File): Promise<PostMedia> {
     body: file,
   });
   return response.media;
+}
+
+export function getNotifications(
+  cursor: string | null,
+): Promise<NotificationPage> {
+  return apiRequest<NotificationPage>(
+    `/api/notice?${query({ cursor, limit: "30" })}`,
+  );
+}
+
+export async function markNotificationsRead(id?: string): Promise<number> {
+  const response = await apiRequest<{ unread: number }>("/api/notice", {
+    method: "POST",
+    body: JSON.stringify(id ? { id } : {}),
+  });
+  return response.unread;
 }
 
 export function toggleLike(id: string, liked: boolean): Promise<LikeResult> {
@@ -198,17 +215,23 @@ export function uploadAvatar(
         new ApiError(
           body.error?.message ??
             body.message ??
-            `请求失败（${request.status}）`,
+            `Request failed (${request.status}).`,
           request.status,
           body.error?.code,
         ),
       );
     });
     request.addEventListener("error", () => {
-      reject(new ApiError("头像上传失败，请检查网络后重试。", 0, "NETWORK"));
+      reject(
+        new ApiError(
+          "Avatar upload failed. Check your network and try again.",
+          0,
+          "NETWORK",
+        ),
+      );
     });
     request.addEventListener("abort", () => {
-      reject(new ApiError("头像上传已取消。", 0, "ABORTED"));
+      reject(new ApiError("Avatar upload was cancelled.", 0, "ABORTED"));
     });
     request.send(file);
   });

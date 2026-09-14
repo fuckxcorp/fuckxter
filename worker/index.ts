@@ -16,6 +16,11 @@ import {
   readJson,
 } from "./http";
 import { getAvatar, getMedia, uploadAvatar, uploadMedia } from "./media";
+import {
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationsRead,
+} from "./notifications";
 import type { Env } from "./platform";
 import {
   createComment,
@@ -119,6 +124,34 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       await deleteSession(request, env);
       const response = json({ ok: true }, request, env);
       return withCookie(response, clearSessionCookie(request));
+    }
+  }
+
+  if (parts[1] === "notice" && parts.length === 2) {
+    const user = await requireUser(request, env);
+    if (method === "GET") {
+      const [page, unread] = await Promise.all([
+        getNotifications(
+          env,
+          user.id,
+          url.searchParams.get("cursor"),
+          url.searchParams.get("limit"),
+        ),
+        getUnreadNotificationCount(env, user.id),
+      ]);
+      return json({ ...page, unread }, request, env);
+    }
+    if (method === "POST") {
+      const body = await readJson<{ id?: unknown }>(request);
+      if (body.id !== undefined && typeof body.id !== "string") {
+        throw new HttpError(400, "INVALID_NOTICE", "Invalid notice id.");
+      }
+      await markNotificationsRead(env, user.id, body.id);
+      return json(
+        { unread: await getUnreadNotificationCount(env, user.id) },
+        request,
+        env,
+      );
     }
   }
 
