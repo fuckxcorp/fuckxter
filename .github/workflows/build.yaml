@@ -29,8 +29,8 @@ jobs:
           pnpm install
           pnpm build
 
-      - name: Deploy Worker
+      - name: Sent to Cloudflare
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: deploy
+          command: deploy dist --project-name=fuckxter

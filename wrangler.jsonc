@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "fuckxter-api",
   "main": "worker/index.ts",
-  "compatibility_date": "2026-09-13",
+  "compatibility_date": "2026-09-08",
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
@@ -17,7 +17,7 @@
     "remote": true,
   },
   "vars": {
-    "FUCKXTER_ORIGINS": "http://localhost:4321,http://127.0.0.1:4321,https://fuckxter.site,https://www.fuckxter.site,https://fuckxter.pages.dev,https://*.fuckxter.pages.dev",
+    "FUCKXTER_ORIGINS": "http://localhost:4321,http://127.0.0.1:4321,https://fuckxter.site,https://www.fuckxter.site",
   },
   "routes": [
     {
