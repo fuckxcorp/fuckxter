@@ -1,0 +1,336 @@
+---
+import "../styles/fuckxter/style.css";
+
+import FuckxterLayout from "../layouts/FuckxterLayout.astro";
+---
+
+<FuckxterLayout title="FuckXter">
+  <div class="fk-app" data-fuckxter>
+    <header class="fk-topbar">
+      <a class="fk-brand" href="/" aria-label="FuckXter 首页">
+        <img
+          class="fk-logo-img fk-logo-light"
+          src="/FuckXter_bk.avif"
+          alt="FuckXter"
+          width="515"
+          height="128"
+          decoding="async"
+        />
+        <img
+          class="fk-logo-img fk-logo-dark"
+          src="/FuckXter_wh.avif"
+          alt="FuckXter"
+          width="514"
+          height="514"
+          decoding="async"
+        />
+      </a>
+
+      <div class="fk-search">
+        <svg
+          class="fk-search-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input
+          class="fk-search-input"
+          type="search"
+          placeholder="搜索 FuckXter"
+          aria-label="搜索 FuckXter"
+          autocomplete="off"
+        />
+      </div>
+
+      <nav class="fk-tabs" aria-label="时间线">
+        <button type="button" class="fk-tab is-active" data-tab="foryou">
+          推荐
+        </button>
+        <button type="button" class="fk-tab" data-tab="following">
+          关注
+        </button>
+      </nav>
+
+      <div class="fk-account">
+        <button
+          type="button"
+          class="fk-account-btn"
+          data-role="account-btn"
+          aria-label="账号"
+          aria-expanded="false"
+          aria-haspopup="menu"
+        >
+          <span class="fk-account-avatar" data-role="account-avatar" hidden
+          ></span>
+          <svg
+            class="fk-account-icon"
+            data-role="account-icon"
+            viewBox="0 0 24 24"
+            width="21"
+            height="21"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="8" r="4"></circle>
+            <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"></path>
+          </svg>
+        </button>
+
+        <div
+          class="fk-menu fk-account-menu"
+          data-role="account-menu"
+          role="menu"
+          hidden
+        >
+          <div data-role="auth-items">
+            <p class="fk-menu-title">登录 FuckXter</p>
+            <button
+              type="button"
+              class="fk-menu-item"
+              role="menuitem"
+              data-auth-open="signin"
+            >
+              登录 / 注册
+            </button>
+          </div>
+
+          <div data-role="user-items" hidden>
+            <div class="fk-menu-user">
+              <span class="fk-menu-user-avatar" data-role="menu-avatar"></span>
+              <span class="fk-menu-user-meta">
+                <strong data-role="menu-name"></strong>
+                <small data-role="menu-handle"></small>
+              </span>
+            </div>
+            <button
+              type="button"
+              class="fk-menu-item"
+              role="menuitem"
+              data-account-open="profile"
+            >
+              个人资料
+            </button>
+            <button
+              type="button"
+              class="fk-menu-item"
+              role="menuitem"
+              data-account-open="settings"
+            >
+              设置
+            </button>
+          </div>
+
+          <div class="fk-menu-row">
+            <button
+              type="button"
+              class="fk-menu-item fk-menu-expandable"
+              role="menuitem"
+              aria-expanded="false"
+              aria-haspopup="menu"
+              data-account-open="theme"
+            >
+              主题切换
+              <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+            </button>
+
+            <div
+              class="fk-submenu"
+              data-role="theme-submenu"
+              role="menu"
+              hidden
+            >
+              <button
+                type="button"
+                class="fk-menu-item"
+                role="menuitemradio"
+                data-theme-choice="auto"
+              >
+                <span class="fk-menu-check">✓</span>跟随系统
+              </button>
+              <button
+                type="button"
+                class="fk-menu-item"
+                role="menuitemradio"
+                data-theme-choice="light"
+              >
+                <span class="fk-menu-check">✓</span>浅色
+              </button>
+              <button
+                type="button"
+                class="fk-menu-item"
+                role="menuitemradio"
+                data-theme-choice="dark"
+              >
+                <span class="fk-menu-check">✓</span>深色
+              </button>
+            </div>
+          </div>
+
+          <div data-role="signout-items" hidden>
+            <hr class="fk-menu-sep" />
+            <button
+              type="button"
+              class="fk-menu-item"
+              role="menuitem"
+              data-account-action="signout"
+            >
+              退出登录
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="fk-main">
+      <section class="fk-composer" aria-label="发帖">
+        <div class="fk-avatar"></div>
+        <div class="fk-composer-body">
+          <textarea
+            class="fk-composer-input"
+            rows="2"
+            placeholder="有什么新鲜事？"
+            aria-label="发帖内容"></textarea>
+          <div class="fk-composer-foot">
+            <button
+              type="button"
+              class="fk-composer-attach"
+              data-role="attach-media"
+              aria-label="添加图片"
+              title="添加图片"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                ></path>
+              </svg>
+            </button>
+            <input
+              class="fk-media-input"
+              data-role="media-input"
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+              hidden
+            />
+            <span
+              class="fk-media-status"
+              data-role="media-status"
+              aria-live="polite"
+              hidden></span>
+            <span
+              class="fk-composer-auth-hint"
+              data-role="composer-auth-hint"
+              hidden
+            >
+              注册后才能发帖
+            </span>
+            <span class="fk-char-count">0 / 500</span>
+            <button type="button" class="fk-post-btn" disabled>发帖</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="fk-feed" aria-label="信息流"></section>
+
+      <div class="fk-sentinel">
+        <span class="fk-spinner" aria-hidden="true"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="fk-modal" data-role="auth-modal" hidden>
+    <div class="fk-modal-backdrop" data-role="auth-backdrop"></div>
+    <div
+      class="fk-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-label="登录或注册"
+    >
+      <div class="fk-dialog-brand">
+        <h2>FuckXter</h2>
+      </div>
+
+      <form data-role="signin-form" novalidate>
+        <label class="fk-field">
+          <span class="fk-field-label">邮箱</span>
+          <input
+            name="identifier"
+            type="email"
+            autocomplete="username"
+            placeholder="you@example.com"
+            required
+          />
+        </label>
+        <label class="fk-field">
+          <span class="fk-field-label">密码</span>
+          <input
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="密码"
+            required
+          />
+        </label>
+        <label
+          class="fk-field fk-login-tfa-field"
+          data-role="login-tfa-field"
+          hidden
+        >
+          <span class="fk-field-label">动态验证码</span>
+          <input
+            name="code"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="6 位验证码"
+          />
+        </label>
+        <p class="fk-form-status" data-role="signin-status" aria-live="polite">
+        </p>
+        <button class="fk-primary-btn" type="submit">登录</button>
+        <p class="fk-form-hint">
+          未注册的用户将会自动注册，注册表示你同意我们的用户协议。
+        </p>
+      </form>
+
+      <button
+        type="button"
+        class="fk-dialog-close"
+        data-role="auth-close"
+        aria-label="关闭"
+      >
+        ×
+      </button>
+    </div>
+  </div>
+</FuckxterLayout>
+
+<script>
+  import { mountFuckxterBySelector } from "../lib/fuckxter/client";
+  import { onFuckxterPageReady } from "../lib/fuckxter/page";
+
+  onFuckxterPageReady(() => {
+    mountFuckxterBySelector("[data-fuckxter]");
+  });
+</script>

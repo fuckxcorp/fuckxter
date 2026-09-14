@@ -1,0 +1,516 @@
+import {
+  beginTwoFactor,
+  changeEmail,
+  changePassword,
+  confirmTwoFactor,
+  loginOrRegister,
+  replaceRecoveryCodes,
+  updateProfile,
+} from "./accounts";
+import {
+  assertTrustedOrigin,
+  corsHeaders,
+  errorResponse,
+  HttpError,
+  json,
+  readJson,
+} from "./http";
+import { getAvatar, getMedia, uploadAvatar, uploadMedia } from "./media";
+import type { Env } from "./platform";
+import {
+  createComment,
+  createPost,
+  deleteComment,
+  deletePost,
+  getComments,
+  getPostById,
+  getPostByPath,
+  getPostsByUser,
+  getSavedPosts,
+  getTimeline,
+  searchPosts,
+  setLike,
+  setRepost,
+  setSaved,
+  updatePost,
+} from "./posts";
+import { testStorageConnection } from "./s3";
+import {
+  accountFromRow,
+  clearSessionCookie,
+  createSession,
+  deleteSession,
+  getOptionalUser,
+  requireUser,
+} from "./security";
+import {
+  deleteStorageConfig,
+  getStorageConfigs,
+  saveStorageConfig,
+} from "./storage";
+import { clearAvatar, getUserProfile, setFollow } from "./users";
+
+function withCookie(response: Response, cookie: string): Response {
+  response.headers.append("Set-Cookie", cookie);
+  return response;
+}
+
+function segment(values: string[], index: number): string {
+  try {
+    return decodeURIComponent(values[index] ?? "");
+  } catch {
+    throw new HttpError(400, "INVALID_PATH", "Invalid request path.");
+  }
+}
+
+async function route(request: Request, env: Env, url: URL): Promise<Response> {
+  const parts = url.pathname.split("/").filter(Boolean);
+  const method = request.method;
+
+  if (parts[0] !== "api") {
+    throw new HttpError(404, "NOT_FOUND", "Endpoint not found.");
+  }
+
+  if (parts[1] === "health" && parts.length === 2 && method === "GET") {
+    const result = await env.DB.prepare("SELECT 1 AS ok").first<{
+      ok: number;
+    }>();
+    return json(
+      { ok: result?.ok === 1, service: "fuckxter-api" },
+      request,
+      env,
+    );
+  }
+
+  if (parts[1] === "auth") {
+    if (parts[2] === "me" && parts.length === 3 && method === "GET") {
+      const user = await getOptionalUser(request, env);
+      return json(
+        { account: user ? accountFromRow(user) : null },
+        request,
+        env,
+      );
+    }
+
+    if (
+      (parts[2] === "login" || parts[2] === "register") &&
+      parts.length === 3 &&
+      method === "POST"
+    ) {
+      const body = await readJson<{
+        identifier?: string;
+        password?: string;
+        code?: string;
+      }>(request);
+      const result = await loginOrRegister(
+        env,
+        body.identifier ?? "",
+        body.password ?? "",
+        body.code,
+      );
+      const response = json({ account: result.account }, request, env);
+      return withCookie(
+        response,
+        await createSession(env, result.userId, request),
+      );
+    }
+
+    if (parts[2] === "logout" && parts.length === 3 && method === "POST") {
+      await deleteSession(request, env);
+      const response = json({ ok: true }, request, env);
+      return withCookie(response, clearSessionCookie(request));
+    }
+  }
+
+  if (parts[1] === "timeline" && parts.length === 2 && method === "GET") {
+    const user = await getOptionalUser(request, env);
+    return json(
+      await getTimeline(
+        env,
+        user?.id ?? null,
+        url.searchParams.get("tab") ?? "foryou",
+        url.searchParams.get("cursor"),
+        url.searchParams.get("limit"),
+      ),
+      request,
+      env,
+    );
+  }
+
+  if (parts[1] === "media") {
+    if (parts.length === 2 && method === "POST") {
+      const user = await requireUser(request, env);
+      return json(
+        { media: await uploadMedia(request, env, user.id, user.handle) },
+        request,
+        env,
+        { status: 201 },
+      );
+    }
+
+    if (parts.length === 3 && method === "GET") {
+      const media = await getMedia(env, segment(parts, 2));
+      const headers = corsHeaders(request, env);
+      headers.set("Content-Type", media.contentType);
+      headers.set("Content-Length", String(media.size));
+      headers.set("Content-Disposition", "inline");
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
+      headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+      headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      headers.set("ETag", `"${media.etag}"`);
+      return new Response(media.body, { status: 200, headers });
+    }
+  }
+
+  if (
+    parts[1] === "avatars" &&
+    parts.length === 3 &&
+    (method === "GET" || method === "HEAD")
+  ) {
+    const avatar = await getAvatar(env, segment(parts, 2));
+    const headers = corsHeaders(request, env);
+    headers.set("Content-Type", avatar.contentType);
+    headers.set("Content-Length", String(avatar.size));
+    headers.set("Content-Disposition", "inline");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
+    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    headers.set("ETag", `"${avatar.etag}"`);
+    return new Response(method === "HEAD" ? null : avatar.body, {
+      status: 200,
+      headers,
+    });
+  }
+
+  if (parts[1] === "search" && parts.length === 2 && method === "GET") {
+    const user = await getOptionalUser(request, env);
+    return json(
+      await searchPosts(env, user?.id ?? null, url.searchParams.get("q") ?? ""),
+      request,
+      env,
+    );
+  }
+
+  if (parts[1] === "me") {
+    const user = await requireUser(request, env);
+
+    if (parts.length === 2 && method === "PATCH") {
+      const body = await readJson<Record<string, string>>(request);
+      return json(
+        { account: await updateProfile(env, user.id, body) },
+        request,
+        env,
+      );
+    }
+
+    if (parts[2] === "email" && parts.length === 3 && method === "PUT") {
+      const body = await readJson<{ email?: string; password?: string }>(
+        request,
+      );
+      return json(
+        {
+          account: await changeEmail(
+            env,
+            user.id,
+            body.email ?? "",
+            body.password ?? "",
+          ),
+        },
+        request,
+        env,
+      );
+    }
+
+    if (parts[2] === "password" && parts.length === 3 && method === "PUT") {
+      const body = await readJson<{ current?: string; next?: string }>(request);
+      await changePassword(env, user.id, body.current ?? "", body.next ?? "");
+      return json({ ok: true }, request, env);
+    }
+
+    if (parts[2] === "saved" && parts.length === 3 && method === "GET") {
+      return json({ posts: await getSavedPosts(env, user.id) }, request, env);
+    }
+
+    if (
+      parts[2] === "avatar" &&
+      parts.length === 3 &&
+      (method === "PUT" || method === "DELETE")
+    ) {
+      if (method === "PUT") {
+        await uploadAvatar(request, env, user.id, user.handle);
+      } else await clearAvatar(env, user.id);
+      const updated = await requireUser(request, env);
+      return json({ account: accountFromRow(updated) }, request, env);
+    }
+
+    if (parts[2] === "2fa" && parts[3] === "setup" && method === "POST") {
+      return json(await beginTwoFactor(env, user.id), request, env);
+    }
+
+    if (parts[2] === "2fa" && parts[3] === "confirm" && method === "POST") {
+      const body = await readJson<{ code?: string }>(request);
+      return json(
+        await confirmTwoFactor(env, user.id, body.code ?? ""),
+        request,
+        env,
+      );
+    }
+
+    if (
+      parts[2] === "2fa" &&
+      parts[3] === "recovery-codes" &&
+      method === "POST"
+    ) {
+      return json(await replaceRecoveryCodes(env, user.id), request, env);
+    }
+
+    if (parts[2] === "storage" && parts.length === 3) {
+      if (method === "GET") {
+        const configs = await getStorageConfigs(env, user.id);
+        return json(
+          {
+            configs,
+            defaultId: configs.find((config) => config.isDefault)?.id ?? null,
+          },
+          request,
+          env,
+        );
+      }
+      if (method === "POST") {
+        const body = await readJson<Record<string, unknown>>(request);
+        return json(
+          {
+            config: await saveStorageConfig(env, user.id, {
+              endpoint: String(body.endpoint ?? ""),
+              region: String(body.region ?? ""),
+              bucket: String(body.bucket ?? ""),
+              accessKeyId: String(body.accessKeyId ?? ""),
+              secretAccessKey: String(body.secretAccessKey ?? ""),
+              pathStyle: Boolean(body.pathStyle),
+              name: String(body.name ?? ""),
+              isDefault: Boolean(body.isDefault),
+            }),
+          },
+          request,
+          env,
+          { status: 201 },
+        );
+      }
+    }
+
+    if (parts[2] === "storage" && parts.length === 4) {
+      const configId = segment(parts, 3);
+      if (method === "PUT") {
+        const body = await readJson<Record<string, unknown>>(request);
+        return json(
+          {
+            config: await saveStorageConfig(env, user.id, {
+              id: configId,
+              endpoint: String(body.endpoint ?? ""),
+              region: String(body.region ?? ""),
+              bucket: String(body.bucket ?? ""),
+              accessKeyId: String(body.accessKeyId ?? ""),
+              secretAccessKey: String(body.secretAccessKey ?? ""),
+              pathStyle: Boolean(body.pathStyle),
+              name: String(body.name ?? ""),
+              isDefault: Boolean(body.isDefault),
+            }),
+          },
+          request,
+          env,
+        );
+      }
+      if (method === "DELETE") {
+        await deleteStorageConfig(env, user.id, configId);
+        return json({ ok: true }, request, env);
+      }
+    }
+
+    if (parts[2] === "storage" && parts[3] === "test" && method === "POST") {
+      const body = await readJson<Record<string, unknown>>(request);
+      return json(
+        {
+          message: await testStorageConnection({
+            endpoint: String(body.endpoint ?? ""),
+            region: String(body.region ?? ""),
+            bucket: String(body.bucket ?? ""),
+            accessKeyId: String(body.accessKeyId ?? ""),
+            secretAccessKey: String(body.secretAccessKey ?? ""),
+            pathStyle: Boolean(body.pathStyle),
+          }),
+        },
+        request,
+        env,
+      );
+    }
+  }
+
+  if (parts[1] === "posts") {
+    if (parts.length === 2 && method === "POST") {
+      const user = await requireUser(request, env);
+      const body = await readJson<{ text?: unknown; mediaId?: unknown }>(
+        request,
+      );
+      if (typeof body.text !== "string") {
+        throw new HttpError(400, "INVALID_POST", "Post text is required.");
+      }
+      if (body.mediaId !== undefined && typeof body.mediaId !== "string") {
+        throw new HttpError(400, "INVALID_MEDIA", "Invalid media reference.");
+      }
+      return json(
+        await createPost(env, user.id, body.text, body.mediaId),
+        request,
+        env,
+        { status: 201 },
+      );
+    }
+
+    if (parts.length === 3) {
+      const postId = segment(parts, 2);
+      const user = await getOptionalUser(request, env);
+
+      if (method === "GET") {
+        const post = await getPostById(env, user?.id ?? null, postId);
+        if (!post)
+          throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
+        return json(post, request, env);
+      }
+
+      if (method === "PATCH" || method === "DELETE") {
+        const actor = await requireUser(request, env);
+        if (method === "DELETE") {
+          await deletePost(env, actor.id, postId);
+          return json({ ok: true }, request, env);
+        }
+        const body = await readJson<{ text?: string }>(request);
+        return json(
+          await updatePost(env, actor.id, postId, body.text ?? ""),
+          request,
+          env,
+        );
+      }
+    }
+
+    if (parts.length === 4) {
+      const postId = segment(parts, 2);
+      const action = parts[3];
+
+      if (action === "comments" && method === "GET") {
+        return json({ comments: await getComments(env, postId) }, request, env);
+      }
+
+      if (action === "comments" && method === "POST") {
+        const user = await requireUser(request, env);
+        const body = await readJson<{ text?: string }>(request);
+        return json(
+          {
+            comment: await createComment(env, user.id, postId, body.text ?? ""),
+          },
+          request,
+          env,
+          { status: 201 },
+        );
+      }
+
+      if (
+        (action === "like" || action === "repost" || action === "save") &&
+        (method === "PUT" || method === "DELETE")
+      ) {
+        const user = await requireUser(request, env);
+        const active = method === "PUT";
+        if (action === "like") {
+          return json(
+            await setLike(env, user.id, postId, active),
+            request,
+            env,
+          );
+        }
+        if (action === "repost") {
+          return json(
+            await setRepost(env, user.id, postId, active),
+            request,
+            env,
+          );
+        }
+        return json(
+          { posts: await setSaved(env, user.id, postId, active) },
+          request,
+          env,
+        );
+      }
+    }
+
+    if (parts.length === 5 && parts[3] === "comments" && method === "DELETE") {
+      const user = await requireUser(request, env);
+      await deleteComment(env, user.id, segment(parts, 2), segment(parts, 4));
+      return json({ ok: true }, request, env);
+    }
+
+    if (parts.length === 4 && method === "GET") {
+      const user = await getOptionalUser(request, env);
+      const post = await getPostByPath(
+        env,
+        user?.id ?? null,
+        segment(parts, 2),
+        segment(parts, 3),
+      );
+      if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
+      return json(post, request, env);
+    }
+  }
+
+  if (parts[1] === "users" && parts.length === 3 && method === "GET") {
+    const user = await getOptionalUser(request, env);
+    const profile = await getUserProfile(
+      env,
+      user?.id ?? null,
+      segment(parts, 2),
+    );
+    if (!profile) throw new HttpError(404, "USER_NOT_FOUND", "User not found.");
+    return json({ user: profile }, request, env);
+  }
+
+  if (
+    parts[1] === "users" &&
+    parts[3] === "follow" &&
+    parts.length === 4 &&
+    (method === "PUT" || method === "DELETE")
+  ) {
+    const user = await requireUser(request, env);
+    return json(
+      await setFollow(env, user.id, segment(parts, 2), method === "PUT"),
+      request,
+      env,
+    );
+  }
+
+  if (parts[1] === "users" && parts[3] === "posts" && method === "GET") {
+    const user = await getOptionalUser(request, env);
+    return json(
+      {
+        posts: await getPostsByUser(env, user?.id ?? null, segment(parts, 2)),
+      },
+      request,
+      env,
+    );
+  }
+
+  throw new HttpError(404, "NOT_FOUND", "Endpoint not found.");
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const headers = corsHeaders(request, env);
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers });
+    }
+    try {
+      assertTrustedOrigin(request, env);
+      return await route(request, env, new URL(request.url));
+    } catch (error) {
+      return errorResponse(error, request, env);
+    }
+  },
+};

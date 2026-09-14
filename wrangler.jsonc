@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fuckxter-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-13",
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    "FUCKXTER_ORIGINS": "http://localhost:4321,http://127.0.0.1:4321,https://fuckxter.site,https://www.fuckxter.site,https://fuckxter.pages.dev,https://*.fuckxter.pages.dev",
+  },
+  "routes": [
+    {
+      "pattern": "api.fuckxter.site",
+      "custom_domain": true,
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "fuckxter",
+      "database_id": "56ac6d87-cc10-4b8c-85c9-6689ef074ad8",
+      "migrations_dir": "worker/migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_CACHE",
+      "bucket_name": "fuckxter-r2",
+    },
+  ],
+}

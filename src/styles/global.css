@@ -1,0 +1,86 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+input,
+textarea,
+select,
+img,
+svg {
+  max-width: 100%;
+}
+
+button {
+  cursor: pointer;
+}
+
+* {
+  font-family: "Segoe UI", Roboto, Tahoma, Geneva, Verdana, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f5f6f8;
+  --color-bg-hover: #eef0f3;
+  --color-bg-raised: #f8f9fa;
+  --color-border: #e3e6ea;
+  --color-border-soft: #eef0f3;
+  --color-border-strong: #d5d9df;
+  --color-text: #3f4750;
+  --color-text-strong: #1f2328;
+  --color-text-muted: #6c7480;
+  --color-accent: #5b7aa8;
+  --color-accent-hover: #4c6a96;
+  --color-accent-soft: #e9edf3;
+  --shadow-card: 0 1px 2px rgba(35, 45, 60, 0.05);
+  --shadow-trigger: 0 6px 24px rgba(35, 45, 60, 0.1);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #000000;
+  --color-bg-subtle: #121212;
+  --color-bg-hover: #1a1a1a;
+  --color-bg-raised: #0f0f0f;
+  --color-border: #262626;
+  --color-border-soft: #171717;
+  --color-border-strong: #333333;
+  --color-text: #c9cdd2;
+  --color-text-strong: #f2f4f6;
+  --color-text-muted: #949aa3;
+  --color-accent: #7f9cc0;
+  --color-accent-hover: #93adcf;
+  --color-accent-soft: rgba(127, 156, 192, 0.13);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-trigger: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Let long text wrap instead of stretching the page on small screens. */
+body {
+  overflow-wrap: anywhere;
+}

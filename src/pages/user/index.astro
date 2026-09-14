@@ -1,0 +1,310 @@
+---
+import "../../styles/fuckxter/style.css";
+
+import FuckxterLayout from "../../layouts/FuckxterLayout.astro";
+import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro";
+---
+
+<FuckxterLayout title="个人主页">
+  <div class="fk-app fk-subpage" data-fk-user>
+    <FuckxterSubpageHeader />
+
+    <div class="fk-user-main">
+      <div class="fk-user-inner">
+        <section
+          class="fk-user-head"
+          data-role="user-head"
+          aria-label="用户资料"
+        >
+          <p class="fk-status">加载中…</p>
+        </section>
+        <section
+          class="fk-user-posts"
+          data-role="user-posts"
+          aria-label="该用户的帖子"
+        >
+        </section>
+      </div>
+    </div>
+  </div>
+</FuckxterLayout>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import {
+    getUserProfile,
+    getPostsByUser,
+    setFollow,
+    toggleLike,
+    toggleRepost,
+    toggleSave,
+  } from "../../lib/fuckxter/api";
+  import {
+    getAccount,
+    hydrateSession,
+    requestAuthentication,
+    type Account,
+  } from "../../lib/fuckxter/auth";
+  import {
+    authorAvatar,
+    avatarGradient,
+    el,
+    fmtCount,
+    ICONS,
+    renderPost,
+    setFollowButtonState,
+    statusRow,
+  } from "../../lib/fuckxter/dom";
+  import { ApiError } from "../../lib/fuckxter/http";
+  import { onFuckxterPageReady } from "../../lib/fuckxter/page";
+  import { sharePost } from "../../lib/fuckxter/share";
+  import type { Post, UserProfile } from "../../lib/fuckxter/types";
+  import { parseUserPath, postPath, userPath } from "../../lib/fuckxter/urls";
+
+  const fullTime = (iso: string) =>
+    new Date(iso).toLocaleString("zh-CN", { dateStyle: "long" });
+
+  function renderUserHead(
+    profile: UserProfile,
+    isOwn: boolean,
+  ): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    const banner = el("div", "fk-user-banner");
+    banner.setAttribute("style", avatarGradient(profile.handle));
+    const card = el("section", "fk-user-head-card");
+
+    const row = el("div", "fk-user-row");
+    const avatar = authorAvatar(
+      profile.handle,
+      profile.name,
+      "fk-user-avatar",
+      profile.avatarUrl,
+    );
+    avatar.title = profile.name;
+
+    const who = el("div", "fk-user-who");
+    const nameLine = el("div", "fk-user-name-line");
+    const name = el("strong");
+    name.textContent = profile.name;
+    nameLine.append(name);
+    if (profile.verified)
+      nameLine.insertAdjacentHTML("beforeend", ICONS.verified);
+    const handle = el("div", "fk-user-handle");
+    handle.textContent = `@${profile.handle}`;
+    const bio = el("p", "fk-user-bio");
+    bio.textContent = profile.bio || "这个人很懒，什么都没有写。";
+    who.append(nameLine, handle, bio);
+    row.append(avatar, who);
+
+    const meta = el("div", "fk-user-meta");
+    const chip = (label: string, value: string) => {
+      if (!value) return;
+      const span = el("span", "fk-user-chip");
+      const chipLabel = el("span", "fk-user-chip-label");
+      chipLabel.textContent = label;
+      const chipValue = el("span", "fk-user-chip-value");
+      chipValue.textContent = value;
+      span.append(chipLabel, chipValue);
+      meta.append(span);
+    };
+    chip("性别", profile.gender);
+    chip("地区", profile.region);
+    chip("生日", profile.birthday);
+    chip("加入时间", fullTime(profile.createdAt));
+    chip("帖子", String(profile.stats.posts));
+    chip("关注者", String(profile.stats.followers));
+    chip("正在关注", String(profile.stats.following));
+
+    card.append(row, meta);
+
+    const actions = el("div", "fk-user-actions");
+    if (isOwn) {
+      const edit = el("button", "fk-primary-btn");
+      edit.type = "button";
+      edit.textContent = "编辑资料";
+      edit.addEventListener("click", () => navigate("/settings/profile"));
+
+      actions.append(edit);
+    } else {
+      const follow = el("button", "fk-primary-btn");
+      follow.type = "button";
+      const renderFollow = (following: boolean) => {
+        follow.textContent = following ? "已关注" : "关注";
+        follow.classList.toggle("fk-ghost-btn", following);
+      };
+      renderFollow(profile.viewer.following);
+      follow.addEventListener("click", async () => {
+        follow.disabled = true;
+        const next = !follow.classList.contains("fk-ghost-btn");
+        try {
+          const result = await setFollow(profile.handle, next);
+          profile.viewer.following = result.following;
+          profile.stats.followers = result.followers;
+          renderFollow(result.following);
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            requestAuthentication();
+          }
+        } finally {
+          follow.disabled = false;
+        }
+      });
+      actions.append(follow);
+    }
+    card.append(actions);
+
+    fragment.append(banner, card);
+    return fragment;
+  }
+
+  function bindPostList(
+    root: HTMLElement,
+    posts: Post[],
+    onChange: () => void,
+  ) {
+    root.replaceChildren(
+      ...(posts.length === 0
+        ? [statusRow("还没有发过帖子。")]
+        : posts.map((post) => renderPost(post))),
+    );
+
+    root.addEventListener("click", async (event) => {
+      const target = event.target as HTMLElement;
+
+      const avatarLink = target.closest<HTMLElement>(".fk-avatar-link");
+      if (avatarLink?.dataset.handle) {
+        event.preventDefault();
+        navigate(userPath(avatarLink.dataset.handle));
+        return;
+      }
+
+      const followButton = target.closest<HTMLButtonElement>(".fk-follow-btn");
+      if (followButton?.dataset.handle) {
+        if (!getAccount()) {
+          requestAuthentication();
+          return;
+        }
+        followButton.disabled = true;
+        const following = followButton.dataset.following !== "true";
+        try {
+          const result = await setFollow(
+            followButton.dataset.handle,
+            following,
+          );
+          setFollowButtonState(followButton, result.following);
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            requestAuthentication();
+          }
+        } finally {
+          followButton.disabled = false;
+        }
+        return;
+      }
+
+      const btn = target.closest<HTMLButtonElement>(".fk-action");
+      const article = (btn ?? target).closest<HTMLElement>(".fk-post");
+      const id = article?.dataset.postId;
+      const post = posts.find((p) => p.id === id);
+      if (!post) return;
+
+      if (!btn) {
+        navigate(postPath(post));
+        return;
+      }
+      const action = btn.dataset.action;
+
+      if (action === "save") {
+        const willSave = !btn.classList.contains("is-saved");
+        btn.classList.toggle("is-saved", willSave);
+        try {
+          await toggleSave(post, willSave);
+        } catch {
+          btn.classList.toggle("is-saved", !willSave);
+        }
+        return;
+      }
+
+      if (action === "like" || action === "repost") {
+        const cls = action === "like" ? "is-liked" : "is-reposted";
+        const willActive = !btn.classList.contains(cls);
+        btn.classList.toggle(cls, willActive);
+        try {
+          let count: number;
+          if (action === "like") {
+            ({ likes: count } = await toggleLike(post.id, willActive));
+          } else {
+            ({ reposts: count } = await toggleRepost(post.id, willActive));
+          }
+          btn.querySelector<HTMLElement>(".fk-action-count")!.textContent =
+            count > 0 ? fmtCount(count) : "";
+          btn.classList.toggle(cls, willActive);
+          onChange();
+        } catch {
+          btn.classList.toggle(cls, !willActive);
+        }
+        return;
+      }
+
+      if (action === "share" || action === "copy") {
+        const originalTitle = btn.title;
+        try {
+          const result = await sharePost(post, action === "copy");
+          btn.title = result === "copied" ? "已复制链接" : "已分享";
+          setTimeout(() => {
+            btn.title = originalTitle;
+          }, 1200);
+        } catch {}
+      }
+    });
+  }
+
+  const mount = async () => {
+    const container = document.querySelector<HTMLElement>("[data-fk-user]");
+    if (!container) return;
+    if (container.dataset.fkUserMounted === "true") return;
+    container.dataset.fkUserMounted = "true";
+    await hydrateSession();
+
+    container
+      .querySelector<HTMLButtonElement>("[data-role=back]")!
+      .addEventListener("click", () =>
+        history.length > 1 ? history.back() : (location.href = "/"),
+      );
+
+    const head = container.querySelector<HTMLElement>("[data-role=user-head]")!;
+    const postsRoot = container.querySelector<HTMLElement>(
+      "[data-role=user-posts]",
+    )!;
+
+    const account: Account | null = getAccount();
+    const handle = (
+      parseUserPath(location.pathname) ??
+      account?.profile.handle ??
+      ""
+    )
+      .replace(/^@/, "")
+      .toLowerCase();
+    if (!handle) {
+      navigate("/");
+      return;
+    }
+
+    void Promise.all([getUserProfile(handle), getPostsByUser(handle)])
+      .then(([profile, posts]) => {
+        const isOwn = account?.profile.handle === profile.handle;
+        document.title = `@${handle} | MoAEIOU`;
+        head.replaceChildren(renderUserHead(profile, isOwn));
+        bindPostList(postsRoot, posts, () => {});
+      })
+      .catch((error: unknown) => {
+        head.replaceChildren(
+          statusRow(error instanceof Error ? error.message : "用户加载失败。"),
+        );
+      });
+  };
+
+  onFuckxterPageReady(() => {
+    void mount();
+  });
+</script>

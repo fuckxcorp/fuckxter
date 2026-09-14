@@ -1,0 +1,29 @@
+---
+interface Props {
+  label?: string;
+}
+
+const { label = "← 返回" } = Astro.props;
+---
+
+<header class="fk-topbar">
+  <a class="fk-brand" href="/" aria-label="返回 FuckXter 首页">
+    <img
+      class="fk-logo-img fk-logo-light"
+      src="/FuckXter_bk.avif"
+      alt="FuckXter"
+      width="515"
+      height="128"
+      decoding="async"
+    />
+    <img
+      class="fk-logo-img fk-logo-dark"
+      src="/FuckXter_logo.png"
+      alt="FuckXter"
+      width="514"
+      height="514"
+      decoding="async"
+    />
+  </a>
+  <button type="button" class="fk-back-btn" data-role="back">{label}</button>
+</header>

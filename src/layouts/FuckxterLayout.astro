@@ -1,0 +1,30 @@
+---
+import "../styles/global.css";
+import ThemeScript from "../components/ThemeScript.astro";
+import { ClientRouter } from "astro:transitions";
+
+interface Props {
+  title?: string;
+}
+
+const { title = "FuckXter" } = Astro.props;
+const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
+---
+
+<html lang="zh-CN" data-theme="light" transition:animate="none">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="FuckXter 是一个开放、轻量的社交平台。" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta property="og:site_name" content="FuckXter" />
+    <link rel="icon" type="image/png" href="/FuckXter_logo.png" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{documentTitle}</title>
+    <ClientRouter />
+    <ThemeScript />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
