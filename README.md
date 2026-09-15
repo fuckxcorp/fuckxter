@@ -33,7 +33,7 @@ avatars/<username>.avif
 headers/<username>.avif
 ```
 
-上传头像、主页头图和帖子图片时会通过 Cloudflare Images binding 转换为 AVIF（quality `82`）。头像最大 512×512，主页头图和帖子图片最大 2048×2048，均保持宽高比且不会上采样。
+上传头像、主页头图和帖子图片时会通过 Cloudflare Images binding 转换为 AVIF（quality `82`）。头像最大 512×512，主页头图最大 1000×300，帖子图片最大 2048×2048，均保持宽高比且不会上采样。
 
 ## 开发
 

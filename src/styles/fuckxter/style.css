@@ -379,7 +379,7 @@
   display: grid;
   place-items: center;
   width: 100%;
-  aspect-ratio: 16 / 6;
+  aspect-ratio: 10 / 3;
   overflow: hidden;
   border: 1px dashed var(--color-border-strong);
   border-radius: 11px;

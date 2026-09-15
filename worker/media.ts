@@ -9,7 +9,8 @@ import { headerObjectKey } from "./avatar";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const AVATAR_MAX_DIMENSION = 512;
 const MEDIA_MAX_DIMENSION = 2048;
-const HEADER_MAX_DIMENSION = 2048;
+const HEADER_MAX_WIDTH = 1000;
+const HEADER_MAX_HEIGHT = 300;
 const AVIF_QUALITY = 82;
 const ALLOWED_MEDIA = new Set([
   "image/jpeg",
@@ -63,7 +64,8 @@ async function convertToAvif(
   env: Env,
   bytes: ArrayBuffer,
   options: {
-    maxDimension: number;
+    width: number;
+    height: number;
     animated: boolean;
   },
 ): Promise<ArrayBuffer> {
@@ -79,8 +81,8 @@ async function convertToAvif(
   try {
     const output = await env.IMAGES.input(body)
       .transform({
-        width: options.maxDimension,
-        height: options.maxDimension,
+        width: options.width,
+        height: options.height,
         fit: "scale-down",
       })
       .output({
@@ -157,7 +159,8 @@ export async function uploadMedia(
 ) {
   const { bytes: sourceBytes, originalName } = await readImage(request);
   const bytes = await convertToAvif(env, sourceBytes, {
-    maxDimension: MEDIA_MAX_DIMENSION,
+    width: MEDIA_MAX_DIMENSION,
+    height: MEDIA_MAX_DIMENSION,
     animated: true,
   });
   const contentType = "image/avif";
@@ -240,7 +243,8 @@ export async function uploadAvatar(
 ): Promise<string> {
   const { bytes: sourceBytes } = await readImage(request);
   const bytes = await convertToAvif(env, sourceBytes, {
-    maxDimension: AVATAR_MAX_DIMENSION,
+    width: AVATAR_MAX_DIMENSION,
+    height: AVATAR_MAX_DIMENSION,
     animated: false,
   });
   const contentType = "image/avif";
@@ -274,7 +278,8 @@ export async function uploadHeader(
 ): Promise<string> {
   const { bytes: sourceBytes } = await readImage(request);
   const bytes = await convertToAvif(env, sourceBytes, {
-    maxDimension: HEADER_MAX_DIMENSION,
+    width: HEADER_MAX_WIDTH,
+    height: HEADER_MAX_HEIGHT,
     animated: false,
   });
   const contentType = "image/avif";
@@ -414,7 +419,8 @@ export async function getMedia(
       };
     }
     const avifBytes = await convertToAvif(env, await cached.arrayBuffer(), {
-      maxDimension: MEDIA_MAX_DIMENSION,
+      width: MEDIA_MAX_DIMENSION,
+      height: MEDIA_MAX_DIMENSION,
       animated: true,
     });
     await env.MEDIA_CACHE.put(cacheKey, avifBytes, {
@@ -468,7 +474,8 @@ export async function getMedia(
     detected === "image/avif"
       ? bytes
       : await convertToAvif(env, bytes, {
-          maxDimension: MEDIA_MAX_DIMENSION,
+          width: MEDIA_MAX_DIMENSION,
+          height: MEDIA_MAX_DIMENSION,
           animated: true,
         });
   await env.MEDIA_CACHE.put(cacheKey, avifBytes, {
