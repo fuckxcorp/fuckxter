@@ -221,7 +221,7 @@ export function mountAccountControls(
         navigate("/notice");
       } else if (open.dataset.accountOpen === "settings" && account) {
         closeAccountMenu();
-        navigate("/settings");
+        navigate("/settings/profile");
       }
       return;
     }
