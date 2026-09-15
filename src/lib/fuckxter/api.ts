@@ -1,6 +1,7 @@
 import { ApiError, apiEndpoint, apiRequest } from "./http";
 import type {
   Comment,
+  CommentPage,
   FeedPage,
   FeedTab,
   LikeResult,
@@ -9,6 +10,7 @@ import type {
   PostMedia,
   RepostResult,
   SearchResult,
+  StorageOption,
   UserProfile,
 } from "./types";
 
@@ -49,16 +51,28 @@ export async function deletePost(id: string): Promise<void> {
   });
 }
 
-export async function uploadMedia(file: File): Promise<PostMedia> {
+export async function uploadMedia(
+  file: File,
+  storageConfigId?: string,
+): Promise<PostMedia> {
+  const headers: Record<string, string> = {
+    "Content-Type": file.type,
+    "X-File-Name": encodeURIComponent(file.name),
+  };
+  if (storageConfigId) headers["X-Storage-Config-Id"] = storageConfigId;
   const response = await apiRequest<{ media: PostMedia }>("/api/media", {
     method: "POST",
-    headers: {
-      "Content-Type": file.type,
-      "X-File-Name": encodeURIComponent(file.name),
-    },
+    headers,
     body: file,
   });
   return response.media;
+}
+
+export async function getStorageOptions(): Promise<StorageOption[]> {
+  const response = await apiRequest<{ options: StorageOption[] }>(
+    "/api/me/storage/options",
+  );
+  return response.options;
 }
 
 export function getNotifications(
@@ -135,11 +149,10 @@ export function searchPosts(queryText: string): Promise<SearchResult> {
   return apiRequest<SearchResult>(`/api/search?${query({ q: queryText })}`);
 }
 
-export async function getComments(postId: string): Promise<Comment[]> {
-  const response = await apiRequest<{ comments: Comment[] }>(
+export function getComments(postId: string): Promise<CommentPage> {
+  return apiRequest<CommentPage>(
     `/api/posts/${encodeURIComponent(postId)}/comments`,
   );
-  return response.comments;
 }
 
 export async function createComment(
@@ -237,8 +250,67 @@ export function uploadAvatar(
   });
 }
 
+export function uploadHeader(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", apiEndpoint("/api/me/header"));
+    request.withCredentials = true;
+    request.setRequestHeader("Accept", "application/json");
+    request.setRequestHeader("Content-Type", file.type);
+    request.setRequestHeader("X-File-Name", encodeURIComponent(file.name));
+    request.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable || !onProgress) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    });
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve();
+        return;
+      }
+      let body: {
+        error?: { code?: string; message?: string };
+        message?: string;
+      } = {};
+      try {
+        body = JSON.parse(request.responseText) as typeof body;
+      } catch {}
+      reject(
+        new ApiError(
+          body.error?.message ??
+            body.message ??
+            `Request failed (${request.status}).`,
+          request.status,
+          body.error?.code,
+        ),
+      );
+    });
+    request.addEventListener("error", () => {
+      reject(
+        new ApiError(
+          "Header upload failed. Check your network and try again.",
+          0,
+          "NETWORK",
+        ),
+      );
+    });
+    request.addEventListener("abort", () => {
+      reject(new ApiError("Header upload was cancelled.", 0, "ABORTED"));
+    });
+    request.send(file);
+  });
+}
+
 export async function removeAvatar(): Promise<void> {
   await apiRequest("/api/me/avatar", {
+    method: "DELETE",
+  });
+}
+
+export async function removeHeader(): Promise<void> {
+  await apiRequest("/api/me/header", {
     method: "DELETE",
   });
 }

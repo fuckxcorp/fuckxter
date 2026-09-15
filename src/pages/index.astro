@@ -255,6 +255,17 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
             <span class="fk-char-count">0 / 500</span>
             <button type="button" class="fk-post-btn" disabled>发帖</button>
           </div>
+          <div class="fk-media-options" data-role="media-options" hidden>
+            <label class="fk-media-storage">
+              <span>附件存储桶</span>
+              <select data-role="media-storage" aria-label="选择附件存储桶">
+                <option value="">默认存储桶</option>
+              </select>
+            </label>
+            <p class="fk-media-warning">
+              附件将上传到你选择的对象存储；请勿上传敏感、违法或未经授权的内容。
+            </p>
+          </div>
         </div>
       </section>
 

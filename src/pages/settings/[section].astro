@@ -85,6 +85,46 @@ const sectionTitles: Record<SettingsSection, string> = {
           section === "profile" && (
             <section data-settings-pane="profile">
               <h3 class="fk-settings-title">个人资料</h3>
+              <div class="fk-profile-header">
+                <span
+                  class="fk-profile-header-image"
+                  data-role="profile-header"
+                />
+                <div class="fk-profile-header-actions">
+                  <div>
+                    <strong>主页头图</strong>
+                    <small>会上传到 R2 的 headers/用户名.avif</small>
+                  </div>
+                  <button
+                    type="button"
+                    class="fk-ghost-btn"
+                    data-role="header-upload"
+                  >
+                    更换头图
+                  </button>
+                  <button
+                    type="button"
+                    class="fk-ghost-btn"
+                    data-role="header-remove"
+                    hidden
+                  >
+                    移除头图
+                  </button>
+                  <input
+                    type="file"
+                    data-role="header-input"
+                    accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
+                    hidden
+                  />
+                </div>
+              </div>
+              <progress
+                class="fk-avatar-progress"
+                data-role="header-progress"
+                max="100"
+                value="0"
+                hidden
+              />
               <div class="fk-profile-head">
                 <span class="fk-profile-avatar" data-role="profile-avatar" />
                 <button

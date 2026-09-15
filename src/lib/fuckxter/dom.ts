@@ -178,7 +178,7 @@ export function authorAvatar(
   image.src =
     avatarUrl && avatarUrl.startsWith("/")
       ? apiEndpoint(avatarUrl)
-      : avatarUrl || "/user.webp";
+      : avatarUrl || "/user.avif";
   image.alt = name;
   image.loading = "lazy";
   image.decoding = "async";
@@ -211,7 +211,7 @@ export function renderPost(post: Post): HTMLElement {
 
   const actions = el("footer", "fk-actions");
   actions.append(
-    actionButton("reply", ICONS.reply, "回复", post.stats.replies),
+    actionButton("reply", ICONS.reply, "回帖", post.stats.replies),
     actionButton("repost", ICONS.repost, "转发", post.stats.reposts),
     actionButton("like", ICONS.heart, "喜欢", post.stats.likes),
     actionButton("save", ICONS.bookmark, "收藏", 0),
@@ -265,4 +265,23 @@ export function statusRow(message: string): HTMLElement {
   const row = el("div", "fk-status");
   row.textContent = message;
   return row;
+}
+
+let toastTimer: number | undefined;
+
+export function showToast(message: string): void {
+  let toast = document.querySelector<HTMLElement>("[data-fk-toast]");
+  if (!toast) {
+    toast = el("div", "fk-toast");
+    toast.dataset.fkToast = "";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    document.body.append(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add("is-visible");
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toast?.classList.remove("is-visible");
+  }, 1800);
 }

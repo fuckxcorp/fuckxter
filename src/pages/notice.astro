@@ -54,7 +54,10 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
         notice.type === "like" ||
         notice.type === "repost")
     ) {
-      return `/post/${encodeURIComponent(notice.post.authorHandle)}/${encodeURIComponent(notice.post.slug)}`;
+      const path = `/post/${encodeURIComponent(notice.post.authorHandle)}/${encodeURIComponent(notice.post.slug)}`;
+      return notice.type === "reply" && notice.comment
+        ? `${path}#comment-${encodeURIComponent(notice.comment.id)}`
+        : path;
     }
     if (notice.actor && notice.type === "follow") {
       return `/user/${encodeURIComponent(notice.actor.handle)}`;
@@ -69,7 +72,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
     const actor = notice.actor?.name ?? "系统";
     if (notice.type === "reply") {
       return {
-        action: `${actor} 回复了你的帖子`,
+        action: `${actor} 回帖了你的帖子`,
         detail: notice.comment?.text ?? notice.post?.text ?? "",
       };
     }
@@ -107,7 +110,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
       ? notice.actor.avatarUrl.startsWith("/")
         ? apiEndpoint(notice.actor.avatarUrl)
         : notice.actor.avatarUrl
-      : "/user.webp";
+      : "/user.avif";
     image.alt = "";
     image.loading = "lazy";
     image.decoding = "async";

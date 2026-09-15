@@ -528,6 +528,7 @@ export async function getComments(env: Env, postId: string) {
        c.id,
        c.text,
        c.created_at,
+       COUNT(*) OVER() AS total_count,
        u.id AS author_id,
        u.name AS author_name,
        u.handle AS author_handle,
@@ -538,14 +539,15 @@ export async function getComments(env: Env, postId: string) {
      FROM comments c
      JOIN users u ON u.id = c.author_id
      WHERE c.post_id = ? AND c.deleted_at IS NULL
-     ORDER BY c.created_at ASC
-     LIMIT 500`,
+     ORDER BY c.created_at DESC, c.id DESC
+     LIMIT 100`,
   )
     .bind(postId)
     .all<{
       id: string;
       text: string;
       created_at: string;
+      total_count: number;
       author_id: string;
       author_name: string;
       author_handle: string;
@@ -555,23 +557,28 @@ export async function getComments(env: Env, postId: string) {
       author_updated_at: string;
     }>();
 
-  return (result.results ?? []).map((row) => ({
-    id: row.id,
-    author: {
-      id: row.author_id,
-      name: row.author_name,
-      handle: row.author_handle,
-      verified: Boolean(row.author_verified),
-      avatarUrl: buildAvatarUrl({
+  const rows = [...(result.results ?? [])].reverse();
+  return {
+    total: Number(rows[0]?.total_count ?? 0),
+    comments: rows.map((row) => ({
+      id: row.id,
+      kind: "reply" as const,
+      author: {
+        id: row.author_id,
+        name: row.author_name,
         handle: row.author_handle,
-        avatarKey: row.author_avatar_key,
-        avatarMediaId: row.author_avatar_media_id,
-        updatedAt: row.author_updated_at,
-      }),
-    },
-    text: row.text,
-    createdAt: row.created_at,
-  }));
+        verified: Boolean(row.author_verified),
+        avatarUrl: buildAvatarUrl({
+          handle: row.author_handle,
+          avatarKey: row.author_avatar_key,
+          avatarMediaId: row.author_avatar_media_id,
+          updatedAt: row.author_updated_at,
+        }),
+      },
+      text: row.text,
+      createdAt: row.created_at,
+    })),
+  };
 }
 
 export async function createComment(
@@ -636,6 +643,7 @@ export async function createComment(
 
   return {
     id,
+    kind: "reply" as const,
     author: {
       id: user.id,
       name: user.name,

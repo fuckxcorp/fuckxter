@@ -15,7 +15,14 @@ import {
   json,
   readJson,
 } from "./http";
-import { getAvatar, getMedia, uploadAvatar, uploadMedia } from "./media";
+import {
+  getAvatar,
+  getHeader,
+  getMedia,
+  uploadAvatar,
+  uploadHeader,
+  uploadMedia,
+} from "./media";
 import {
   getNotifications,
   getUnreadNotificationCount,
@@ -51,9 +58,10 @@ import {
 import {
   deleteStorageConfig,
   getStorageConfigs,
+  getStorageOptions,
   saveStorageConfig,
 } from "./storage";
-import { clearAvatar, getUserProfile, setFollow } from "./users";
+import { clearAvatar, clearHeader, getUserProfile, setFollow } from "./users";
 
 function withCookie(response: Response, cookie: string): Response {
   response.headers.append("Set-Cookie", cookie);
@@ -217,6 +225,27 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     });
   }
 
+  if (
+    parts[1] === "headers" &&
+    parts.length === 3 &&
+    (method === "GET" || method === "HEAD")
+  ) {
+    const header = await getHeader(env, segment(parts, 2));
+    const headers = corsHeaders(request, env);
+    headers.set("Content-Type", header.contentType);
+    headers.set("Content-Length", String(header.size));
+    headers.set("Content-Disposition", "inline");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
+    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    headers.set("ETag", `"${header.etag}"`);
+    return new Response(method === "HEAD" ? null : header.body, {
+      status: 200,
+      headers,
+    });
+  }
+
   if (parts[1] === "search" && parts.length === 2 && method === "GET") {
     const user = await getOptionalUser(request, env);
     return json(
@@ -278,6 +307,18 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       return json({ account: accountFromRow(updated) }, request, env);
     }
 
+    if (
+      parts[2] === "header" &&
+      parts.length === 3 &&
+      (method === "PUT" || method === "DELETE")
+    ) {
+      if (method === "PUT") {
+        await uploadHeader(request, env, user.id, user.handle);
+      } else await clearHeader(env, user.id);
+      const updated = await requireUser(request, env);
+      return json({ account: accountFromRow(updated) }, request, env);
+    }
+
     if (parts[2] === "2fa" && parts[3] === "setup" && method === "POST") {
       return json(await beginTwoFactor(env, user.id), request, env);
     }
@@ -297,6 +338,14 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       method === "POST"
     ) {
       return json(await replaceRecoveryCodes(env, user.id), request, env);
+    }
+
+    if (parts[2] === "storage" && parts[3] === "options" && method === "GET") {
+      return json(
+        { options: await getStorageOptions(env, user.id) },
+        request,
+        env,
+      );
     }
 
     if (parts[2] === "storage" && parts.length === 3) {
@@ -431,7 +480,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       const action = parts[3];
 
       if (action === "comments" && method === "GET") {
-        return json({ comments: await getComments(env, postId) }, request, env);
+        return json(await getComments(env, postId), request, env);
       }
 
       if (action === "comments" && method === "POST") {

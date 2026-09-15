@@ -8,7 +8,8 @@ import { usernameKey } from "./usernames";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const AVATAR_MAX_DIMENSION = 512;
 const MEDIA_MAX_DIMENSION = 2048;
-const AVIF_QUALITY = 92;
+const HEADER_MAX_DIMENSION = 2048;
+const AVIF_QUALITY = 82;
 const ALLOWED_MEDIA = new Set([
   "image/jpeg",
   "image/png",
@@ -160,7 +161,9 @@ export async function uploadMedia(
   });
   const contentType = "image/avif";
 
-  const config = await getStorageConfig(env, userId);
+  const requestedConfigId =
+    request.headers.get("X-Storage-Config-Id")?.trim() || undefined;
+  const config = await getStorageConfig(env, userId, requestedConfigId);
   if (!config) {
     throw new HttpError(
       400,
@@ -262,6 +265,40 @@ export async function uploadAvatar(
   return `/api/avatars/${encodeURIComponent(handle)}`;
 }
 
+export async function uploadHeader(
+  request: Request,
+  env: Env,
+  userId: string,
+  handle: string,
+): Promise<string> {
+  const { bytes: sourceBytes } = await readImage(request);
+  const bytes = await convertToAvif(env, sourceBytes, {
+    maxDimension: HEADER_MAX_DIMENSION,
+    animated: false,
+  });
+  const contentType = "image/avif";
+  const objectKey = `headers/${handle}.avif`;
+  const current = await env.DB.prepare(
+    "SELECT header_key FROM users WHERE id = ?",
+  )
+    .bind(userId)
+    .first<{ header_key: string | null }>();
+  await env.MEDIA_CACHE.put(objectKey, bytes, {
+    httpMetadata: { contentType },
+  });
+  await env.DB.prepare(
+    `UPDATE users
+     SET header_key = ?, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(objectKey, new Date().toISOString(), userId)
+    .run();
+  if (current?.header_key && current.header_key !== objectKey) {
+    await env.MEDIA_CACHE.delete(current.header_key);
+  }
+  return `/api/headers/${encodeURIComponent(handle)}`;
+}
+
 export async function moveAvatar(
   env: Env,
   userId: string,
@@ -288,6 +325,32 @@ export async function moveAvatar(
   await env.MEDIA_CACHE.delete(user.avatar_key);
 }
 
+export async function moveHeader(
+  env: Env,
+  userId: string,
+  nextHandle: string,
+): Promise<void> {
+  const user = await env.DB.prepare("SELECT header_key FROM users WHERE id = ?")
+    .bind(userId)
+    .first<{ header_key: string | null }>();
+  if (!user?.header_key) return;
+
+  const nextKey = `headers/${nextHandle}.avif`;
+  if (user.header_key === nextKey) return;
+
+  const object = await env.MEDIA_CACHE.get(user.header_key);
+  if (!object) return;
+  await env.MEDIA_CACHE.put(nextKey, await object.arrayBuffer(), {
+    httpMetadata: {
+      contentType: object.httpMetadata?.contentType ?? "image/avif",
+    },
+  });
+  await env.DB.prepare("UPDATE users SET header_key = ? WHERE id = ?")
+    .bind(nextKey, userId)
+    .run();
+  await env.MEDIA_CACHE.delete(user.header_key);
+}
+
 export async function getAvatar(
   env: Env,
   handle: string,
@@ -312,6 +375,33 @@ export async function getAvatar(
     contentType: object.httpMetadata?.contentType ?? "application/octet-stream",
     size: object.size,
     etag: user.avatar_key,
+  };
+}
+
+export async function getHeader(
+  env: Env,
+  handle: string,
+): Promise<{
+  body: ReadableStream;
+  contentType: string;
+  size: number;
+  etag: string;
+}> {
+  const user = await env.DB.prepare("SELECT header_key FROM users WHERE id = ?")
+    .bind(usernameKey(handle))
+    .first<{ header_key: string | null }>();
+  if (!user?.header_key) {
+    throw new HttpError(404, "HEADER_NOT_FOUND", "Header image not found.");
+  }
+  const object = await env.MEDIA_CACHE.get(user.header_key);
+  if (!object) {
+    throw new HttpError(404, "HEADER_NOT_FOUND", "Header image not found.");
+  }
+  return {
+    body: object.body,
+    contentType: object.httpMetadata?.contentType ?? "application/octet-stream",
+    size: object.size,
+    etag: user.header_key,
   };
 }
 

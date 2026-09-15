@@ -11,3 +11,13 @@ export function buildAvatarUrl(input: {
     ? `/api/media/${encodeURIComponent(input.avatarMediaId)}`
     : null;
 }
+
+export function buildHeaderUrl(input: {
+  handle: string;
+  headerKey: string | null;
+  updatedAt: string;
+}): string | null {
+  return input.headerKey
+    ? `/api/headers/${encodeURIComponent(input.handle)}?v=${encodeURIComponent(input.updatedAt)}`
+    : null;
+}

@@ -1,7 +1,7 @@
 import { HttpError } from "./http";
 import type { Env } from "./platform";
 import { usernameKey } from "./usernames";
-import { buildAvatarUrl } from "./avatar";
+import { buildAvatarUrl, buildHeaderUrl } from "./avatar";
 import { createNotification, deleteNotification } from "./notifications";
 
 interface ProfileRow {
@@ -17,6 +17,7 @@ interface ProfileRow {
   updated_at: string;
   avatar_media_id: string | null;
   avatar_key: string | null;
+  header_key: string | null;
   post_count: number;
   follower_count: number;
   following_count: number;
@@ -38,6 +39,11 @@ function publicProfile(row: ProfileRow) {
       handle: row.handle,
       avatarKey: row.avatar_key,
       avatarMediaId: row.avatar_media_id,
+      updatedAt: row.updated_at,
+    }),
+    headerUrl: buildHeaderUrl({
+      handle: row.handle,
+      headerKey: row.header_key,
       updatedAt: row.updated_at,
     }),
     stats: {
@@ -69,6 +75,7 @@ export async function getUserProfile(
        u.created_at,
        u.avatar_media_id,
        u.avatar_key,
+       u.header_key,
        u.updated_at,
        (SELECT COUNT(*) FROM posts p
          WHERE p.author_id = u.id AND p.deleted_at IS NULL) AS post_count,
@@ -155,4 +162,18 @@ export async function clearAvatar(env: Env, userId: string) {
     .bind(new Date().toISOString(), userId)
     .run();
   if (user?.avatar_key) await env.MEDIA_CACHE.delete(user.avatar_key);
+}
+
+export async function clearHeader(env: Env, userId: string) {
+  const user = await env.DB.prepare("SELECT header_key FROM users WHERE id = ?")
+    .bind(userId)
+    .first<{ header_key: string | null }>();
+  await env.DB.prepare(
+    `UPDATE users
+     SET header_key = NULL, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(new Date().toISOString(), userId)
+    .run();
+  if (user?.header_key) await env.MEDIA_CACHE.delete(user.header_key);
 }

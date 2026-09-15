@@ -2,6 +2,7 @@ import { navigate } from "astro:transitions/client";
 import {
   createPost,
   deletePost,
+  getStorageOptions,
   getTimeline,
   searchPosts,
   setFollow,
@@ -18,11 +19,18 @@ import {
   fmtCount,
   renderPost,
   setFollowButtonState,
+  showToast,
   statusRow,
 } from "./dom";
 import { ApiError, apiEndpoint } from "./http";
-import { sharePost } from "./share";
-import type { FeedTab, Post, PostMedia, SearchResult } from "./types";
+import { copyPostLink, sharePost } from "./share";
+import type {
+  FeedTab,
+  Post,
+  PostMedia,
+  SearchResult,
+  StorageOption,
+} from "./types";
 import { postPath, userPath } from "./urls";
 
 const MAX_CHARS = 500;
@@ -98,6 +106,12 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStatus = container.querySelector<HTMLElement>(
     "[data-role=media-status]",
   )!;
+  const mediaOptions = container.querySelector<HTMLElement>(
+    "[data-role=media-options]",
+  )!;
+  const mediaStorage = container.querySelector<HTMLSelectElement>(
+    "[data-role=media-storage]",
+  )!;
   const searchInput =
     container.querySelector<HTMLInputElement>(".fk-search-input")!;
   const composerAvatar = container.querySelector<HTMLElement>(
@@ -106,6 +120,55 @@ export function mountFeed(container: HTMLElement): FeedControls {
   let selectedMedia: PostMedia | null = null;
   let uploadingMedia = false;
   let editingPostId: string | null = null;
+  let storageOptions: StorageOption[] | null = null;
+  let storageOptionsPromise: Promise<void> | null = null;
+  let storageOwner: string | null = null;
+  let storageRequestId = 0;
+
+  const loadStorageOptions = (owner: string): Promise<void> => {
+    if (storageOptions) return Promise.resolve();
+    if (storageOptionsPromise) return storageOptionsPromise;
+    const requestId = ++storageRequestId;
+    const request = getStorageOptions()
+      .then((options) => {
+        if (storageOwner !== owner) return;
+        storageOptions = options;
+        const current = mediaStorage.value;
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = options.length
+          ? "默认（自动选择）"
+          : "尚未配置对象存储";
+        mediaStorage.replaceChildren(
+          placeholder,
+          ...options.map((config) => {
+            const option = document.createElement("option");
+            option.value = config.id;
+            option.textContent = `${config.name} · ${config.bucket}${
+              config.isDefault ? "（默认）" : ""
+            }`;
+            return option;
+          }),
+        );
+        if (options.some((config) => config.id === current)) {
+          mediaStorage.value = current;
+        }
+      })
+      .catch((error: unknown) => {
+        if (storageOwner !== owner) return;
+        storageOptions = [];
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "存储桶加载失败，将使用默认配置";
+        mediaStorage.replaceChildren(option);
+        console.error("Failed to load storage options", error);
+      })
+      .finally(() => {
+        if (storageRequestId === requestId) storageOptionsPromise = null;
+      });
+    storageOptionsPromise = request;
+    return request;
+  };
 
   const syncComposerUser = () => {
     const account = getAccount();
@@ -118,7 +181,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       ? account.avatarUrl.startsWith("/")
         ? apiEndpoint(account.avatarUrl)
         : account.avatarUrl
-      : "/user.webp";
+      : "/user.avif";
     image.alt = me.name;
     composerAvatar.replaceChildren(image);
     composerAuthHint.hidden = Boolean(account);
@@ -129,6 +192,20 @@ export function mountFeed(container: HTMLElement): FeedControls {
       composerInput.value.length > MAX_CHARS ||
       uploadingMedia;
     composerInput.placeholder = account ? "有什么新鲜事？" : "注册后才能发帖";
+    mediaOptions.hidden = !account;
+    const owner = account?.profile.handle ?? null;
+    if (owner !== storageOwner) {
+      storageOwner = owner;
+      storageRequestId += 1;
+      storageOptions = null;
+      storageOptionsPromise = null;
+      mediaStorage.replaceChildren();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "默认存储桶";
+      mediaStorage.append(placeholder);
+    }
+    if (account) void loadStorageOptions(account.profile.handle);
     if (!account) {
       editingPostId = null;
       selectedMedia = null;
@@ -463,17 +540,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
 
     if (action === "reply") {
-      editingPostId = null;
-      composer.hidden = false;
-      composerInput.value = `@${article.dataset.handle ?? ""} `;
-      composerBtn.textContent = getAccount() ? "发帖" : "注册后发帖";
-      composerInput.focus();
-      composerInput.setSelectionRange(
-        composerInput.value.length,
-        composerInput.value.length,
-      );
-      composerInput.scrollIntoView({ behavior: "smooth", block: "center" });
-      syncComposer();
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      void navigate(`${postPath(post)}#reply`);
       return;
     }
 
@@ -515,14 +586,18 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
 
     if (action === "share" || action === "copy") {
-      const originalTitle = button.title;
       try {
-        const result = await sharePost(post, action === "copy");
-        button.title = result === "copied" ? "已复制链接" : "已分享";
-        setTimeout(() => {
-          button.title = originalTitle;
-        }, 1200);
-      } catch {}
+        if (action === "copy") {
+          await copyPostLink(post);
+          showToast("链接已复制");
+        } else {
+          const result = await sharePost(post);
+          if (result === "copied") showToast("链接已复制");
+          if (result === "shared") showToast("已分享");
+        }
+      } catch {
+        showToast(action === "copy" ? "复制失败" : "分享失败");
+      }
     }
   });
 
@@ -586,12 +661,16 @@ export function mountFeed(container: HTMLElement): FeedControls {
     mediaStatus.hidden = false;
     syncComposer();
     try {
-      selectedMedia = await uploadMedia(file);
+      selectedMedia = await uploadMedia(file, mediaStorage.value || undefined);
       mediaStatus.textContent = `已添加：${file.name}`;
     } catch (error) {
       selectedMedia = null;
       mediaStatus.textContent =
-        error instanceof Error ? error.message : "图片上传失败";
+        error instanceof ApiError && error.code === "STORAGE_REQUIRED"
+          ? "请先在设置中配置 S3 对象存储。"
+          : error instanceof Error
+            ? error.message
+            : "图片上传失败";
       if (error instanceof ApiError && error.status === 401) {
         requestAuthentication();
       }

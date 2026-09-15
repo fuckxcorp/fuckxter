@@ -29,7 +29,7 @@ export function mountSavedSettings(root: HTMLElement): void {
             ? post.author.avatarUrl.startsWith("/")
               ? apiEndpoint(post.author.avatarUrl)
               : post.author.avatarUrl
-            : "/user.webp";
+            : "/user.avif";
           avatarImage.alt = post.author.name;
           avatar.append(avatarImage);
           const body = el("div", "fk-post-body");

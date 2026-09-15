@@ -44,14 +44,14 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     followButton,
     fmtCount,
     ICONS,
-    renderPostDetail,
     renderRichText,
     setFollowButtonState,
+    showToast,
     statusRow,
   } from "../../lib/fuckxter/dom";
-  import { ApiError } from "../../lib/fuckxter/http";
+  import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
   import { onFuckxterPageReady } from "../../lib/fuckxter/page";
-  import { sharePost } from "../../lib/fuckxter/share";
+  import { copyPostLink, sharePost } from "../../lib/fuckxter/share";
   import type { Comment, Post } from "../../lib/fuckxter/types";
   import { parsePostPath, postPath, userPath } from "../../lib/fuckxter/urls";
 
@@ -103,7 +103,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
 
     const actions = el("div", "fk-post-control-actions");
     actions.append(
-      actionButton("reply", ICONS.reply, "回复", post.stats.replies),
+      actionButton("reply", ICONS.reply, "回帖", post.stats.replies),
       actionButton("repost", ICONS.repost, "转发", post.stats.reposts),
       actionButton("like", ICONS.heart, "喜欢", post.stats.likes),
       actionButton("share", ICONS.share, "分享", 0),
@@ -139,9 +139,12 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       const action = btn.dataset.action;
 
       if (action === "reply") {
-        const input = box
-          .closest<HTMLElement>(".fk-post-side")
-          ?.querySelector<HTMLTextAreaElement>(".fk-comment-input");
+        if (!getAccount()) {
+          requestAuthentication();
+          return;
+        }
+        const input =
+          document.querySelector<HTMLTextAreaElement>(".fk-comment-input");
         input?.scrollIntoView({ behavior: "smooth", block: "center" });
         input?.focus();
         return;
@@ -184,14 +187,18 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       }
 
       if (action === "share" || action === "copy") {
-        const originalTitle = btn.title;
         try {
-          const result = await sharePost(post, action === "copy");
-          btn.title = result === "copied" ? "已复制链接" : "已分享";
-          setTimeout(() => {
-            btn.title = originalTitle;
-          }, 1200);
-        } catch {}
+          if (action === "copy") {
+            await copyPostLink(post);
+            showToast("链接已复制");
+          } else {
+            const result = await sharePost(post);
+            if (result === "copied") showToast("链接已复制");
+            if (result === "shared") showToast("已分享");
+          }
+        } catch {
+          showToast(action === "copy" ? "复制失败" : "分享失败");
+        }
       }
     });
 
@@ -199,114 +206,249 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     return box;
   }
 
-  function renderComments(postId: string, canModerate = false): HTMLElement {
-    const box = el("div", "fk-comments");
-    const title = el("h4", "fk-comments-title");
-    title.textContent = "评论";
-    const list = el("div", "fk-comments-list");
-    const status = el("p", "fk-form-status");
-    status.setAttribute("aria-live", "polite");
+  function threadAuthorLine(
+    author: Comment["author"],
+    createdAt: string,
+  ): HTMLElement {
+    const head = el("header", "fk-thread-meta");
+    const who = el("div", "fk-thread-who");
+    const name = el("strong");
+    name.textContent = author.name;
+    who.append(name);
+    if (author.verified) who.insertAdjacentHTML("beforeend", ICONS.verified);
+    const handle = el("span", "fk-thread-handle");
+    handle.textContent = `@${author.handle}`;
+    const time = el("time");
+    time.dateTime = createdAt;
+    time.textContent = fullTime(createdAt);
+    who.append(handle);
+    head.append(who, time);
+    return head;
+  }
 
-    const renderList = (comments: Comment[]) => {
+  function renderOriginPost(post: Post): HTMLElement {
+    const article = el("article", "fk-thread-post fk-thread-origin");
+    const kind = el("span", "fk-thread-kind");
+    kind.textContent = "发起";
+    const avatar = authorAvatar(
+      post.author.handle,
+      post.author.name,
+      "fk-avatar",
+      post.author.avatarUrl,
+    );
+    const body = el("div", "fk-thread-body");
+    body.append(threadAuthorLine(post.author, post.createdAt));
+    const text = el("p", "fk-thread-text");
+    text.append(renderRichText(post.text));
+    body.append(text);
+    if (post.media) {
+      const media = el("div", "fk-media");
+      const image = el("img", "fk-media-image");
+      image.src = post.media.url.startsWith("/")
+        ? apiEndpoint(post.media.url)
+        : post.media.url;
+      image.alt = post.media.alt;
+      image.loading = "eager";
+      image.decoding = "async";
+      image.referrerPolicy = "no-referrer";
+      media.append(image);
+      body.append(media);
+    }
+    article.append(kind, avatar, body);
+    return article;
+  }
+
+  function renderReply(
+    postId: string,
+    comment: Comment,
+    canModerate: boolean,
+    replyTo: (handle: string) => void,
+    refreshComments: () => Promise<void>,
+    status: HTMLElement,
+  ): HTMLElement {
+    const article = el("article", "fk-thread-post fk-thread-reply");
+    article.id = `comment-${comment.id}`;
+    const kind = el("span", "fk-thread-kind");
+    kind.textContent = "回帖";
+    const avatar = authorAvatar(
+      comment.author.handle,
+      comment.author.name,
+      "fk-avatar",
+      comment.author.avatarUrl,
+    );
+    const body = el("div", "fk-thread-body");
+    body.append(threadAuthorLine(comment.author, comment.createdAt));
+    const text = el("p", "fk-thread-text");
+    text.append(renderRichText(comment.text));
+    body.append(text);
+
+    const actions = el("footer", "fk-thread-reply-actions");
+    const reply = el("button", "fk-thread-link-btn");
+    reply.type = "button";
+    reply.textContent = "回复";
+    reply.addEventListener("click", () => replyTo(comment.author.handle));
+    actions.append(reply);
+
+    const me = getAccount();
+    if (me && (canModerate || comment.author.handle === me.profile.handle)) {
+      const remove = el("button", "fk-thread-link-btn is-danger");
+      remove.type = "button";
+      remove.textContent = "删除";
+      remove.addEventListener("click", async () => {
+        if (!confirm("确定删除这条回帖吗？")) return;
+        remove.disabled = true;
+        try {
+          await deleteComment(postId, comment.id);
+          await refreshComments();
+        } catch (error) {
+          remove.disabled = false;
+          status.textContent =
+            error instanceof Error ? error.message : "删除失败";
+        }
+      });
+      actions.append(remove);
+    }
+    body.append(actions);
+    article.append(kind, avatar, body);
+    return article;
+  }
+
+  function renderThread(
+    post: Post,
+    canModerate: boolean,
+    onReplyCountChange: (count: number) => void,
+  ): HTMLElement {
+    const thread = el("section", "fk-thread");
+    const head = el("header", "fk-thread-head");
+    const title = el("h1");
+    title.textContent = "帖子线程";
+    const hint = el("p");
+    hint.textContent = "发起与回帖按时间排列";
+    head.append(title, hint);
+
+    const replies = el("section", "fk-thread-replies");
+    const repliesHead = el("header", "fk-replies-head");
+    const repliesTitle = el("h2");
+    repliesTitle.textContent = "回帖";
+    const repliesCount = el("span");
+    repliesCount.textContent = "0";
+    repliesHead.append(repliesTitle, repliesCount);
+
+    const me = getAccount();
+    const input = el("textarea", "fk-comment-input") as HTMLTextAreaElement;
+    input.rows = 2;
+    input.placeholder = me ? "写下你的回帖" : "登录后才能回帖";
+    input.disabled = !me;
+    const submit = el("button", "fk-primary-btn fk-comment-submit");
+    submit.type = "button";
+    submit.textContent = "回帖";
+    submit.disabled = !me;
+    const composer = el("div", "fk-comments-composer fk-thread-composer");
+    composer.append(input, submit);
+
+    const status = el("p", "fk-thread-status");
+    status.setAttribute("aria-live", "polite");
+    const list = el("div", "fk-comments-list fk-thread-list");
+
+    const replyTo = (handle: string) => {
+      if (!me) {
+        requestAuthentication();
+        return;
+      }
+      const prefix = `@${handle} `;
+      input.value = input.value.startsWith(prefix)
+        ? input.value
+        : `${prefix}${input.value}`;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      composer.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
+    let renderedComments: Comment[] = [];
+    const renderList = (comments: Comment[], total = comments.length): void => {
+      renderedComments = comments;
+      repliesCount.textContent =
+        total > comments.length ? `${comments.length}/${total}` : String(total);
+      repliesCount.title =
+        total > comments.length ? `仅显示最近 ${comments.length} 条回帖` : "";
+      onReplyCountChange(total);
       list.replaceChildren(
         ...(comments.length === 0
           ? [
               (() => {
                 const empty = el("div", "fk-comments-empty");
-                const title = el("strong");
-                title.textContent = "还没有评论";
-                const hint = el("span");
-                hint.textContent = "来发表第一条评论吧。";
-                empty.append(title, hint);
+                const emptyTitle = el("strong");
+                emptyTitle.textContent = "还没有回帖";
+                const emptyHint = el("span");
+                emptyHint.textContent = "来发布第一条回帖吧。";
+                empty.append(emptyTitle, emptyHint);
                 return empty;
               })(),
             ]
-          : comments.map((c) => {
-              const item = el("div", "fk-comment");
-              const avatar = authorAvatar(
-                c.author.handle,
-                c.author.name,
-                "fk-avatar",
-                c.author.avatarUrl,
-              );
-              const body = el("div", "fk-comment-body");
-              const head = el("header", "fk-comment-head");
-              const name = el("strong");
-              name.textContent = c.author.name;
-              const time = el("time");
-              time.textContent = fullTime(c.createdAt);
-              head.append(name, time);
-              const text = el("p", "fk-comment-text");
-              text.append(renderRichText(c.text));
-              body.append(head, text);
-              if (
-                me &&
-                (canModerate || c.author.handle === me.profile.handle)
-              ) {
-                const remove = el("button", "fk-comment-delete");
-                remove.type = "button";
-                remove.textContent = "删除";
-                remove.addEventListener("click", async () => {
-                  if (!confirm("确定删除这条评论吗？")) return;
-                  remove.disabled = true;
-                  try {
-                    await deleteComment(postId, c.id);
-                    await refreshComments();
-                  } catch (error) {
-                    remove.disabled = false;
-                    status.textContent =
-                      error instanceof Error ? error.message : "删除失败";
-                  }
-                });
-                body.append(remove);
-              }
-              item.append(avatar, body);
-              return item;
-            })),
+          : comments.map((comment) =>
+              renderReply(
+                post.id,
+                comment,
+                canModerate,
+                replyTo,
+                refreshComments,
+                status,
+              ),
+            )),
       );
     };
 
     const refreshComments = async () => {
       try {
-        renderList(await getComments(postId));
+        const page = await getComments(post.id);
+        renderList(page.comments, page.total);
+        if (location.hash.startsWith("#comment-")) {
+          requestAnimationFrame(() => {
+            document
+              .getElementById(decodeURIComponent(location.hash.slice(1)))
+              ?.scrollIntoView({ behavior: "smooth", block: "center" });
+          });
+        }
       } catch (error) {
-        renderList([]);
+        renderList([], 0);
         status.textContent =
-          error instanceof Error ? error.message : "评论加载失败";
+          error instanceof Error ? error.message : "回帖加载失败";
       }
     };
 
-    const me = getAccount();
-    const input = el("textarea", "fk-comment-input") as HTMLTextAreaElement;
-    input.rows = 2;
-    input.placeholder = me ? "发布你的评论" : "登录后才能评论";
-    input.disabled = !me;
-    const submit = el("button", "fk-primary-btn fk-comment-submit");
-    submit.type = "button";
-    submit.textContent = "评论";
-    submit.disabled = !me;
     submit.addEventListener("click", async () => {
       const text = input.value.trim();
       if (!text || !me) return;
       submit.disabled = true;
       try {
-        await createComment(postId, text);
+        await createComment(post.id, text);
         input.value = "";
         status.textContent = "";
         await refreshComments();
+        const latest = renderedComments.at(-1);
+        if (latest) {
+          document
+            .getElementById(`comment-${latest.id}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
       } catch (error) {
         status.textContent =
-          error instanceof Error ? error.message : "评论失败";
+          error instanceof Error ? error.message : "回帖失败";
       } finally {
         submit.disabled = false;
       }
     });
 
-    const composer = el("div", "fk-comments-composer");
-    composer.append(input, submit);
-    box.append(title, composer, status, list);
+    replies.append(repliesHead, composer, status, list);
+    thread.append(head, renderOriginPost(post), replies);
+    if (location.hash === "#reply" && me) {
+      requestAnimationFrame(() => {
+        composer.scrollIntoView({ behavior: "smooth", block: "center" });
+        input.focus();
+      });
+    }
     void refreshComments();
-    return box;
+    return thread;
   }
 
   const mount = async () => {
@@ -375,15 +517,23 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
           history.replaceState(null, "", postPath(post));
         }
         document.title = `${post.author.name}：${post.text.slice(0, 30)} | FuckXter`;
-        host.replaceChildren(renderPostDetail(post));
-        side.replaceChildren(
-          renderPostInfo(post),
-          renderPostControls(post),
-          renderComments(
-            post.id,
-            getAccount()?.profile.handle === post.author.handle,
-          ),
+        const controls = renderPostControls(post);
+        const thread = renderThread(
+          post,
+          getAccount()?.profile.handle === post.author.handle,
+          (count) => {
+            post.stats.replies = count;
+            const reply = controls.querySelector<HTMLButtonElement>(
+              '[data-action="reply"]',
+            );
+            if (!reply) return;
+            reply.dataset.count = String(count);
+            reply.querySelector<HTMLElement>(".fk-action-count")!.textContent =
+              count > 0 ? fmtCount(count) : "";
+          },
         );
+        host.replaceChildren(thread);
+        side.replaceChildren(renderPostInfo(post), controls);
         side.hidden = false;
       })
       .catch((error: unknown) => {

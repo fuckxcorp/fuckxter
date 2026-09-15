@@ -1,4 +1,4 @@
-import { removeAvatar, uploadAvatar } from "../api";
+import { removeAvatar, removeHeader, uploadAvatar, uploadHeader } from "../api";
 import { getAccount, hydrateSession, updateProfile } from "../auth";
 import { avatarGradient } from "../dom";
 import { ApiError, apiEndpoint } from "../http";
@@ -31,6 +31,19 @@ export function mountProfileSettings(
   )!;
   const avatarProgress = root.querySelector<HTMLProgressElement>(
     "[data-role=avatar-progress]",
+  )!;
+  const header = root.querySelector<HTMLElement>("[data-role=profile-header]")!;
+  const headerUpload = root.querySelector<HTMLButtonElement>(
+    "[data-role=header-upload]",
+  )!;
+  const headerRemove = root.querySelector<HTMLButtonElement>(
+    "[data-role=header-remove]",
+  )!;
+  const headerInput = root.querySelector<HTMLInputElement>(
+    "[data-role=header-input]",
+  )!;
+  const headerProgress = root.querySelector<HTMLProgressElement>(
+    "[data-role=header-progress]",
   )!;
   const cropDialog = root.querySelector<HTMLDialogElement>(
     "[data-role=avatar-crop-dialog]",
@@ -159,6 +172,18 @@ export function mountProfileSettings(
     return (error.code && messages[error.code]) || "头像操作失败，请稍后重试。";
   };
 
+  const headerErrorMessage = (error: unknown): string => {
+    if (!(error instanceof ApiError)) return "头图操作失败，请稍后重试。";
+    const messages: Record<string, string> = {
+      MEDIA_TOO_LARGE: "图片不能超过 10 MB。",
+      UNSUPPORTED_MEDIA: "仅支持 JPEG、PNG、GIF、WebP 和 AVIF 图片。",
+      TIMEOUT: "请求超时，请检查网络后重试。",
+      NETWORK: "网络连接失败，请稍后重试。",
+      UNAUTHORIZED: "登录状态已失效，请重新登录。",
+    };
+    return (error.code && messages[error.code]) || "头图操作失败，请稍后重试。";
+  };
+
   const syncGenderField = (gender: string) => {
     if (GENDER_PRESETS.includes(gender) || !gender) {
       genderSelect.value = gender;
@@ -192,9 +217,20 @@ export function mountProfileSettings(
       ? account.avatarUrl.startsWith("/")
         ? apiEndpoint(account.avatarUrl)
         : account.avatarUrl
-      : "/user.webp";
+      : "/user.avif";
     image.alt = account.profile.name;
     avatar.replaceChildren(image);
+    headerRemove.hidden = !account.headerUrl;
+    header.replaceChildren();
+    if (account.headerUrl) {
+      const headerImage = document.createElement("img");
+      headerImage.className = "fk-profile-header-preview";
+      headerImage.src = account.headerUrl.startsWith("/")
+        ? apiEndpoint(account.headerUrl)
+        : account.headerUrl;
+      headerImage.alt = `${account.profile.name} 的主页头图`;
+      header.append(headerImage);
+    }
   };
 
   const refreshAccount = async () => {
@@ -304,6 +340,50 @@ export function mountProfileSettings(
       setStatus(profileStatus, avatarErrorMessage(error));
     } finally {
       avatarRemove.disabled = false;
+    }
+  });
+
+  headerUpload.addEventListener("click", () => headerInput.click());
+  headerInput.addEventListener("change", async () => {
+    const file = headerInput.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setStatus(profileStatus, "头图不能超过 10 MB。");
+      headerInput.value = "";
+      return;
+    }
+    headerUpload.disabled = true;
+    headerRemove.disabled = true;
+    headerProgress.hidden = false;
+    headerProgress.value = 0;
+    setStatus(profileStatus, "上传中 0%");
+    try {
+      await uploadHeader(file, (percent) => {
+        headerProgress.value = percent;
+        setStatus(profileStatus, `上传中 ${percent}%`);
+      });
+      await refreshAccount();
+      headerProgress.value = 100;
+      setStatus(profileStatus, "头图已更新");
+    } catch (error) {
+      setStatus(profileStatus, headerErrorMessage(error));
+    } finally {
+      headerProgress.hidden = true;
+      headerUpload.disabled = false;
+      headerRemove.disabled = false;
+      headerInput.value = "";
+    }
+  });
+  headerRemove.addEventListener("click", async () => {
+    headerRemove.disabled = true;
+    try {
+      await removeHeader();
+      await refreshAccount();
+      setStatus(profileStatus, "头图已删除");
+    } catch (error) {
+      setStatus(profileStatus, headerErrorMessage(error));
+    } finally {
+      headerRemove.disabled = false;
     }
   });
 

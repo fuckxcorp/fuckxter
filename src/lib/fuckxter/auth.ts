@@ -12,6 +12,7 @@ export interface Account {
     birthday: string;
   };
   avatarUrl: string | null;
+  headerUrl: string | null;
   twoFactorEnabled: boolean;
   recoveryCodeCount: number;
   createdAt: string;
@@ -67,6 +68,7 @@ function normalizeAccount(value: Account): Account {
   return {
     ...value,
     avatarUrl: value.avatarUrl ?? null,
+    headerUrl: value.headerUrl ?? null,
     recoveryCodeCount: value.recoveryCodeCount ?? 0,
   };
 }

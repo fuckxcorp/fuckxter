@@ -45,6 +45,28 @@ export async function getStorageConfigs(
   );
 }
 
+export async function getStorageOptions(env: Env, userId: string) {
+  const result = await env.DB.prepare(
+    `SELECT id, name, bucket, is_default
+     FROM s3_configs
+     WHERE user_id = ?
+     ORDER BY is_default DESC, created_at ASC`,
+  )
+    .bind(userId)
+    .all<{
+      id: string;
+      name: string;
+      bucket: string;
+      is_default: number;
+    }>();
+  return (result.results ?? []).map((row) => ({
+    id: row.id,
+    name: row.name || row.bucket || "S3",
+    bucket: row.bucket,
+    isDefault: Boolean(row.is_default),
+  }));
+}
+
 export async function getStorageConfig(
   env: Env,
   userId: string,

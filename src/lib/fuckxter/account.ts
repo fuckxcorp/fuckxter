@@ -105,7 +105,7 @@ export function mountAccountControls(
           ? account.avatarUrl.startsWith("/")
             ? apiEndpoint(account.avatarUrl)
             : account.avatarUrl
-          : "/user.webp";
+          : "/user.avif";
         image.alt = "";
         element.replaceChildren(image);
       }

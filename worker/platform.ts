@@ -87,6 +87,7 @@ export interface UserRow {
   birthday: string;
   avatar_media_id: string | null;
   avatar_key: string | null;
+  header_key: string | null;
   totp_secret: string | null;
   two_factor_enabled: number;
   created_at: string;

@@ -53,11 +53,12 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     ICONS,
     renderPost,
     setFollowButtonState,
+    showToast,
     statusRow,
   } from "../../lib/fuckxter/dom";
-  import { ApiError } from "../../lib/fuckxter/http";
+  import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
   import { onFuckxterPageReady } from "../../lib/fuckxter/page";
-  import { sharePost } from "../../lib/fuckxter/share";
+  import { copyPostLink, sharePost } from "../../lib/fuckxter/share";
   import type { Post, UserProfile } from "../../lib/fuckxter/types";
   import { parseUserPath, postPath, userPath } from "../../lib/fuckxter/urls";
 
@@ -71,6 +72,16 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     const fragment = document.createDocumentFragment();
     const banner = el("div", "fk-user-banner");
     banner.setAttribute("style", avatarGradient(profile.handle));
+    if (profile.headerUrl) {
+      const headerImage = el("img", "fk-user-banner-image");
+      headerImage.src = profile.headerUrl.startsWith("/")
+        ? apiEndpoint(profile.headerUrl)
+        : profile.headerUrl;
+      headerImage.alt = `${profile.name} 的主页头图`;
+      headerImage.loading = "eager";
+      headerImage.decoding = "async";
+      banner.append(headerImage);
+    }
     const card = el("section", "fk-user-head-card");
 
     const row = el("div", "fk-user-row");
@@ -225,6 +236,15 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         return;
       }
 
+      if (action === "reply") {
+        if (!getAccount()) {
+          requestAuthentication();
+          return;
+        }
+        navigate(`${postPath(post)}#reply`);
+        return;
+      }
+
       if (action === "like" || action === "repost") {
         const cls = action === "like" ? "is-liked" : "is-reposted";
         const willActive = !btn.classList.contains(cls);
@@ -247,14 +267,18 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       }
 
       if (action === "share" || action === "copy") {
-        const originalTitle = btn.title;
         try {
-          const result = await sharePost(post, action === "copy");
-          btn.title = result === "copied" ? "已复制链接" : "已分享";
-          setTimeout(() => {
-            btn.title = originalTitle;
-          }, 1200);
-        } catch {}
+          if (action === "copy") {
+            await copyPostLink(post);
+            showToast("链接已复制");
+          } else {
+            const result = await sharePost(post);
+            if (result === "copied") showToast("链接已复制");
+            if (result === "shared") showToast("已分享");
+          }
+        } catch {
+          showToast(action === "copy" ? "复制失败" : "分享失败");
+        }
       }
     });
   }
@@ -293,7 +317,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     void Promise.all([getUserProfile(handle), getPostsByUser(handle)])
       .then(([profile, posts]) => {
         const isOwn = account?.profile.handle === profile.handle;
-        document.title = `@${handle} | MoAEIOU`;
+        document.title = `@${handle} | FuckXter`;
         head.replaceChildren(renderUserHead(profile, isOwn));
         bindPostList(postsRoot, posts, () => {});
       })

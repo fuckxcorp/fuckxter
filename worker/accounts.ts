@@ -1,6 +1,6 @@
 import { HttpError } from "./http";
 import type { Env, UserRow } from "./platform";
-import { moveAvatar } from "./media";
+import { moveAvatar, moveHeader } from "./media";
 import {
   accountFromRow,
   createPasswordHash,
@@ -213,7 +213,10 @@ export async function updateProfile(
     }
   }
   if (username.handle !== current.handle) {
-    await moveAvatar(env, userId, username.handle);
+    await Promise.all([
+      moveAvatar(env, userId, username.handle),
+      moveHeader(env, userId, username.handle),
+    ]);
   }
 
   const now = new Date().toISOString();

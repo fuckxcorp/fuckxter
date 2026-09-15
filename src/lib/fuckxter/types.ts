@@ -73,9 +73,15 @@ export interface SearchResult {
 
 export interface Comment {
   id: string;
+  kind: "reply";
   author: FeedUser;
   text: string;
   createdAt: string;
+}
+
+export interface CommentPage {
+  comments: Comment[];
+  total: number;
 }
 
 export interface UserProfile {
@@ -89,6 +95,7 @@ export interface UserProfile {
   birthday: string;
   createdAt: string;
   avatarUrl: string | null;
+  headerUrl: string | null;
   stats: {
     posts: number;
     followers: number;
@@ -97,6 +104,13 @@ export interface UserProfile {
   viewer: {
     following: boolean;
   };
+}
+
+export interface StorageOption {
+  id: string;
+  name: string;
+  bucket: string;
+  isDefault: boolean;
 }
 
 export type NotificationType =
