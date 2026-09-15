@@ -346,7 +346,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
 
     const me = getAccount();
     const input = el("textarea", "fk-comment-input") as HTMLTextAreaElement;
-    input.rows = 2;
+    input.rows = 6;
     input.placeholder = me ? "写下你的回帖" : "登录后才能回帖";
     input.disabled = !me;
     const submit = el("button", "fk-primary-btn fk-comment-submit");
@@ -363,6 +363,15 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     const status = el("p", "fk-thread-status");
     status.setAttribute("aria-live", "polite");
     const list = el("div", "fk-comments-list fk-thread-list");
+
+    const resizeCommentInput = () => {
+      input.style.height = "auto";
+      const maxHeight = matchMedia("(max-width: 900px)").matches ? 240 : 360;
+      const nextHeight = Math.min(input.scrollHeight, maxHeight);
+      input.style.height = `${nextHeight}px`;
+      input.style.overflowY =
+        input.scrollHeight > maxHeight ? "auto" : "hidden";
+    };
 
     const syncCommentSubmit = () => {
       const length = [...input.value].length;
@@ -385,6 +394,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         ? input.value
         : `${prefix}${input.value}`;
       syncCommentSubmit();
+      resizeCommentInput();
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
       composer.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -452,6 +462,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         await createComment(post.id, text);
         input.value = "";
         syncCommentSubmit();
+        resizeCommentInput();
         status.textContent = "";
         await refreshComments();
         const latest = renderedComments.at(-1);
@@ -470,8 +481,12 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       }
     });
 
-    input.addEventListener("input", syncCommentSubmit);
+    input.addEventListener("input", () => {
+      syncCommentSubmit();
+      resizeCommentInput();
+    });
     syncCommentSubmit();
+    requestAnimationFrame(resizeCommentInput);
 
     replies.append(repliesHead, composer, status, list);
     thread.append(head, renderOriginPost(post), replies);

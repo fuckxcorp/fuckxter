@@ -1772,14 +1772,13 @@
 }
 
 .fk-thread-composer {
-  position: sticky;
-  top: 0.75rem;
-  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   padding: 0.65rem;
   border: 1px solid var(--color-border);
   border-radius: 13px;
-  background: color-mix(in srgb, var(--color-bg-raised) 94%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--color-bg-raised);
 }
 
 .fk-thread-status {
@@ -2010,12 +2009,18 @@
   align-items: flex-end;
 }
 
+.fk-comments-composer.fk-thread-composer {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 0;
+}
+
 .fk-comment-input {
   flex: 1 1 auto;
   box-sizing: border-box;
   resize: none;
-  min-height: 2.4rem;
-  max-height: min(30dvh, 180px);
+  min-height: 6.5rem;
+  max-height: 360px;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0.55rem 0.8rem;
@@ -2037,10 +2042,17 @@
 
 .fk-thread-composer-actions {
   display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 0.55rem;
+  gap: 0.65rem;
+}
+
+.fk-thread-composer .fk-comment-input {
+  width: 100%;
+  min-height: 6.5rem;
+  max-height: 360px;
 }
 
 .fk-comment-count {
@@ -2190,7 +2202,7 @@
 
 @media (max-width: 900px) {
   .fk-comment-input {
-    max-height: 140px;
+    max-height: 240px;
   }
 
   .fk-post-layout {
@@ -2219,10 +2231,6 @@
   .fk-comments-empty {
     min-height: 88px;
     padding: 0.85rem;
-  }
-
-  .fk-thread-composer {
-    position: static;
   }
 
   .fk-thread-list .fk-thread-reply {
