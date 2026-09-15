@@ -271,7 +271,7 @@ export async function presignMediaUpload(
     );
   }
   const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
-  const presigned = await presignS3Put(config, objectKey, contentType);
+  const presigned = await presignS3Put(config, objectKey, contentType, 3600);
   return {
     objectKey,
     originalName: safeFileName(input.fileName ?? null),

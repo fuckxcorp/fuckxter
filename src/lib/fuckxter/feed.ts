@@ -188,10 +188,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
     composerAvatar.replaceChildren(image);
     composerAuthHint.hidden = Boolean(account);
     composerBtn.textContent = account ? "发帖" : "注册后发帖";
+    const composerLength = [...composerInput.value].length;
     composerBtn.disabled =
       !account ||
-      composerInput.value.length === 0 ||
-      composerInput.value.length > MAX_CHARS ||
+      composerLength === 0 ||
+      composerLength > MAX_CHARS ||
       uploadingMedia;
     composerInput.placeholder = account ? "有什么新鲜事？" : "注册后才能发帖";
     mediaStorageWrap.hidden = !account;
