@@ -67,6 +67,8 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const MAX_COMMENT_CHARS = 1000;
+
   function renderPostInfo(post: Post): HTMLElement {
     const box = el("section", "fk-post-info");
     const title = el("h4", "fk-post-info-title");
@@ -351,12 +353,27 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     submit.type = "button";
     submit.textContent = "回帖";
     submit.disabled = !me;
+    const count = el("span", "fk-comment-count");
+    count.textContent = `0 / ${MAX_COMMENT_CHARS}`;
+    const composerActions = el("div", "fk-thread-composer-actions");
+    composerActions.append(count, submit);
     const composer = el("div", "fk-comments-composer fk-thread-composer");
-    composer.append(input, submit);
+    composer.append(input, composerActions);
 
     const status = el("p", "fk-thread-status");
     status.setAttribute("aria-live", "polite");
     const list = el("div", "fk-comments-list fk-thread-list");
+
+    const syncCommentSubmit = () => {
+      const length = [...input.value].length;
+      count.textContent = `${length} / ${MAX_COMMENT_CHARS}`;
+      count.classList.toggle("is-over", length > MAX_COMMENT_CHARS);
+      submit.disabled =
+        !me ||
+        [...input.value.trim()].length === 0 ||
+        length > MAX_COMMENT_CHARS ||
+        submit.dataset.busy === "true";
+    };
 
     const replyTo = (handle: string) => {
       if (!me) {
@@ -367,6 +384,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       input.value = input.value.startsWith(prefix)
         ? input.value
         : `${prefix}${input.value}`;
+      syncCommentSubmit();
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
       composer.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -426,11 +444,14 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
 
     submit.addEventListener("click", async () => {
       const text = input.value.trim();
-      if (!text || !me) return;
+      if (!text || !me || [...input.value].length > MAX_COMMENT_CHARS) return;
+      submit.dataset.busy = "true";
       submit.disabled = true;
+      submit.textContent = "回帖中…";
       try {
         await createComment(post.id, text);
         input.value = "";
+        syncCommentSubmit();
         status.textContent = "";
         await refreshComments();
         const latest = renderedComments.at(-1);
@@ -443,9 +464,14 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         status.textContent =
           error instanceof Error ? error.message : "回帖失败";
       } finally {
-        submit.disabled = false;
+        delete submit.dataset.busy;
+        submit.textContent = "回帖";
+        syncCommentSubmit();
       }
     });
+
+    input.addEventListener("input", syncCommentSubmit);
+    syncCommentSubmit();
 
     replies.append(repliesHead, composer, status, list);
     thread.append(head, renderOriginPost(post), replies);

@@ -591,11 +591,11 @@ export async function createComment(
   if (!cleanText) {
     throw new HttpError(400, "EMPTY_COMMENT", "Comment text is required.");
   }
-  if ([...cleanText].length > 500) {
+  if ([...cleanText].length > 1000) {
     throw new HttpError(
       400,
       "COMMENT_TOO_LONG",
-      "Comment cannot exceed 500 characters.",
+      "Comment cannot exceed 1000 characters.",
     );
   }
   const post = await env.DB.prepare(
