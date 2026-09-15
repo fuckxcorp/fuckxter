@@ -6,7 +6,7 @@ import { getStorageConfig } from "./storage";
 import { usernameKey } from "./usernames";
 import { headerObjectKey } from "./avatar";
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 const AVATAR_MAX_DIMENSION = 512;
 const MEDIA_MAX_DIMENSION = 2048;
 const HEADER_MAX_WIDTH = 1000;
@@ -129,11 +129,11 @@ async function readImage(request: Request): Promise<{
 }> {
   const contentLength = Number(request.headers.get("Content-Length") ?? "0");
   if (contentLength > MAX_IMAGE_BYTES) {
-    throw new HttpError(413, "MEDIA_TOO_LARGE", "Image cannot exceed 10 MB.");
+    throw new HttpError(413, "MEDIA_TOO_LARGE", "Image cannot exceed 30 MB.");
   }
   const bytes = await request.arrayBuffer();
   if (bytes.byteLength > MAX_IMAGE_BYTES) {
-    throw new HttpError(413, "MEDIA_TOO_LARGE", "Image cannot exceed 10 MB.");
+    throw new HttpError(413, "MEDIA_TOO_LARGE", "Image cannot exceed 30 MB.");
   }
   const header = new Uint8Array(bytes.slice(0, 64));
   const contentType = detectImageType(header);

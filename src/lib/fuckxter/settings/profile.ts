@@ -163,7 +163,7 @@ export function mountProfileSettings(
   const avatarErrorMessage = (error: unknown): string => {
     if (!(error instanceof ApiError)) return "头像操作失败，请稍后重试。";
     const messages: Record<string, string> = {
-      MEDIA_TOO_LARGE: "图片不能超过 10 MB。",
+      MEDIA_TOO_LARGE: "图片不能超过 30 MB。",
       UNSUPPORTED_MEDIA: "仅支持 JPEG、PNG、GIF、WebP 和 AVIF 图片。",
       TIMEOUT: "请求超时，请检查网络后重试。",
       NETWORK: "网络连接失败，请稍后重试。",
@@ -175,7 +175,7 @@ export function mountProfileSettings(
   const headerErrorMessage = (error: unknown): string => {
     if (!(error instanceof ApiError)) return "头图操作失败，请稍后重试。";
     const messages: Record<string, string> = {
-      MEDIA_TOO_LARGE: "图片不能超过 10 MB。",
+      MEDIA_TOO_LARGE: "图片不能超过 30 MB。",
       UNSUPPORTED_MEDIA: "仅支持 JPEG、PNG、GIF、WebP 和 AVIF 图片。",
       TIMEOUT: "请求超时，请检查网络后重试。",
       NETWORK: "网络连接失败，请稍后重试。",
@@ -245,8 +245,8 @@ export function mountProfileSettings(
   avatarInput.addEventListener("change", async () => {
     const file = avatarInput.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setStatus(profileStatus, "图片不能超过 10 MB。");
+    if (file.size > 30 * 1024 * 1024) {
+      setStatus(profileStatus, "图片不能超过 30 MB。");
       avatarInput.value = "";
       return;
     }
@@ -347,8 +347,8 @@ export function mountProfileSettings(
   headerInput.addEventListener("change", async () => {
     const file = headerInput.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setStatus(profileStatus, "头图不能超过 10 MB。");
+    if (file.size > 30 * 1024 * 1024) {
+      setStatus(profileStatus, "头图不能超过 30 MB。");
       headerInput.value = "";
       return;
     }
