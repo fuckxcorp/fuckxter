@@ -108,9 +108,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStorageWrap = container.querySelector<HTMLElement>(
     "[data-role=media-storage-wrap]",
   )!;
-  const mediaWarning = container.querySelector<HTMLElement>(
-    "[data-role=media-warning]",
-  )!;
   const mediaStorage = container.querySelector<HTMLSelectElement>(
     "[data-role=media-storage]",
   )!;
@@ -196,7 +193,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
       uploadingMedia;
     composerInput.placeholder = account ? "有什么新鲜事？" : "注册后才能发帖";
     mediaStorageWrap.hidden = !account;
-    mediaWarning.hidden = !account;
     mediaStorage.disabled = !account;
     const owner = account?.profile.handle ?? null;
     if (owner !== storageOwner) {

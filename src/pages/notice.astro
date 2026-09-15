@@ -7,7 +7,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
 
 <FuckxterLayout title="通知">
   <div class="fk-app fk-subpage" data-fk-notice>
-    <FuckxterSubpageHeader />
+    <FuckxterSubpageHeader showRefresh />
 
     <main class="fk-notice-main">
       <section class="fk-notice-panel">
@@ -32,7 +32,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
           data-role="notice-more"
           hidden
         >
-          加载更多
+          加载更早
         </button>
       </section>
     </main>
@@ -135,6 +135,9 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
     const more = container.querySelector<HTMLButtonElement>(
       "[data-role=notice-more]",
     )!;
+    const refresh = container.querySelector<HTMLButtonElement>(
+      "[data-role=notice-refresh]",
+    );
 
     const current = await hydrateSession();
     if (!current) {
@@ -156,17 +159,28 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
       readAll.disabled = unread === 0;
     };
 
-    const markRead = async (notice: Notification, item: HTMLElement) => {
+    const markRead = async (
+      notice: Notification,
+      item: HTMLElement,
+    ): Promise<void> => {
       if (notice.read) return;
-      await markNotificationsRead(notice.id);
       notice.read = true;
       unread = Math.max(0, unread - 1);
       item.classList.remove("is-unread");
       updateSummary();
+      try {
+        await markNotificationsRead(notice.id, true);
+      } catch {
+        notice.read = false;
+        unread += 1;
+        item.classList.add("is-unread");
+        updateSummary();
+      }
     };
 
     const render = (notices: Notification[], append: boolean) => {
       if (!append) {
+        seen.clear();
         list.replaceChildren();
         unread = 0;
       }
@@ -197,13 +211,19 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
           copy.append(detail);
         }
 
-        copy.addEventListener("click", (event) => {
+        const openNotice = (event: Event) => {
+          void markRead(notice, item);
           if (!target) return;
-          if (notice.read) return;
           event.preventDefault();
-          void markRead(notice, item).finally(() => {
-            location.href = target;
-          });
+          location.href = target;
+        };
+        item.tabIndex = 0;
+        item.setAttribute("role", target ? "link" : "button");
+        item.addEventListener("click", openNotice);
+        item.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          openNotice(event);
         });
 
         item.append(noticeAvatar(notice), copy);
@@ -212,8 +232,12 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
       updateSummary();
     };
 
-    const load = async (append: boolean) => {
+    let loading = false;
+    const load = async (append: boolean, silent = false) => {
+      if (loading || (append && !cursor)) return;
+      loading = true;
       more.disabled = true;
+      if (refresh) refresh.disabled = true;
       try {
         const page = await getNotifications(append ? cursor : null);
         cursor = page.nextCursor;
@@ -224,10 +248,14 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
         }
         more.hidden = !cursor;
       } catch (error) {
-        summary.textContent =
-          error instanceof Error ? error.message : "通知加载失败";
+        if (!silent) {
+          summary.textContent =
+            error instanceof Error ? error.message : "通知加载失败";
+        }
       } finally {
+        loading = false;
         more.disabled = false;
+        if (refresh) refresh.disabled = false;
       }
     };
 
@@ -248,6 +276,23 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
     });
 
     more.addEventListener("click", () => void load(true));
+    refresh?.addEventListener("click", () => void load(false));
+
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load(false, true);
+    }, 30_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void load(false, true);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener(
+      "astro:before-swap",
+      () => {
+        window.clearInterval(refreshInterval);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      },
+      { once: true },
+    );
     await load(false);
   };
 

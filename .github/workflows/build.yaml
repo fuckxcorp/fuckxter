@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    name: Esta revolucion no la va a televisiar
+    name: Esta revolucion no va a la televisiar
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

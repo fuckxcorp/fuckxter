@@ -1029,8 +1029,7 @@
   white-space: nowrap;
 }
 
-.fk-media-storage[hidden],
-.fk-media-warning[hidden] {
+.fk-media-storage[hidden] {
   display: none;
 }
 
@@ -1045,13 +1044,6 @@
   color: var(--color-text-strong);
   font: inherit;
   font-size: 0.76rem;
-}
-
-.fk-media-warning {
-  max-width: 13rem;
-  color: color-mix(in srgb, #b45309 88%, var(--color-text));
-  font-size: 0.72rem;
-  line-height: 1.3;
 }
 
 .fk-char-count {
@@ -1474,12 +1466,6 @@
 
   .fk-media-storage select {
     max-width: 7.5rem;
-  }
-
-  .fk-media-warning {
-    order: 10;
-    max-width: 100%;
-    flex-basis: 100%;
   }
 
   .fk-topbar {
@@ -2155,6 +2141,31 @@
   color: var(--color-text-strong);
 }
 
+.fk-topbar-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.fk-topbar-icon:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-accent);
+}
+
+.fk-topbar-icon:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
 @media (max-width: 900px) {
   .fk-post-layout {
     display: block;
@@ -2571,6 +2582,10 @@ a.fk-notice-copy:hover .fk-notice-action {
 .fk-notice-more {
   display: block;
   margin: 1rem auto 0;
+}
+
+.fk-notice-more[hidden] {
+  display: none;
 }
 
 .fk-notice-login {

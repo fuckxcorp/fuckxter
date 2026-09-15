@@ -187,10 +187,14 @@ export function getNotifications(
   );
 }
 
-export async function markNotificationsRead(id?: string): Promise<number> {
+export async function markNotificationsRead(
+  id?: string,
+  keepalive = false,
+): Promise<number> {
   const response = await apiRequest<{ unread: number }>("/api/notice", {
     method: "POST",
     body: JSON.stringify(id ? { id } : {}),
+    keepalive,
   });
   return response.unread;
 }
