@@ -216,7 +216,6 @@ export function renderPost(post: Post): HTMLElement {
     actionButton("like", ICONS.heart, "喜欢", post.stats.likes),
     actionButton("save", ICONS.bookmark, "收藏", 0),
     actionButton("share", ICONS.share, "分享", 0),
-    actionButton("copy", ICONS.copy, "复制链接", 0),
   );
   if (post.viewer?.isAuthor) {
     const edit = actionButton("edit", ICONS.edit, "编辑", 0);

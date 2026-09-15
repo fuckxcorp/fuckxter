@@ -119,7 +119,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
               role="menuitem"
               data-account-open="profile"
             >
-              个人资料
+              主页
             </button>
             <button
               type="button"
@@ -148,7 +148,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
               aria-haspopup="menu"
               data-account-open="theme"
             >
-              主题切换
+              主题
               <span class="fk-menu-arrow" aria-hidden="true">▸</span>
             </button>
 
@@ -193,7 +193,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
               role="menuitem"
               data-account-action="signout"
             >
-              退出登录
+              注销
             </button>
           </div>
         </div>
@@ -240,6 +240,24 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
               accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
               hidden
             />
+            <label
+              class="fk-media-storage"
+              data-role="media-storage-wrap"
+              hidden
+            >
+              <span>存储桶</span>
+              <select data-role="media-storage" aria-label="选择附件存储桶">
+                <option value="">默认存储桶</option>
+              </select>
+            </label>
+            <span
+              class="fk-media-warning"
+              data-role="media-warning"
+              title="附件将上传到所选对象存储，请勿上传敏感、违法或未经授权的内容。"
+              hidden
+            >
+              ⚠ 仅上传你有权分享的内容
+            </span>
             <span
               class="fk-media-status"
               data-role="media-status"
@@ -254,17 +272,6 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
             </span>
             <span class="fk-char-count">0 / 500</span>
             <button type="button" class="fk-post-btn" disabled>发帖</button>
-          </div>
-          <div class="fk-media-options" data-role="media-options" hidden>
-            <label class="fk-media-storage">
-              <span>附件存储桶</span>
-              <select data-role="media-storage" aria-label="选择附件存储桶">
-                <option value="">默认存储桶</option>
-              </select>
-            </label>
-            <p class="fk-media-warning">
-              附件将上传到你选择的对象存储；请勿上传敏感、违法或未经授权的内容。
-            </p>
           </div>
         </div>
       </section>

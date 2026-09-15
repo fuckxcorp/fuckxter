@@ -51,7 +51,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
   } from "../../lib/fuckxter/dom";
   import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
   import { onFuckxterPageReady } from "../../lib/fuckxter/page";
-  import { copyPostLink, sharePost } from "../../lib/fuckxter/share";
+  import { openPostShareMenu } from "../../lib/fuckxter/share";
   import type { Comment, Post } from "../../lib/fuckxter/types";
   import { parsePostPath, postPath, userPath } from "../../lib/fuckxter/urls";
 
@@ -61,9 +61,15 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       timeStyle: "short",
     });
 
-  function renderPostInfo(post: Post): HTMLDetailsElement {
-    const box = el("details", "fk-post-info");
-    const title = el("summary", "fk-post-info-title");
+  const formatBytes = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  function renderPostInfo(post: Post): HTMLElement {
+    const box = el("section", "fk-post-info");
+    const title = el("h4", "fk-post-info-title");
     title.textContent = "详情";
     const author = el("div", "fk-post-info-author");
     const avatar = authorAvatar(
@@ -89,9 +95,20 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       rows.append(dt, dd);
     };
     row("发布时间", fullTime(post.createdAt));
+    row("帖子 ID", post.id);
+    row("正文字数", `${[...post.text].length} 字`);
+    row(
+      "互动数据",
+      `${post.stats.replies} 回帖 · ${post.stats.reposts} 转发 · ${post.stats.likes} 喜欢`,
+    );
+    row(
+      "媒体文件",
+      post.media
+        ? `${post.media.contentType.replace("image/", "").toUpperCase()} · ${formatBytes(post.media.byteSize)}`
+        : "无",
+    );
     if (post.media?.alt) row("媒体描述", post.media.alt);
 
-    box.open = !matchMedia("(max-width: 900px)").matches;
     box.append(title, author, rows);
     return box;
   }
@@ -107,7 +124,6 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       actionButton("repost", ICONS.repost, "转发", post.stats.reposts),
       actionButton("like", ICONS.heart, "喜欢", post.stats.likes),
       actionButton("share", ICONS.share, "分享", 0),
-      actionButton("copy", ICONS.copy, "复制链接", 0),
     );
 
     if (post.viewer?.isAuthor) {
@@ -186,19 +202,11 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         return;
       }
 
-      if (action === "share" || action === "copy") {
-        try {
-          if (action === "copy") {
-            await copyPostLink(post);
-            showToast("链接已复制");
-          } else {
-            const result = await sharePost(post);
-            if (result === "copied") showToast("链接已复制");
-            if (result === "shared") showToast("已分享");
-          }
-        } catch {
-          showToast(action === "copy" ? "复制失败" : "分享失败");
-        }
+      if (action === "share") {
+        const result = await openPostShareMenu(btn, post);
+        if (result === "copied") showToast("链接已复制");
+        if (result === "shared") showToast("已分享");
+        if (result === "failed") showToast("分享失败");
       }
     });
 

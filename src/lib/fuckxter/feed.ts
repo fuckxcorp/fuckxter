@@ -23,7 +23,7 @@ import {
   statusRow,
 } from "./dom";
 import { ApiError, apiEndpoint } from "./http";
-import { copyPostLink, sharePost } from "./share";
+import { openPostShareMenu } from "./share";
 import type {
   FeedTab,
   Post,
@@ -106,8 +106,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStatus = container.querySelector<HTMLElement>(
     "[data-role=media-status]",
   )!;
-  const mediaOptions = container.querySelector<HTMLElement>(
-    "[data-role=media-options]",
+  const mediaStorageWrap = container.querySelector<HTMLElement>(
+    "[data-role=media-storage-wrap]",
+  )!;
+  const mediaWarning = container.querySelector<HTMLElement>(
+    "[data-role=media-warning]",
   )!;
   const mediaStorage = container.querySelector<HTMLSelectElement>(
     "[data-role=media-storage]",
@@ -192,7 +195,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
       composerInput.value.length > MAX_CHARS ||
       uploadingMedia;
     composerInput.placeholder = account ? "有什么新鲜事？" : "注册后才能发帖";
-    mediaOptions.hidden = !account;
+    mediaStorageWrap.hidden = !account;
+    mediaWarning.hidden = !account;
+    mediaStorage.disabled = !account;
     const owner = account?.profile.handle ?? null;
     if (owner !== storageOwner) {
       storageOwner = owner;
@@ -585,19 +590,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
       return;
     }
 
-    if (action === "share" || action === "copy") {
-      try {
-        if (action === "copy") {
-          await copyPostLink(post);
-          showToast("链接已复制");
-        } else {
-          const result = await sharePost(post);
-          if (result === "copied") showToast("链接已复制");
-          if (result === "shared") showToast("已分享");
-        }
-      } catch {
-        showToast(action === "copy" ? "复制失败" : "分享失败");
-      }
+    if (action === "share") {
+      const result = await openPostShareMenu(button, post);
+      if (result === "copied") showToast("链接已复制");
+      if (result === "shared") showToast("已分享");
+      if (result === "failed") showToast("分享失败");
     }
   });
 
