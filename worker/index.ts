@@ -99,7 +99,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     if (parts[2] === "me" && parts.length === 3 && method === "GET") {
       const user = await getOptionalUser(request, env);
       return json(
-        { account: user ? accountFromRow(user) : null },
+        { account: user ? await accountFromRow(env, user) : null },
         request,
         env,
       );
@@ -304,7 +304,11 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         await uploadAvatar(request, env, user.id, user.handle);
       } else await clearAvatar(env, user.id);
       const updated = await requireUser(request, env);
-      return json({ account: accountFromRow(updated) }, request, env);
+      return json(
+        { account: await accountFromRow(env, updated) },
+        request,
+        env,
+      );
     }
 
     if (
@@ -314,9 +318,13 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     ) {
       if (method === "PUT") {
         await uploadHeader(request, env, user.id, user.handle);
-      } else await clearHeader(env, user.id);
+      } else await clearHeader(env, user.handle);
       const updated = await requireUser(request, env);
-      return json({ account: accountFromRow(updated) }, request, env);
+      return json(
+        { account: await accountFromRow(env, updated) },
+        request,
+        env,
+      );
     }
 
     if (parts[2] === "2fa" && parts[3] === "setup" && method === "POST") {

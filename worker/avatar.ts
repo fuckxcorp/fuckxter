@@ -1,3 +1,5 @@
+import { usernameKey } from "./usernames";
+
 export function buildAvatarUrl(input: {
   handle: string;
   avatarKey: string | null;
@@ -14,10 +16,14 @@ export function buildAvatarUrl(input: {
 
 export function buildHeaderUrl(input: {
   handle: string;
-  headerKey: string | null;
   updatedAt: string;
+  exists: boolean;
 }): string | null {
-  return input.headerKey
+  return input.exists
     ? `/api/headers/${encodeURIComponent(input.handle)}?v=${encodeURIComponent(input.updatedAt)}`
     : null;
+}
+
+export function headerObjectKey(handle: string): string {
+  return `headers/${usernameKey(handle)}.avif`;
 }

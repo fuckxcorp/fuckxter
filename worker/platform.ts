@@ -35,6 +35,7 @@ export interface R2ObjectBody {
 export interface R2Bucket {
   delete(key: string): Promise<void>;
   get(key: string): Promise<R2ObjectBody | null>;
+  head(key: string): Promise<{ size: number } | null>;
   put(
     key: string,
     value: ArrayBuffer,
@@ -87,7 +88,6 @@ export interface UserRow {
   birthday: string;
   avatar_media_id: string | null;
   avatar_key: string | null;
-  header_key: string | null;
   totp_secret: string | null;
   two_factor_enabled: number;
   created_at: string;

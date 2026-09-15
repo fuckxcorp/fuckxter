@@ -1,6 +1,6 @@
 import { HttpError } from "./http";
 import type { Env, SessionUserRow, UserRow } from "./platform";
-import { buildAvatarUrl, buildHeaderUrl } from "./avatar";
+import { buildAvatarUrl, buildHeaderUrl, headerObjectKey } from "./avatar";
 
 const SESSION_COOKIE = "fk_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -175,9 +175,11 @@ export async function requireUser(
   return user;
 }
 
-export function accountFromRow(
+export async function accountFromRow(
+  env: Env,
   row: UserRow & { recovery_code_count?: number },
 ) {
+  const header = await env.MEDIA_CACHE.head(headerObjectKey(row.handle));
   return {
     profile: {
       name: row.name,
@@ -196,8 +198,8 @@ export function accountFromRow(
     }),
     headerUrl: buildHeaderUrl({
       handle: row.handle,
-      headerKey: row.header_key,
       updatedAt: row.updated_at,
+      exists: Boolean(header),
     }),
     twoFactorEnabled: Boolean(row.two_factor_enabled),
     recoveryCodeCount: Number(row.recovery_code_count ?? 0),

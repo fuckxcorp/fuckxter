@@ -81,7 +81,7 @@ async function getAccount(env: Env, userId: string) {
     .bind(userId)
     .first<UserRow & { recovery_code_count: number }>();
   if (!row) throw new HttpError(404, "USER_NOT_FOUND", "User not found.");
-  return accountFromRow(row);
+  return accountFromRow(env, row);
 }
 
 export async function loginOrRegister(
@@ -215,7 +215,7 @@ export async function updateProfile(
   if (username.handle !== current.handle) {
     await Promise.all([
       moveAvatar(env, userId, username.handle),
-      moveHeader(env, userId, username.handle),
+      moveHeader(env, current.handle, username.handle),
     ]);
   }
 
