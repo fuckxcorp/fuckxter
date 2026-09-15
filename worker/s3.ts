@@ -44,6 +44,26 @@ function encodePath(path: string): string {
     .join("/");
 }
 
+function awsEncode(value: string): string {
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+function s3Target(input: S3Config, key: string): URL {
+  const endpoint = new URL(input.endpoint?.trim() ?? "");
+  const bucket = input.bucket?.trim() ?? "";
+  const target = new URL(endpoint.toString());
+  if (input.pathStyle) {
+    target.pathname = `${endpoint.pathname.replace(/\/$/, "")}/${bucket}/${key}`;
+  } else {
+    target.hostname = `${bucket}.${endpoint.hostname}`;
+    target.pathname = `${endpoint.pathname.replace(/\/$/, "")}/${key}`;
+  }
+  return target;
+}
+
 export function validateStorageInput(input: S3Config): void {
   if (!/^https?:\/\//.test(input.endpoint?.trim() ?? "")) {
     throw new HttpError(
@@ -67,7 +87,6 @@ export async function signedS3Request(
   validateStorageInput(input);
   const endpointValue = input.endpoint?.trim() ?? "";
   const region = input.region?.trim() || "auto";
-  const bucket = input.bucket?.trim() ?? "";
   const accessKeyId = input.accessKeyId?.trim() ?? "";
   const secretAccessKey = input.secretAccessKey ?? "";
   if (!accessKeyId || !secretAccessKey) {
@@ -79,14 +98,7 @@ export async function signedS3Request(
   }
 
   const endpoint = new URL(endpointValue);
-  const pathStyle = Boolean(input.pathStyle);
-  const target = new URL(endpoint.toString());
-  if (pathStyle) {
-    target.pathname = `${endpoint.pathname.replace(/\/$/, "")}/${bucket}/${key}`;
-  } else {
-    target.hostname = `${bucket}.${endpoint.hostname}`;
-    target.pathname = `${endpoint.pathname.replace(/\/$/, "")}/${key}`;
-  }
+  const target = s3Target(input, key);
 
   const payloadHash = body
     ? hex(await crypto.subtle.digest("SHA-256", body))
@@ -150,6 +162,84 @@ export async function signedS3Request(
     redirect: "manual",
   });
   return { response, endpoint };
+}
+
+export async function presignS3Put(
+  input: S3Config,
+  key: string,
+  contentType: string,
+  expiresSeconds = 900,
+): Promise<{
+  url: string;
+  headers: Record<string, string>;
+  expiresAt: string;
+}> {
+  validateStorageInput(input);
+  const region = input.region?.trim() || "auto";
+  const accessKeyId = input.accessKeyId?.trim() ?? "";
+  const secretAccessKey = input.secretAccessKey ?? "";
+  if (!accessKeyId || !secretAccessKey) {
+    throw new HttpError(
+      400,
+      "STORAGE_CREDENTIALS_REQUIRED",
+      "Access Key ID and Secret Access Key are required.",
+    );
+  }
+
+  const target = s3Target(input, key);
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const dateStamp = amzDate.slice(0, 8);
+  const scope = `${dateStamp}/${region}/s3/aws4_request`;
+  const credential = `${accessKeyId}/${scope}`;
+  const signedHeaders = "content-type;host";
+  const canonicalUri = encodePath(target.pathname || "/");
+  const canonicalHeaders = `content-type:${contentType.trim()}\nhost:${target.host}\n`;
+  const queryEntries: [string, string][] = [
+    ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+    ["X-Amz-Credential", credential],
+    ["X-Amz-Date", amzDate],
+    ["X-Amz-Expires", String(expiresSeconds)],
+    ["X-Amz-SignedHeaders", signedHeaders],
+  ];
+  const canonicalQuery = queryEntries
+    .map(([name, value]) => [awsEncode(name), awsEncode(value)] as const)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, value]) => `${name}=${value}`)
+    .join("&");
+  const canonicalRequest = [
+    "PUT",
+    canonicalUri,
+    canonicalQuery,
+    canonicalHeaders,
+    signedHeaders,
+    "UNSIGNED-PAYLOAD",
+  ].join("\n");
+  const canonicalHash = hex(
+    await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(canonicalRequest),
+    ),
+  );
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, canonicalHash].join(
+    "\n",
+  );
+  const dateKey = await hmacSha256(
+    new TextEncoder().encode(`AWS4${secretAccessKey}`),
+    dateStamp,
+  );
+  const regionKey = await hmacSha256(dateKey, region);
+  const serviceKey = await hmacSha256(regionKey, "s3");
+  const signingKey = await hmacSha256(serviceKey, "aws4_request");
+  const signature = hex(await hmacSha256(signingKey, stringToSign));
+  const url = new URL(target.toString());
+  url.search = `${canonicalQuery}&X-Amz-Signature=${awsEncode(signature)}`;
+
+  return {
+    url: url.toString(),
+    headers: { "Content-Type": contentType },
+    expiresAt: new Date(now.getTime() + expiresSeconds * 1000).toISOString(),
+  };
 }
 
 export async function testStorageConnection(input: S3Config): Promise<string> {

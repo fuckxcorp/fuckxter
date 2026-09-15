@@ -5,7 +5,7 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 ## 功能
 
 - 类似X的体验
-- 发帖、图片上传、编辑和删除
+- 发帖（最多 1000 字）、图片上传、编辑和删除
 - 推荐流、关注流、搜索与话题标签
 - 点赞、转发、收藏、分享和 `@提及`
 - 评论、评论删除和“发起 / 回帖”帖子线程页
@@ -34,6 +34,22 @@ headers/<username>.avif
 ```
 
 上传头像、主页头图和帖子图片时会通过 Cloudflare Images binding 转换为 AVIF（quality `82`）。头像最大 512×512，主页头图最大 1000×300，帖子图片最大 2048×2048，均保持宽高比且不会上采样。
+
+帖子附件默认通过预签名 URL 由浏览器直传用户自己的 S3 存储，不设置应用层文件大小上限。存储桶需要允许站点域名执行 `PUT`，并允许 `Content-Type` 请求头。例如 Cloudflare R2 的 CORS 可以配置为：
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://fuckxter.site", "https://www.fuckxter.site"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+如果直传因存储桶 CORS 配置失败，30 MB 以内的文件会自动回退到 Worker 中转；超过该大小的文件需要先修正存储桶 CORS。
 
 ## 开发
 

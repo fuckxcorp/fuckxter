@@ -19,6 +19,8 @@ import {
   getAvatar,
   getHeader,
   getMedia,
+  finalizeMediaUpload,
+  presignMediaUpload,
   uploadAvatar,
   uploadHeader,
   uploadMedia,
@@ -179,6 +181,67 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
   }
 
   if (parts[1] === "media") {
+    if (parts.length === 3 && parts[2] === "uploads" && method === "POST") {
+      const user = await requireUser(request, env);
+      const body = await readJson<{
+        storageConfigId?: unknown;
+        fileName?: unknown;
+        contentType?: unknown;
+      }>(request);
+      return json(
+        {
+          upload: await presignMediaUpload(env, user.id, user.handle, {
+            storageConfigId:
+              typeof body.storageConfigId === "string"
+                ? body.storageConfigId
+                : undefined,
+            fileName:
+              typeof body.fileName === "string" ? body.fileName : undefined,
+            contentType:
+              typeof body.contentType === "string"
+                ? body.contentType
+                : undefined,
+          }),
+        },
+        request,
+        env,
+        { status: 201 },
+      );
+    }
+
+    if (parts.length === 3 && parts[2] === "finalize" && method === "POST") {
+      const user = await requireUser(request, env);
+      const body = await readJson<{
+        objectKey?: unknown;
+        originalName?: unknown;
+        contentType?: unknown;
+        storageConfigId?: unknown;
+      }>(request);
+      return json(
+        {
+          media: await finalizeMediaUpload(env, user.id, user.handle, {
+            objectKey:
+              typeof body.objectKey === "string" ? body.objectKey : undefined,
+            originalName:
+              typeof body.originalName === "string"
+                ? body.originalName
+                : undefined,
+            contentType:
+              typeof body.contentType === "string"
+                ? body.contentType
+                : undefined,
+            storageConfigId:
+              typeof body.storageConfigId === "string"
+                ? body.storageConfigId
+                : null,
+          }),
+        },
+        request,
+        env,
+        { status: 201 },
+      );
+    }
+
     if (parts.length === 2 && method === "POST") {
       const user = await requireUser(request, env);
       return json(

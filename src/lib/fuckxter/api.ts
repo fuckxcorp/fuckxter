@@ -51,7 +51,19 @@ export async function deletePost(id: string): Promise<void> {
   });
 }
 
-export async function uploadMedia(
+interface MediaUploadTicket {
+  objectKey: string;
+  originalName: string;
+  contentType: string;
+  storageConfigId: string | null;
+  url: string;
+  headers: Record<string, string>;
+  expiresAt: string;
+}
+
+const PROXY_MEDIA_LIMIT = 30 * 1024 * 1024;
+
+async function proxyUploadMedia(
   file: File,
   storageConfigId?: string,
 ): Promise<PostMedia> {
@@ -66,6 +78,98 @@ export async function uploadMedia(
     body: file,
   });
   return response.media;
+}
+
+function putFileToStorage(
+  url: string,
+  headers: Record<string, string>,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", url);
+    for (const [name, value] of Object.entries(headers)) {
+      request.setRequestHeader(name, value);
+    }
+    request.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable || !onProgress) return;
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    });
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve();
+        return;
+      }
+      reject(
+        new ApiError(
+          `S3 direct upload failed (${request.status}). Check the bucket CORS policy.`,
+          request.status,
+          "S3_DIRECT_UPLOAD_FAILED",
+        ),
+      );
+    });
+    request.addEventListener("error", () => {
+      reject(
+        new ApiError(
+          "S3 direct upload was blocked. Allow PUT and Content-Type from this site in the bucket CORS policy.",
+          0,
+          "S3_CORS_DENIED",
+        ),
+      );
+    });
+    request.addEventListener("abort", () => {
+      reject(new ApiError("Upload was cancelled.", 0, "ABORTED"));
+    });
+    request.send(file);
+  });
+}
+
+export async function uploadMedia(
+  file: File,
+  storageConfigId?: string,
+  onProgress?: (percent: number) => void,
+): Promise<PostMedia> {
+  let stage: "presign" | "upload" | "finalize" = "presign";
+  try {
+    const presign = await apiRequest<{ upload: MediaUploadTicket }>(
+      "/api/media/uploads",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          storageConfigId,
+          fileName: file.name,
+          contentType: file.type,
+        }),
+      },
+    );
+    stage = "upload";
+    await putFileToStorage(
+      presign.upload.url,
+      presign.upload.headers,
+      file,
+      onProgress,
+    );
+    stage = "finalize";
+    const response = await apiRequest<{ media: PostMedia }>(
+      "/api/media/finalize",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          objectKey: presign.upload.objectKey,
+          originalName: presign.upload.originalName,
+          contentType: presign.upload.contentType,
+          storageConfigId: presign.upload.storageConfigId,
+        }),
+      },
+    );
+    return response.media;
+  } catch (error) {
+    if (stage !== "finalize" && file.size <= PROXY_MEDIA_LIMIT) {
+      return proxyUploadMedia(file, storageConfigId);
+    }
+    throw error;
+  }
 }
 
 export async function getStorageOptions(): Promise<StorageOption[]> {

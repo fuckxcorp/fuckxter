@@ -33,8 +33,7 @@ import type {
 } from "./types";
 import { postPath, userPath } from "./urls";
 
-const MAX_CHARS = 500;
-const MAX_MEDIA_BYTES = 30 * 1024 * 1024;
+const MAX_CHARS = 1000;
 
 const COLUMN_QUERIES: [string, number][] = [
   ["(min-width: 2200px)", 4],
@@ -646,19 +645,19 @@ export function mountFeed(container: HTMLElement): FeedControls {
   mediaInput.addEventListener("change", async () => {
     const file = mediaInput.files?.[0];
     if (!file) return;
-    if (file.size > MAX_MEDIA_BYTES) {
-      mediaStatus.textContent = "图片不能超过 30 MB";
-      mediaStatus.hidden = false;
-      mediaInput.value = "";
-      return;
-    }
     uploadingMedia = true;
     attachMediaBtn.disabled = true;
     mediaStatus.textContent = "上传中…";
     mediaStatus.hidden = false;
     syncComposer();
     try {
-      selectedMedia = await uploadMedia(file, mediaStorage.value || undefined);
+      selectedMedia = await uploadMedia(
+        file,
+        mediaStorage.value || undefined,
+        (percent) => {
+          mediaStatus.textContent = `上传中 ${percent}%`;
+        },
+      );
       mediaStatus.textContent = `已添加：${file.name}`;
     } catch (error) {
       selectedMedia = null;

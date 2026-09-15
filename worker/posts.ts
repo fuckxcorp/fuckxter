@@ -249,11 +249,11 @@ export async function createPost(
   const cleanText = text.trim();
   if (!cleanText)
     throw new HttpError(400, "EMPTY_POST", "Post text is required.");
-  if ([...cleanText].length > 500) {
+  if ([...cleanText].length > 1000) {
     throw new HttpError(
       400,
       "POST_TOO_LONG",
-      "Post cannot exceed 500 characters.",
+      "Post cannot exceed 1000 characters.",
     );
   }
   const now = new Date().toISOString();
@@ -314,11 +314,11 @@ export async function updatePost(
   const cleanText = text.trim();
   if (!cleanText)
     throw new HttpError(400, "EMPTY_POST", "Post text is required.");
-  if ([...cleanText].length > 500) {
+  if ([...cleanText].length > 1000) {
     throw new HttpError(
       400,
       "POST_TOO_LONG",
-      "Post cannot exceed 500 characters.",
+      "Post cannot exceed 1000 characters.",
     );
   }
   const post = await env.DB.prepare(

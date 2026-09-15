@@ -1,6 +1,6 @@
 import { HttpError } from "./http";
 import type { Env, MediaRow } from "./platform";
-import { signedS3Request } from "./s3";
+import { presignS3Put, signedS3Request } from "./s3";
 import { randomId, randomToken } from "./security";
 import { getStorageConfig } from "./storage";
 import { usernameKey } from "./usernames";
@@ -11,6 +11,7 @@ const AVATAR_MAX_DIMENSION = 512;
 const MEDIA_MAX_DIMENSION = 2048;
 const HEADER_MAX_WIDTH = 1000;
 const HEADER_MAX_HEIGHT = 300;
+const STREAM_FALLBACK_BYTES = 25 * 1024 * 1024;
 const AVIF_QUALITY = 82;
 const ALLOWED_MEDIA = new Set([
   "image/jpeg",
@@ -19,6 +20,13 @@ const ALLOWED_MEDIA = new Set([
   "image/webp",
   "image/avif",
 ]);
+const MEDIA_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/avif": "avif",
+};
 
 function startsWith(bytes: Uint8Array, value: string): boolean {
   return value
@@ -105,7 +113,7 @@ async function convertToAvif(
   }
 }
 
-async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+async function sha256Hex(bytes: BufferSource): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)]
     .map((byte) => byte.toString(16).padStart(2, "0"))
@@ -233,6 +241,151 @@ export async function uploadMedia(
     created_at: now,
     updated_at: now,
   });
+}
+
+export async function presignMediaUpload(
+  env: Env,
+  userId: string,
+  handle: string,
+  input: {
+    storageConfigId?: string;
+    fileName?: string;
+    contentType?: string;
+  },
+) {
+  const contentType = input.contentType?.trim().toLowerCase() ?? "";
+  const extension = MEDIA_EXTENSIONS[contentType];
+  if (!extension) {
+    throw new HttpError(
+      415,
+      "UNSUPPORTED_MEDIA",
+      "Only JPEG, PNG, GIF, WebP, and AVIF images are supported.",
+    );
+  }
+  const config = await getStorageConfig(env, userId, input.storageConfigId);
+  if (!config) {
+    throw new HttpError(
+      400,
+      "STORAGE_REQUIRED",
+      "Configure S3-compatible storage first.",
+    );
+  }
+  const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
+  const presigned = await presignS3Put(config, objectKey, contentType);
+  return {
+    objectKey,
+    originalName: safeFileName(input.fileName ?? null),
+    contentType,
+    storageConfigId: config.id ?? null,
+    ...presigned,
+  };
+}
+
+export async function finalizeMediaUpload(
+  env: Env,
+  userId: string,
+  handle: string,
+  input: {
+    objectKey?: string;
+    originalName?: string;
+    contentType?: string;
+    storageConfigId?: string | null;
+  },
+) {
+  const objectKey = input.objectKey?.trim() ?? "";
+  const prefix = `media/${handle}/`;
+  if (
+    !objectKey.startsWith(prefix) ||
+    objectKey.length === prefix.length ||
+    objectKey.includes("..")
+  ) {
+    throw new HttpError(400, "INVALID_MEDIA", "Invalid media object key.");
+  }
+  const contentType = input.contentType?.trim().toLowerCase() ?? "";
+  if (!ALLOWED_MEDIA.has(contentType)) {
+    throw new HttpError(
+      415,
+      "UNSUPPORTED_MEDIA",
+      "Only JPEG, PNG, GIF, WebP, and AVIF images are supported.",
+    );
+  }
+  const config = await getStorageConfig(
+    env,
+    userId,
+    input.storageConfigId ?? undefined,
+  );
+  if (!config) {
+    throw new HttpError(
+      400,
+      "STORAGE_REQUIRED",
+      "Configure S3-compatible storage first.",
+    );
+  }
+
+  const existing = await env.DB.prepare(
+    `SELECT * FROM media_objects
+     WHERE owner_id = ? AND object_key = ? AND status = 'ready'
+     LIMIT 1`,
+  )
+    .bind(userId, objectKey)
+    .first<MediaRow>();
+  if (existing) return mediaJson(existing);
+
+  const { response } = await signedS3Request(config, "HEAD", objectKey);
+  if (!response.ok) {
+    throw new HttpError(
+      502,
+      "MEDIA_UPLOAD_NOT_FOUND",
+      `Uploaded media was not found (S3 ${response.status}).`,
+    );
+  }
+  const byteSize = Number(response.headers.get("Content-Length") ?? "0");
+  if (!Number.isSafeInteger(byteSize) || byteSize <= 0) {
+    throw new HttpError(
+      502,
+      "MEDIA_SIZE_UNAVAILABLE",
+      "Uploaded media size is unavailable.",
+    );
+  }
+
+  const id = randomId();
+  const now = new Date().toISOString();
+  const sha256 = await sha256Hex(
+    new TextEncoder().encode(`${config.id ?? "storage"}:${objectKey}`),
+  );
+  const row: MediaRow = {
+    id,
+    owner_id: userId,
+    storage_config_id: config.id ?? null,
+    object_key: objectKey,
+    original_name: safeFileName(input.originalName ?? null),
+    content_type: contentType,
+    sha256,
+    byte_size: byteSize,
+    status: "ready",
+    created_at: now,
+    updated_at: now,
+  };
+  await env.DB.prepare(
+    `INSERT INTO media_objects (
+       id, owner_id, storage_config_id, object_key, original_name, content_type,
+       sha256, byte_size, status, created_at, updated_at
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?)`,
+  )
+    .bind(
+      row.id,
+      row.owner_id,
+      row.storage_config_id,
+      row.object_key,
+      row.original_name,
+      row.content_type,
+      row.sha256,
+      row.byte_size,
+      row.created_at,
+      row.updated_at,
+    )
+    .run();
+  return mediaJson(row);
 }
 
 export async function uploadAvatar(
@@ -454,14 +607,18 @@ export async function getMedia(
       `Media fetch failed (S3 ${response.status}).`,
     );
   }
-  const bytes = await response.arrayBuffer();
-  if (bytes.byteLength > MAX_IMAGE_BYTES) {
-    throw new HttpError(
-      502,
-      "MEDIA_TOO_LARGE",
-      "Source media exceeds the size limit.",
-    );
+  const sourceSize =
+    Number(row.byte_size) ||
+    Number(response.headers.get("Content-Length") ?? "0");
+  if (sourceSize > STREAM_FALLBACK_BYTES && response.body) {
+    return {
+      body: response.body,
+      contentType: row.content_type,
+      size: sourceSize,
+      etag: row.sha256,
+    };
   }
+  const bytes = await response.arrayBuffer();
   const detected = detectImageType(new Uint8Array(bytes.slice(0, 64)));
   if (!detected || detected !== row.content_type) {
     throw new HttpError(
