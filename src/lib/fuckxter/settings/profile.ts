@@ -60,6 +60,21 @@ export function mountProfileSettings(
   const cropConfirm = root.querySelector<HTMLButtonElement>(
     "[data-role=avatar-crop-confirm]",
   )!;
+  const headerCropDialog = root.querySelector<HTMLDialogElement>(
+    "[data-role=header-crop-dialog]",
+  )!;
+  const headerCropCanvas = root.querySelector<HTMLCanvasElement>(
+    "[data-role=header-crop-canvas]",
+  )!;
+  const headerCropZoom = root.querySelector<HTMLInputElement>(
+    "[data-role=header-crop-zoom]",
+  )!;
+  const headerCropCancel = root.querySelector<HTMLButtonElement>(
+    "[data-role=header-crop-cancel]",
+  )!;
+  const headerCropConfirm = root.querySelector<HTMLButtonElement>(
+    "[data-role=header-crop-confirm]",
+  )!;
   const genderSelect =
     profileForm.querySelector<HTMLSelectElement>("[name=gender]")!;
   const handleInput =
@@ -79,6 +94,17 @@ export function mountProfileSettings(
   let cropOffsetX = 0;
   let cropOffsetY = 0;
   let dragStart: { x: number; y: number } | null = null;
+  const headerCropContext = headerCropCanvas.getContext("2d")!;
+  const headerCropWidth = headerCropCanvas.width;
+  const headerCropHeight = headerCropCanvas.height;
+  let headerCropImage: HTMLImageElement | null = null;
+  let headerCropFile: File | null = null;
+  let headerCropObjectUrl: string | null = null;
+  let headerCropScale = 1;
+  let headerCropZoomValue = 1;
+  let headerCropOffsetX = 0;
+  let headerCropOffsetY = 0;
+  let headerDragStart: { x: number; y: number } | null = null;
 
   const clamp = (value: number, min: number, max: number) =>
     Math.min(Math.max(value, min), max);
@@ -151,6 +177,58 @@ export function mountProfileSettings(
           }
           resolve(
             new File([blob], "avatar.png", {
+              type: "image/png",
+            }),
+          );
+        },
+        "image/png",
+        0.95,
+      );
+    });
+
+  const drawHeaderCrop = () => {
+    if (!headerCropImage) return;
+    headerCropContext.clearRect(0, 0, headerCropWidth, headerCropHeight);
+    const scale = headerCropScale * headerCropZoomValue;
+    const width = headerCropImage.naturalWidth * scale;
+    const height = headerCropImage.naturalHeight * scale;
+    const maxX = Math.max(0, (width - headerCropWidth) / 2);
+    const maxY = Math.max(0, (height - headerCropHeight) / 2);
+    headerCropOffsetX = clamp(headerCropOffsetX, -maxX, maxX);
+    headerCropOffsetY = clamp(headerCropOffsetY, -maxY, maxY);
+    headerCropContext.drawImage(
+      headerCropImage,
+      (headerCropWidth - width) / 2 + headerCropOffsetX,
+      (headerCropHeight - height) / 2 + headerCropOffsetY,
+      width,
+      height,
+    );
+  };
+
+  const closeHeaderCrop = () => {
+    if (headerCropDialog.open) headerCropDialog.close();
+    headerCropImage = null;
+    headerCropFile = null;
+    if (headerCropObjectUrl) URL.revokeObjectURL(headerCropObjectUrl);
+    headerCropObjectUrl = null;
+    headerCropZoom.value = "1";
+    headerInput.value = "";
+  };
+
+  const headerCropToFile = (): Promise<File> =>
+    new Promise((resolve, reject) => {
+      if (!headerCropImage) {
+        reject(new Error("没有可裁切的图片。"));
+        return;
+      }
+      headerCropCanvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("图片处理失败。"));
+            return;
+          }
+          resolve(
+            new File([blob], "header.png", {
               type: "image/png",
             }),
           );
@@ -352,13 +430,73 @@ export function mountProfileSettings(
       headerInput.value = "";
       return;
     }
+    try {
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      image.src = objectUrl;
+      await image.decode();
+      headerCropImage = image;
+      headerCropFile = file;
+      headerCropObjectUrl = objectUrl;
+      headerCropScale = Math.max(
+        headerCropWidth / image.naturalWidth,
+        headerCropHeight / image.naturalHeight,
+      );
+      headerCropZoomValue = 1;
+      headerCropOffsetX = 0;
+      headerCropOffsetY = 0;
+      headerCropZoom.value = "1";
+      drawHeaderCrop();
+      if (headerCropDialog.open) headerCropDialog.close();
+      headerCropDialog.showModal();
+      setStatus(profileStatus, "");
+    } catch (error) {
+      setStatus(profileStatus, headerErrorMessage(error));
+      headerInput.value = "";
+    }
+  });
+  headerCropCanvas.addEventListener("pointerdown", (event) => {
+    headerDragStart = { x: event.clientX, y: event.clientY };
+    headerCropCanvas.setPointerCapture(event.pointerId);
+  });
+  headerCropCanvas.addEventListener("pointermove", (event) => {
+    if (!headerDragStart) return;
+    const rect = headerCropCanvas.getBoundingClientRect();
+    const ratioX = headerCropWidth / rect.width;
+    const ratioY = headerCropHeight / rect.height;
+    headerCropOffsetX += (event.clientX - headerDragStart.x) * ratioX;
+    headerCropOffsetY += (event.clientY - headerDragStart.y) * ratioY;
+    headerDragStart = { x: event.clientX, y: event.clientY };
+    drawHeaderCrop();
+  });
+  headerCropCanvas.addEventListener("pointerup", () => {
+    headerDragStart = null;
+  });
+  headerCropCanvas.addEventListener("pointercancel", () => {
+    headerDragStart = null;
+  });
+  headerCropZoom.addEventListener("input", () => {
+    headerCropZoomValue = Number(headerCropZoom.value);
+    drawHeaderCrop();
+  });
+  headerCropCancel.addEventListener("click", closeHeaderCrop);
+  headerCropDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeHeaderCrop();
+  });
+  headerCropConfirm.addEventListener("click", async () => {
+    if (!headerCropFile) return;
+    headerCropConfirm.disabled = true;
     headerUpload.disabled = true;
     headerRemove.disabled = true;
     headerProgress.hidden = false;
     headerProgress.value = 0;
-    setStatus(profileStatus, "上传中 0%");
+    setStatus(profileStatus, "正在处理图片…");
     try {
-      await uploadHeader(file, (percent) => {
+      const croppedFile = await headerCropToFile();
+      closeHeaderCrop();
+      setStatus(profileStatus, "上传中 0%");
+      await uploadHeader(croppedFile, (percent) => {
         headerProgress.value = percent;
         setStatus(profileStatus, `上传中 ${percent}%`);
       });
@@ -369,9 +507,9 @@ export function mountProfileSettings(
       setStatus(profileStatus, headerErrorMessage(error));
     } finally {
       headerProgress.hidden = true;
+      headerCropConfirm.disabled = false;
       headerUpload.disabled = false;
       headerRemove.disabled = false;
-      headerInput.value = "";
     }
   });
   headerRemove.addEventListener("click", async () => {

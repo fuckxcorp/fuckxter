@@ -185,6 +185,52 @@ const sectionTitles: Record<SettingsSection, string> = {
                   </button>
                 </div>
               </dialog>
+              <dialog
+                class="fk-avatar-dialog fk-header-crop-dialog"
+                data-role="header-crop-dialog"
+              >
+                <h4>调整头图显示区域</h4>
+                <p class="fk-header-crop-hint">
+                  下方区域就是主页头图的最终显示范围（10:3）。拖动图片选择位置，使用滑杆调整缩放。
+                </p>
+                <div class="fk-header-crop-stage">
+                  <canvas
+                    class="fk-header-crop-canvas"
+                    data-role="header-crop-canvas"
+                    width="1000"
+                    height="300"
+                    aria-label="头图裁切预览"
+                  />
+                  <span class="fk-header-crop-label">主页显示区域</span>
+                </div>
+                <label class="fk-avatar-zoom">
+                  <span>缩放</span>
+                  <input
+                    data-role="header-crop-zoom"
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.01"
+                    value="1"
+                  />
+                </label>
+                <div class="fk-inline-row">
+                  <button
+                    type="button"
+                    class="fk-ghost-btn"
+                    data-role="header-crop-cancel"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    class="fk-primary-btn"
+                    data-role="header-crop-confirm"
+                  >
+                    确认并上传
+                  </button>
+                </div>
+              </dialog>
               <form data-role="profile-form" novalidate>
                 <label class="fk-field">
                   <span class="fk-field-label">昵称</span>

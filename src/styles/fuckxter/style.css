@@ -541,6 +541,50 @@
   accent-color: var(--color-accent);
 }
 
+.fk-header-crop-dialog {
+  width: min(760px, calc(100% - 2rem));
+}
+
+.fk-header-crop-hint {
+  margin: 0 0 0.8rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.fk-header-crop-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-subtle);
+}
+
+.fk-header-crop-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 10 / 3;
+  background: var(--color-bg-subtle);
+  cursor: grab;
+  touch-action: none;
+}
+
+.fk-header-crop-canvas:active {
+  cursor: grabbing;
+}
+
+.fk-header-crop-label {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 62%, transparent);
+  color: #fff;
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
 .fk-field {
   display: block;
   margin-bottom: 0.85rem;
@@ -2493,7 +2537,7 @@
 
 .fk-user-banner {
   width: 100%;
-  height: clamp(140px, 20vh, 210px);
+  aspect-ratio: 10 / 3;
   border: 1px solid var(--color-border);
   border-radius: 15px;
   background-position: center;
@@ -2660,10 +2704,6 @@
     gap: 1rem;
     width: 98%;
     height: auto;
-  }
-
-  .fk-user-banner {
-    height: clamp(150px, 25vh, 220px);
   }
 
   .fk-user-head-card {

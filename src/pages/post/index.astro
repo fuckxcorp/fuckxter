@@ -544,7 +544,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     if (!container) return;
     if (container.dataset.fkPostMounted === "true") return;
     container.dataset.fkPostMounted = "true";
-    await hydrateSession();
+    const sessionPromise = hydrateSession();
 
     container
       .querySelector<HTMLButtonElement>("[data-role=back]")!
@@ -593,8 +593,8 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       ? getPostByPath(parsedPath.handle, parsedPath.slug)
       : Promise.resolve(null);
 
-    void postRequest
-      .then((post) => {
+    void Promise.all([postRequest, sessionPromise])
+      .then(([post]) => {
         if (!post) {
           host.replaceChildren(
             statusRow("没有找到这条帖子，可能还未加载或已失效。"),

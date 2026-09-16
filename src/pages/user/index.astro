@@ -170,7 +170,6 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     getAccount,
     hydrateSession,
     requestAuthentication,
-    type Account,
   } from "../../lib/fuckxter/auth";
   import {
     avatarGradient,
@@ -378,7 +377,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     if (!container) return;
     if (container.dataset.fkUserMounted === "true") return;
     container.dataset.fkUserMounted = "true";
-    await hydrateSession();
+    const sessionPromise = hydrateSession().then(() => getAccount());
 
     container
       .querySelector<HTMLButtonElement>("[data-role=back]")!
@@ -444,21 +443,28 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       { once: true },
     );
 
-    const account: Account | null = getAccount();
-    const handle = (
-      parseUserPath(location.pathname) ??
-      account?.profile.handle ??
-      ""
-    )
-      .replace(/^@/, "")
-      .toLowerCase();
-    if (!handle) {
-      navigate("/");
-      return;
-    }
+    const pathHandle = parseUserPath(location.pathname);
+    const handlePromise = (
+      pathHandle
+        ? Promise.resolve(pathHandle)
+        : sessionPromise.then((account) => account?.profile.handle ?? "")
+    ).then((value) => value.replace(/^@/, "").toLowerCase());
+    const dataPromise = handlePromise.then(async (handle) => {
+      if (!handle) return null;
+      const [profile, posts] = await Promise.all([
+        getUserProfile(handle),
+        getPostsByUser(handle),
+      ]);
+      return { handle, profile, posts };
+    });
 
-    void Promise.all([getUserProfile(handle), getPostsByUser(handle)])
-      .then(([profile, posts]) => {
+    void Promise.all([sessionPromise, dataPromise])
+      .then(([account, data]) => {
+        if (!data) {
+          navigate("/");
+          return;
+        }
+        const { handle, profile, posts } = data;
         const isOwn = account?.profile.handle === profile.handle;
         document.title = `@${handle} | FuckXter`;
         userStatus.hidden = true;
