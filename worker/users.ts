@@ -32,6 +32,10 @@ interface UserSummaryRow {
   avatar_media_id: string | null;
   avatar_key: string | null;
   updated_at: string;
+  created_at: string;
+  post_count: number;
+  follower_count: number;
+  following_count: number;
 }
 
 function publicUserSummary(row: UserSummaryRow) {
@@ -41,6 +45,12 @@ function publicUserSummary(row: UserSummaryRow) {
     name: row.name,
     verified: Boolean(row.verified),
     bio: row.bio,
+    createdAt: row.created_at,
+    stats: {
+      posts: Number(row.post_count),
+      followers: Number(row.follower_count),
+      following: Number(row.following_count),
+    },
     avatarUrl: buildAvatarUrl({
       handle: row.handle,
       avatarKey: row.avatar_key,
@@ -131,10 +141,17 @@ export async function searchUsers(env: Env, query: string, limit = 10) {
   if (!value) return [];
   const pattern = `%${value}%`;
   const result = await env.DB.prepare(
-    `SELECT id, handle, name, verified, bio, avatar_media_id, avatar_key, updated_at
-     FROM users
-     WHERE handle LIKE ? OR name LIKE ?
-     ORDER BY CASE WHEN handle = ? THEN 0 ELSE 1 END, handle ASC
+    `SELECT u.id, u.handle, u.name, u.verified, u.bio, u.avatar_media_id,
+            u.avatar_key, u.updated_at, u.created_at,
+            (SELECT COUNT(*) FROM posts p
+              WHERE p.author_id = u.id AND p.deleted_at IS NULL) AS post_count,
+            (SELECT COUNT(*) FROM follows f
+              WHERE f.followee_id = u.id) AS follower_count,
+            (SELECT COUNT(*) FROM follows f
+              WHERE f.follower_id = u.id) AS following_count
+     FROM users u
+     WHERE u.handle LIKE ? OR u.name LIKE ?
+     ORDER BY CASE WHEN u.handle = ? THEN 0 ELSE 1 END, u.handle ASC
      LIMIT ?`,
   )
     .bind(
@@ -156,7 +173,13 @@ export async function getFollowUsers(
     kind === "followers" ? "u.id = f.follower_id" : "u.id = f.followee_id";
   const result = await env.DB.prepare(
     `SELECT u.id, u.handle, u.name, u.verified, u.bio,
-            u.avatar_media_id, u.avatar_key, u.updated_at
+            u.avatar_media_id, u.avatar_key, u.updated_at, u.created_at,
+            (SELECT COUNT(*) FROM posts p
+              WHERE p.author_id = u.id AND p.deleted_at IS NULL) AS post_count,
+            (SELECT COUNT(*) FROM follows sf
+              WHERE sf.followee_id = u.id) AS follower_count,
+            (SELECT COUNT(*) FROM follows sf
+              WHERE sf.follower_id = u.id) AS following_count
      FROM follows f
      JOIN users u ON ${relation}
      WHERE ${kind === "followers" ? "f.followee_id" : "f.follower_id"} = ?

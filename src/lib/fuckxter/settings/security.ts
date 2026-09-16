@@ -41,8 +41,16 @@ export function mountSecuritySettings(
       }
       return target;
     };
+    const recoveryCard = cards.find((card) =>
+      card.textContent?.includes("恢复密钥"),
+    );
     cards.forEach((card, index) => {
-      const column = index < columns.length ? columns[index] : shortestColumn();
+      const column =
+        card === recoveryCard
+          ? columns[1]
+          : index < columns.length
+            ? columns[index]
+            : shortestColumn();
       column.append(card);
     });
     securityPane.insertBefore(masonry, formGroups[0]);

@@ -40,16 +40,32 @@ import Layout from "../layouts/Layout.astro";
         "fk-avatar",
         user.avatarUrl,
       );
-      const copy = el("a", "fk-user-list-copy");
-      copy.href = userPath(user.handle);
+      const identity = el("a", "fk-user-list-identity");
+      identity.href = userPath(user.handle);
       const name = el("strong");
       name.textContent = user.name;
       const handle = el("span");
       handle.textContent = `@${user.handle}`;
+      identity.append(name, handle);
+
+      const details = el("div", "fk-user-list-details");
       const bio = el("p");
       bio.textContent = user.bio || "这个人很懒，什么都没有写。";
-      copy.append(name, handle, bio);
-      row.append(avatar, copy);
+      const stats = el("div", "fk-user-list-stats");
+      const stat = (label: string, value: number) => {
+        const item = el("span");
+        item.textContent = `${label} ${value}`;
+        stats.append(item);
+      };
+      stat("帖子", user.stats.posts);
+      stat("粉丝", user.stats.followers);
+      stat("关注", user.stats.following);
+      const joined = el("time", "fk-user-list-joined");
+      joined.dateTime = user.createdAt;
+      joined.textContent = `加入于 ${new Date(user.createdAt).toLocaleDateString("zh-CN")}`;
+      details.append(bio, stats, joined);
+
+      row.append(avatar, identity, details);
       fragment.append(row);
     }
     return fragment;

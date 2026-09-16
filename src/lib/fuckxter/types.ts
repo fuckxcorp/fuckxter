@@ -79,6 +79,12 @@ export interface UserSummary {
   verified?: boolean;
   bio: string;
   avatarUrl: string | null;
+  createdAt: string;
+  stats: {
+    posts: number;
+    followers: number;
+    following: number;
+  };
 }
 
 export interface Comment {
