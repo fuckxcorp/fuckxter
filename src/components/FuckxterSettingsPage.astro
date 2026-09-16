@@ -52,16 +52,6 @@ const sectionTitles: Record<SettingsSection, string> = {
         <a
           class:list={[
             "fk-settings-nav-btn",
-            { "is-active": section === "saved" },
-          ]}
-          href="/settings/saved"
-          aria-current={section === "saved" ? "page" : undefined}
-        >
-          收藏
-        </a>
-        <a
-          class:list={[
-            "fk-settings-nav-btn",
             { "is-active": section === "storage" },
           ]}
           href="/settings/storage"

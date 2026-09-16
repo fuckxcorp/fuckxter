@@ -366,7 +366,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     post: Post,
     canModerate: boolean,
     onReplyCountChange: (count: number) => void,
-  ): HTMLElement {
+  ): { thread: HTMLElement; composer: HTMLElement } {
     const thread = el("section", "fk-thread");
     const head = el("header", "fk-thread-head");
     const title = el("h1");
@@ -384,8 +384,11 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     repliesHead.append(repliesTitle, repliesCount);
 
     const me = getAccount();
-    const input = el("textarea", "fk-comment-input") as HTMLTextAreaElement;
-    input.rows = 6;
+    const input = el(
+      "textarea",
+      "fk-comment-input fk-side-comment-input",
+    ) as HTMLTextAreaElement;
+    input.rows = 2;
     input.placeholder = me ? "写下你的回帖" : "登录后才能回帖";
     input.disabled = !me;
     const submit = el("button", "fk-primary-btn fk-comment-submit");
@@ -396,12 +399,24 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     count.textContent = `0 / ${MAX_COMMENT_CHARS}`;
     const composerActions = el("div", "fk-thread-composer-actions");
     composerActions.append(count, submit);
-    const composer = el("div", "fk-comments-composer fk-thread-composer");
-    composer.append(input, composerActions);
+    const composer = el("section", "fk-thread-composer fk-side-composer");
+    const composerAvatar = me
+      ? authorAvatar(
+          me.profile.handle,
+          me.profile.name,
+          "fk-avatar",
+          me.avatarUrl,
+        )
+      : el("span", "fk-avatar");
+    const composerBody = el("div", "fk-composer-body");
+    composerBody.append(input);
 
     const status = el("p", "fk-thread-status");
     status.setAttribute("aria-live", "polite");
     const list = el("div", "fk-comments-list fk-thread-list");
+
+    composerBody.append(composerActions, status);
+    composer.append(composerAvatar, composerBody);
 
     const resizeCommentInput = () => {
       input.style.height = "auto";
@@ -527,7 +542,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     syncCommentSubmit();
     requestAnimationFrame(resizeCommentInput);
 
-    replies.append(repliesHead, composer, status, list);
+    replies.append(repliesHead, list);
     thread.append(head, renderOriginPost(post), replies);
     if (location.hash === "#reply" && me) {
       requestAnimationFrame(() => {
@@ -536,7 +551,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       });
     }
     void refreshComments();
-    return thread;
+    return { thread, composer };
   }
 
   const mount = async () => {
@@ -606,7 +621,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         }
         document.title = `${post.author.name}：${post.text.slice(0, 30)} | FuckXter`;
         const controls = renderPostControls(post);
-        const thread = renderThread(
+        const { thread, composer } = renderThread(
           post,
           getAccount()?.profile.handle === post.author.handle,
           (count) => {
@@ -621,7 +636,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
           },
         );
         host.replaceChildren(thread);
-        side.replaceChildren(renderPostInfo(post), controls);
+        side.replaceChildren(renderPostInfo(post), controls, composer);
         side.hidden = false;
       })
       .catch((error: unknown) => {

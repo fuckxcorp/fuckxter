@@ -20,9 +20,11 @@ export function mountSavedSettings(root: HTMLElement): void {
       savedEmpty.hidden = posts.length > 0;
       savedList.replaceChildren(
         ...posts.map((post) => {
-          const item = el("article", "fk-post fk-saved-item");
+          const item = el("article", "fk-notice-item fk-saved-item");
           item.dataset.postId = post.id;
-          const avatar = el("div", "fk-avatar");
+
+          const actor = el("div", "fk-notice-actor");
+          const avatar = el("span", "fk-notice-avatar");
           avatar.setAttribute("style", avatarGradient(post.author.handle));
           const avatarImage = el("img", "fk-avatar-image");
           avatarImage.src = post.author.avatarUrl
@@ -31,22 +33,38 @@ export function mountSavedSettings(root: HTMLElement): void {
               : post.author.avatarUrl
             : "/user.avif";
           avatarImage.alt = post.author.name;
+          avatarImage.loading = "lazy";
+          avatarImage.decoding = "async";
           avatar.append(avatarImage);
-          const body = el("div", "fk-post-body");
-          const head = el("header", "fk-post-head");
-          const name = el("span", "fk-post-name");
+
+          const actorCopy = el("div", "fk-notice-actor-copy");
+          const nameLine = el("div", "fk-notice-actor-name");
+          const name = el("strong");
           name.textContent = post.author.name;
-          const meta = el("span", "fk-post-meta");
-          meta.textContent = `@${post.author.handle} · ${relativeTime(post.createdAt)}`;
-          head.append(name, meta);
-          const text = el("p", "fk-post-text");
-          text.textContent = post.text;
+          nameLine.append(name);
+          const handle = el("span", "fk-notice-actor-handle");
+          handle.textContent = `@${post.author.handle}`;
+          const action = el("span", "fk-notice-action");
+          action.textContent = "收藏的帖子";
+          const time = el("time", "fk-notice-time");
+          time.dateTime = post.createdAt;
+          time.textContent = relativeTime(post.createdAt);
+          actorCopy.append(nameLine, handle, action, time);
+          actor.append(avatar, actorCopy);
+
+          const content = el("div", "fk-notice-content");
+          const text = el("p", "fk-notice-text");
+          text.textContent = post.text || "（图片帖子）";
+          const actions = el("footer", "fk-saved-actions");
           const remove = el("button", "fk-saved-remove");
           remove.type = "button";
           remove.textContent = "取消收藏";
           remove.title = "取消收藏";
-          body.append(head, text, remove);
-          item.append(avatar, body);
+          const openHint = el("span", "fk-notice-open-hint");
+          openHint.textContent = "查看帖子 →";
+          actions.append(remove, openHint);
+          content.append(text, actions);
+          item.append(actor, content);
           return item;
         }),
       );
