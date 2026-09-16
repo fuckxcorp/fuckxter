@@ -43,6 +43,7 @@ import {
   getSavedPosts,
   getTimeline,
   searchPosts,
+  setCommentInteraction,
   setLike,
   setRepost,
   setSaved,
@@ -660,7 +661,12 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       const action = parts[3];
 
       if (action === "comments" && method === "GET") {
-        return json(await getComments(env, postId), request, env);
+        const user = await getOptionalUser(request, env);
+        return json(
+          await getComments(env, user?.id ?? null, postId),
+          request,
+          env,
+        );
       }
 
       if (action === "comments" && method === "POST") {
@@ -708,6 +714,27 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       const user = await requireUser(request, env);
       await deleteComment(env, user.id, segment(parts, 2), segment(parts, 4));
       return json({ ok: true }, request, env);
+    }
+
+    if (
+      parts.length === 6 &&
+      parts[3] === "comments" &&
+      (parts[5] === "like" || parts[5] === "repost") &&
+      (method === "PUT" || method === "DELETE")
+    ) {
+      const user = await requireUser(request, env);
+      return json(
+        await setCommentInteraction(
+          env,
+          user.id,
+          segment(parts, 2),
+          segment(parts, 4),
+          parts[5] === "like" ? "like" : "repost",
+          method === "PUT",
+        ),
+        request,
+        env,
+      );
     }
 
     if (parts.length === 4 && method === "GET") {

@@ -69,6 +69,8 @@ import Header from "../../components/Header.astro";
     getPostByPath,
     setFollow,
     toggleLike,
+    toggleCommentLike,
+    toggleCommentRepost,
     toggleRepost,
   } from "../../lib/fuckxter/api";
   import {
@@ -337,6 +339,54 @@ import Header from "../../components/Header.astro";
     reply.textContent = "回复";
     reply.addEventListener("click", () => replyTo(comment.author.handle));
     actions.append(reply);
+
+    const like = actionButton("like", ICONS.heart, "喜欢", comment.stats.likes);
+    const repost = actionButton(
+      "repost",
+      ICONS.repost,
+      "转发",
+      comment.stats.reposts,
+    );
+    like.classList.toggle("is-liked", comment.viewer.liked);
+    repost.classList.toggle("is-reposted", comment.viewer.reposted);
+    const setCommentCount = (button: HTMLButtonElement, count: number) => {
+      button.dataset.count = String(count);
+      button.querySelector<HTMLElement>(".fk-action-count")!.textContent =
+        count > 0 ? fmtCount(count) : "";
+    };
+    like.addEventListener("click", async () => {
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      const next = !like.classList.contains("is-liked");
+      like.classList.toggle("is-liked", next);
+      try {
+        const result = await toggleCommentLike(postId, comment.id, next);
+        comment.viewer.liked = result.liked;
+        setCommentCount(like, result.likes);
+        like.classList.toggle("is-liked", result.liked);
+      } catch {
+        like.classList.toggle("is-liked", !next);
+      }
+    });
+    repost.addEventListener("click", async () => {
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      const next = !repost.classList.contains("is-reposted");
+      repost.classList.toggle("is-reposted", next);
+      try {
+        const result = await toggleCommentRepost(postId, comment.id, next);
+        comment.viewer.reposted = result.reposted;
+        setCommentCount(repost, result.reposts);
+        repost.classList.toggle("is-reposted", result.reposted);
+      } catch {
+        repost.classList.toggle("is-reposted", !next);
+      }
+    });
+    actions.append(like, repost);
 
     const me = getAccount();
     if (me && (canModerate || comment.author.handle === me.profile.handle)) {

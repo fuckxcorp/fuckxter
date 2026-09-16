@@ -522,7 +522,12 @@ export async function searchPosts(
   return { query, posts: rows.map((row) => publicPost(row, viewerId)) };
 }
 
-export async function getComments(env: Env, postId: string) {
+export async function getComments(
+  env: Env,
+  viewerId: string | null,
+  postId: string,
+) {
+  await ensureCommentInteractionTables(env);
   const result = await env.DB.prepare(
     `SELECT
        c.id,
@@ -535,14 +540,26 @@ export async function getComments(env: Env, postId: string) {
        u.verified AS author_verified,
        u.avatar_media_id AS author_avatar_media_id,
        u.avatar_key AS author_avatar_key,
-       u.updated_at AS author_updated_at
+       u.updated_at AS author_updated_at,
+       (SELECT COUNT(*) FROM comment_likes cl
+         WHERE cl.comment_id = c.id) AS like_count,
+       (SELECT COUNT(*) FROM comment_reposts cr
+         WHERE cr.comment_id = c.id) AS repost_count,
+       EXISTS(
+         SELECT 1 FROM comment_likes cv
+         WHERE cv.comment_id = c.id AND cv.user_id = ?
+       ) AS liked,
+       EXISTS(
+         SELECT 1 FROM comment_reposts cv
+         WHERE cv.comment_id = c.id AND cv.user_id = ?
+       ) AS reposted
      FROM comments c
      JOIN users u ON u.id = c.author_id
      WHERE c.post_id = ? AND c.deleted_at IS NULL
      ORDER BY c.created_at DESC, c.id DESC
      LIMIT 100`,
   )
-    .bind(postId)
+    .bind(viewerId ?? "", viewerId ?? "", postId)
     .all<{
       id: string;
       text: string;
@@ -555,6 +572,10 @@ export async function getComments(env: Env, postId: string) {
       author_avatar_media_id: string | null;
       author_avatar_key: string | null;
       author_updated_at: string;
+      like_count: number;
+      repost_count: number;
+      liked: number;
+      reposted: number;
     }>();
 
   const rows = [...(result.results ?? [])].reverse();
@@ -577,7 +598,84 @@ export async function getComments(env: Env, postId: string) {
       },
       text: row.text,
       createdAt: row.created_at,
+      stats: {
+        likes: Number(row.like_count),
+        reposts: Number(row.repost_count),
+      },
+      viewer: {
+        liked: Boolean(row.liked),
+        reposted: Boolean(row.reposted),
+      },
     })),
+  };
+}
+
+let commentInteractionTablesReady = false;
+
+async function ensureCommentInteractionTables(env: Env): Promise<void> {
+  if (commentInteractionTablesReady) return;
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS comment_likes (
+       user_id TEXT NOT NULL,
+       comment_id TEXT NOT NULL,
+       created_at TEXT NOT NULL,
+       PRIMARY KEY (user_id, comment_id)
+     )`,
+  ).run();
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS comment_reposts (
+       user_id TEXT NOT NULL,
+       comment_id TEXT NOT NULL,
+       created_at TEXT NOT NULL,
+       PRIMARY KEY (user_id, comment_id)
+     )`,
+  ).run();
+  commentInteractionTablesReady = true;
+}
+
+export async function setCommentInteraction(
+  env: Env,
+  userId: string,
+  postId: string,
+  commentId: string,
+  kind: "like" | "repost",
+  active: boolean,
+) {
+  await ensureCommentInteractionTables(env);
+  const comment = await env.DB.prepare(
+    `SELECT id FROM comments
+     WHERE id = ? AND post_id = ? AND deleted_at IS NULL`,
+  )
+    .bind(commentId, postId)
+    .first<{ id: string }>();
+  if (!comment) {
+    throw new HttpError(404, "COMMENT_NOT_FOUND", "Comment not found.");
+  }
+  const table = kind === "like" ? "comment_likes" : "comment_reposts";
+  if (active) {
+    await env.DB.prepare(
+      `INSERT INTO ${table} (user_id, comment_id, created_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(user_id, comment_id) DO NOTHING`,
+    )
+      .bind(userId, commentId, new Date().toISOString())
+      .run();
+  } else {
+    await env.DB.prepare(
+      `DELETE FROM ${table} WHERE user_id = ? AND comment_id = ?`,
+    )
+      .bind(userId, commentId)
+      .run();
+  }
+  const count = await env.DB.prepare(
+    `SELECT COUNT(*) AS count FROM ${table} WHERE comment_id = ?`,
+  )
+    .bind(commentId)
+    .first<{ count: number }>();
+  return {
+    id: commentId,
+    [kind === "like" ? "liked" : "reposted"]: active,
+    [kind === "like" ? "likes" : "reposts"]: Number(count?.count ?? 0),
   };
 }
 
@@ -658,6 +756,8 @@ export async function createComment(
     },
     text: cleanText,
     createdAt: now,
+    stats: { likes: 0, reposts: 0 },
+    viewer: { liked: false, reposted: false },
   };
 }
 

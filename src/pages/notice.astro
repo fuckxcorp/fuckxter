@@ -182,9 +182,24 @@ import Layout from "../layouts/Layout.astro";
       }
     };
 
+    const noticeById = new Map<string, Notification>();
+    const readObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const item = entry.target as HTMLElement;
+          const notice = noticeById.get(item.dataset.noticeId ?? "");
+          readObserver.unobserve(item);
+          if (notice) void markRead(notice, item);
+        }
+      },
+      { threshold: 0.45 },
+    );
+
     const render = (notices: Notification[], append: boolean) => {
       if (!append) {
         seen.clear();
+        noticeById.clear();
         list.replaceChildren();
         unread = 0;
       }
@@ -194,7 +209,9 @@ import Layout from "../layouts/Layout.astro";
         if (!notice.read) unread += 1;
 
         const item = el("article", "fk-notice-item");
+        item.dataset.noticeId = notice.id;
         item.classList.toggle("is-unread", !notice.read);
+        noticeById.set(notice.id, notice);
         const target = noticeTarget(notice);
         const message = noticeMessage(notice);
         const actor = el("div", "fk-notice-actor");
@@ -249,6 +266,7 @@ import Layout from "../layouts/Layout.astro";
 
         item.append(actor, content);
         list.append(item);
+        if (!notice.read) readObserver.observe(item);
       }
       updateSummary();
     };
@@ -310,6 +328,7 @@ import Layout from "../layouts/Layout.astro";
       "astro:before-swap",
       () => {
         window.clearInterval(refreshInterval);
+        readObserver.disconnect();
         document.removeEventListener("visibilitychange", onVisibilityChange);
       },
       { once: true },

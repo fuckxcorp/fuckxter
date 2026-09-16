@@ -21,9 +21,21 @@ export function mountStorageSettings(root: HTMLElement): void {
   const testButton = root.querySelector<HTMLButtonElement>(
     "[data-role=s3-test]",
   )!;
+  const uploadMode = root.querySelector<HTMLSelectElement>(
+    "[data-role=upload-mode-setting]",
+  )!;
   const saveButton = form.querySelector<HTMLButtonElement>(".fk-primary-btn")!;
   let configs: S3Config[] = [];
   let selectedId: string | null = null;
+
+  uploadMode.value =
+    localStorage.getItem("fk-upload-mode") === "direct" ? "direct" : "proxy";
+  uploadMode.addEventListener("change", () => {
+    localStorage.setItem(
+      "fk-upload-mode",
+      uploadMode.value === "direct" ? "direct" : "proxy",
+    );
+  });
 
   const configFromForm = (): S3Config => {
     const data = new FormData(form);

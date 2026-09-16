@@ -87,6 +87,14 @@ export interface Comment {
   author: FeedUser;
   text: string;
   createdAt: string;
+  stats: {
+    likes: number;
+    reposts: number;
+  };
+  viewer: {
+    liked: boolean;
+    reposted: boolean;
+  };
 }
 
 export interface CommentPage {

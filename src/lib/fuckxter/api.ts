@@ -309,6 +309,28 @@ export function setFollow(
   });
 }
 
+export function toggleCommentLike(
+  postId: string,
+  commentId: string,
+  liked: boolean,
+): Promise<LikeResult> {
+  return apiRequest<LikeResult>(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/like`,
+    { method: liked ? "PUT" : "DELETE" },
+  );
+}
+
+export function toggleCommentRepost(
+  postId: string,
+  commentId: string,
+  reposted: boolean,
+): Promise<RepostResult> {
+  return apiRequest<RepostResult>(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/repost`,
+    { method: reposted ? "PUT" : "DELETE" },
+  );
+}
+
 export function uploadAvatar(
   file: File,
   onProgress?: (percent: number) => void,
