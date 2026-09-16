@@ -32,6 +32,8 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
                   class="fk-avatar-image"
                   data-role="user-avatar-image"
                   alt=""
+                  loading="eager"
+                  decoding="async"
                 />
               </a>
 
@@ -132,6 +134,8 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
                 class="fk-user-banner-image"
                 data-role="user-banner-image"
                 alt=""
+                loading="eager"
+                decoding="async"
               />
             </div>
           </div>
@@ -449,40 +453,53 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         ? Promise.resolve(pathHandle)
         : sessionPromise.then((account) => account?.profile.handle ?? "")
     ).then((value) => value.replace(/^@/, "").toLowerCase());
-    const dataPromise = handlePromise.then(async (handle) => {
-      if (!handle) return null;
-      const [profile, posts] = await Promise.all([
-        getUserProfile(handle),
-        getPostsByUser(handle),
-      ]);
-      return { handle, profile, posts };
-    });
+    let currentProfile: UserProfile | null = null;
 
-    void Promise.all([sessionPromise, dataPromise])
-      .then(([account, data]) => {
-        if (!data) {
+    void handlePromise
+      .then((handle) => {
+        if (!handle) {
           navigate("/");
           return;
         }
-        const { handle, profile, posts } = data;
-        const isOwn = account?.profile.handle === profile.handle;
-        document.title = `@${handle} | FuckXter`;
-        userStatus.hidden = true;
-        card.hidden = false;
-        fillUserProfile(card, profile, isOwn);
-        if (profile.headerUrl) {
-          bannerCard.classList.remove("is-media-ready");
-          bannerCard.classList.add("is-media-loading");
-          bannerImage.src = profile.headerUrl.startsWith("/")
-            ? apiEndpoint(profile.headerUrl)
-            : profile.headerUrl;
-          bannerImage.alt = `${profile.name} 的主页头图`;
-          bannerHost.hidden = false;
-        } else {
-          bannerImage.removeAttribute("src");
-          bannerHost.hidden = true;
-        }
-        bindPostList(postsRoot, posts, () => {});
+
+        void getUserProfile(handle)
+          .then((profile) => {
+            currentProfile = profile;
+            const isOwn = getAccount()?.profile.handle === profile.handle;
+            document.title = `@${handle} | FuckXter`;
+            userStatus.hidden = true;
+            card.hidden = false;
+            fillUserProfile(card, profile, isOwn);
+            if (profile.headerUrl) {
+              bannerCard.classList.remove("is-media-ready");
+              bannerCard.classList.add("is-media-loading");
+              bannerImage.src = profile.headerUrl.startsWith("/")
+                ? apiEndpoint(profile.headerUrl)
+                : profile.headerUrl;
+              bannerImage.alt = `${profile.name} 的主页头图`;
+              bannerHost.hidden = false;
+            } else {
+              bannerImage.removeAttribute("src");
+              bannerHost.hidden = true;
+            }
+          })
+          .catch((error: unknown) => {
+            bannerHost.hidden = true;
+            card.hidden = true;
+            userStatus.hidden = false;
+            userStatus.textContent =
+              error instanceof Error ? error.message : "用户加载失败。";
+          });
+
+        void getPostsByUser(handle)
+          .then((posts) => bindPostList(postsRoot, posts, () => {}))
+          .catch((error: unknown) => {
+            postsRoot.replaceChildren(
+              statusRow(
+                error instanceof Error ? error.message : "帖子加载失败。",
+              ),
+            );
+          });
       })
       .catch((error: unknown) => {
         bannerHost.hidden = true;
@@ -492,6 +509,15 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
           error instanceof Error ? error.message : "用户加载失败。";
         postsRoot.replaceChildren();
       });
+
+    void sessionPromise.then((account) => {
+      if (!currentProfile) return;
+      fillUserProfile(
+        card,
+        currentProfile,
+        account?.profile.handle === currentProfile.handle,
+      );
+    });
   };
 
   onFuckxterPageReady(() => {

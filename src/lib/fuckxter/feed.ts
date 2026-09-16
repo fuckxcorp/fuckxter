@@ -183,6 +183,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         : account.avatarUrl
       : "/user.avif";
     image.alt = me.name;
+    image.decoding = "async";
     composerAvatar.replaceChildren(image);
     composerAuthHint.hidden = Boolean(account);
     composerBtn.textContent = account ? "发帖" : "注册后发帖";

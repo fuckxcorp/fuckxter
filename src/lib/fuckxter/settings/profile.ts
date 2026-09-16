@@ -297,6 +297,7 @@ export function mountProfileSettings(
         : account.avatarUrl
       : "/user.avif";
     image.alt = account.profile.name;
+    image.decoding = "async";
     avatar.replaceChildren(image);
     headerRemove.hidden = !account.headerUrl;
     header.replaceChildren();
@@ -307,6 +308,7 @@ export function mountProfileSettings(
         ? apiEndpoint(account.headerUrl)
         : account.headerUrl;
       headerImage.alt = `${account.profile.name} 的主页头图`;
+      headerImage.decoding = "async";
       header.append(headerImage);
     }
   };

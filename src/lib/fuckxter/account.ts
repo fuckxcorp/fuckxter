@@ -143,6 +143,7 @@ export function mountAccountControls(
             : account.avatarUrl
           : "/user.avif";
         image.alt = "";
+        image.decoding = "async";
         element.replaceChildren(image);
       }
       menuName.textContent = account.profile.name;
