@@ -264,14 +264,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const postsById = new Map<string, Post>();
   const prefetchedPosts = new Set<string>();
 
-  const shortestColumn = (): HTMLElement => {
-    let target = columns[0];
-    for (const column of columns) {
-      if (column.offsetHeight < target.offsetHeight) target = column;
-    }
-    return target;
-  };
-
   const buildColumns = (count: number): HTMLElement => {
     const root = el("div", "fk-feed-columns");
     if (count > 1) root.classList.add("is-masonry");
@@ -291,7 +283,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
     if (columnsRoot) columnsRoot.replaceWith(root);
     else feed.append(root);
     columnsRoot = root;
-    for (const post of orderedPosts) shortestColumn().append(post);
+    orderedPosts.forEach((post, index) => {
+      columns[index % columns.length].append(post);
+    });
   };
 
   const onMediaChange = () => ensureLayout();
@@ -318,7 +312,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
     orderedPosts.push(node);
     postsById.set(post.id, post);
-    shortestColumn().append(node);
+    columns[(orderedPosts.length - 1) % columns.length].append(node);
     return node;
   };
 

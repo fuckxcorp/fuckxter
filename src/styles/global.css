@@ -614,6 +614,16 @@ body {
   letter-spacing: 0.02em;
 }
 
+.fk-avatar-fallback[hidden] {
+  display: none;
+}
+
+.is-image-error {
+  background: transparent !important;
+  background-image: none !important;
+  animation: none !important;
+}
+
 .fk-verified {
   flex-shrink: 0;
   width: 15px;

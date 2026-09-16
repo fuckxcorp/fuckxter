@@ -184,6 +184,8 @@
 }
 
 .fk-user-chip-action {
+  box-sizing: border-box;
+  min-height: 2.5rem;
   width: 100%;
   color: inherit;
   cursor: pointer;

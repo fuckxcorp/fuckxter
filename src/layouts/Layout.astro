@@ -26,5 +26,33 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
   </head>
   <body>
     <slot />
+    <script is:inline>
+      document.addEventListener(
+        "error",
+        (event) => {
+          const target = event.target;
+          if (target instanceof HTMLImageElement) {
+            target.classList.add("is-image-error");
+            const container = target.closest(
+              ".fk-avatar, .fk-account-avatar, .fk-menu-user-avatar, .fk-user-avatar, .fk-notice-avatar, .fk-user-banner, .fk-media",
+            );
+            if (container) {
+              container.classList.add("is-image-error");
+              container.removeAttribute("style");
+              container
+                .querySelector(".fk-avatar-fallback")
+                ?.setAttribute("hidden", "");
+            }
+            if (target.closest(".fk-user-banner-host")) {
+              target.closest(".fk-user-banner-host").hidden = true;
+            }
+            target.removeAttribute("src");
+          } else if (target instanceof HTMLVideoElement) {
+            target.classList.add("is-image-error");
+          }
+        },
+        true,
+      );
+    </script>
   </body>
 </html>

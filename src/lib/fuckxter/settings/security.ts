@@ -197,7 +197,8 @@ export function mountSecuritySettings(
     recoveryBox.hidden = !showCodes;
     recoveryHint.hidden = account.twoFactorEnabled;
     recoverySummary.hidden = !account.twoFactorEnabled || recoveryCount === 0;
-    recoveryGenerate.hidden = !account.twoFactorEnabled || recoveryCount > 0;
+    recoveryGenerate.hidden = false;
+    recoveryGenerate.disabled = !account.twoFactorEnabled || recoveryCount > 0;
     root.querySelector<HTMLElement>("[data-role=recovery-count]")!.textContent =
       `当前已生成 ${recoveryCount} 个恢复密钥`;
   };
@@ -230,7 +231,9 @@ export function mountSecuritySettings(
         error instanceof Error ? error.message : "生成失败",
       );
     } finally {
-      recoveryGenerate.disabled = false;
+      const account = context.getAccount();
+      recoveryGenerate.disabled =
+        !account?.twoFactorEnabled || account.recoveryCodeCount > 0;
       recoveryReplace.disabled = false;
     }
   };

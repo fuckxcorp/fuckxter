@@ -107,6 +107,66 @@ function assetPagePath(pathname: string): string | null {
   return null;
 }
 
+interface WorkerExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
+function cacheableAssetResponse(response: Response): Response {
+  const headers = new Headers(response.headers);
+  if ((headers.get("Content-Type") ?? "").includes("text/html")) {
+    headers.set(
+      "Cache-Control",
+      "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+    );
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function fetchAsset(
+  request: Request,
+  env: Env,
+  assetUrl: URL,
+  cacheUrl: URL,
+  context: WorkerExecutionContext,
+): Promise<Response> {
+  const cache = (caches as CacheStorage & { default: Cache }).default;
+  const cacheKey = new Request(cacheUrl, { method: request.method });
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    const headers = new Headers(cached.headers);
+    headers.set("X-Fuckxter-Cache", "HIT");
+    return new Response(cached.body, {
+      status: cached.status,
+      statusText: cached.statusText,
+      headers,
+    });
+  }
+
+  let response = await env.ASSETS.fetch(new Request(assetUrl, request));
+  if (response.status === 503) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    response = await env.ASSETS.fetch(new Request(assetUrl, request));
+  }
+  if (!response.ok || (request.method !== "GET" && request.method !== "HEAD")) {
+    return response;
+  }
+
+  const cacheable = cacheableAssetResponse(response);
+  const headers = new Headers(cacheable.headers);
+  headers.set("X-Fuckxter-Cache", "MISS");
+  const result = new Response(cacheable.body, {
+    status: cacheable.status,
+    statusText: cacheable.statusText,
+    headers,
+  });
+  context.waitUntil(cache.put(cacheKey, result.clone()));
+  return result;
+}
+
 async function route(request: Request, env: Env, url: URL): Promise<Response> {
   const parts = routeSegments(url.pathname);
   const method = request.method;
@@ -699,7 +759,11 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    context: WorkerExecutionContext,
+  ): Promise<Response> {
     const url = new URL(request.url);
     const hostname = url.hostname.toLowerCase();
     const isApiHost =
@@ -715,9 +779,11 @@ export default {
       ) {
         const assetUrl = new URL(url);
         assetUrl.pathname = assetPath;
-        return env.ASSETS.fetch(new Request(assetUrl, request));
+        const cacheUrl = new URL(assetUrl);
+        cacheUrl.search = "";
+        return fetchAsset(request, env, assetUrl, cacheUrl, context);
       }
-      return env.ASSETS.fetch(request);
+      return fetchAsset(request, env, url, url, context);
     }
 
     const headers = corsHeaders(request, env);
