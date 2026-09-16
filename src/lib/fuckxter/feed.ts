@@ -274,6 +274,14 @@ export function mountFeed(container: HTMLElement): FeedControls {
     return root;
   };
 
+  const shortestColumn = (): HTMLElement => {
+    let target = columns[0];
+    for (const column of columns) {
+      if (column.offsetHeight < target.offsetHeight) target = column;
+    }
+    return target;
+  };
+
   const ensureLayout = (): void => {
     const count = columnCount();
     if (columnsRoot && count === activeColumnCount) return;
@@ -282,7 +290,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     else feed.append(root);
     columnsRoot = root;
     orderedPosts.forEach((post, index) => {
-      columns[index % columns.length].append(post);
+      const column = index < columns.length ? columns[index] : shortestColumn();
+      column.append(post);
     });
   };
 
@@ -310,7 +319,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
     orderedPosts.push(node);
     postsById.set(post.id, post);
-    columns[(orderedPosts.length - 1) % columns.length].append(node);
+    const column =
+      orderedPosts.length - 1 < columns.length
+        ? columns[orderedPosts.length - 1]
+        : shortestColumn();
+    column.append(node);
     return node;
   };
 

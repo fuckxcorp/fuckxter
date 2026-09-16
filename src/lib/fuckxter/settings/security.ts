@@ -34,8 +34,16 @@ export function mountSecuritySettings(
       masonry.append(column);
       return column;
     });
+    const shortestColumn = () => {
+      let target = columns[0];
+      for (const column of columns) {
+        if (column.offsetHeight < target.offsetHeight) target = column;
+      }
+      return target;
+    };
     cards.forEach((card, index) => {
-      columns[index % columns.length].append(card);
+      const column = index < columns.length ? columns[index] : shortestColumn();
+      column.append(card);
     });
     securityPane.insertBefore(masonry, formGroups[0]);
     formGroups.forEach((group) => group.remove());
