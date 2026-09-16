@@ -63,6 +63,7 @@ import Header from "../../components/Header.astro";
   import { navigate } from "astro:transitions/client";
   import {
     createComment,
+    createPost,
     deleteComment,
     deletePost,
     getComments,
@@ -386,7 +387,25 @@ import Header from "../../components/Header.astro";
         repost.classList.toggle("is-reposted", !next);
       }
     });
-    actions.append(like, repost);
+    const quote = actionButton("quote", ICONS.copy, "转贴", 0);
+    quote.addEventListener("click", async () => {
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      const prefix = `转贴 @${comment.author.handle}：\n`;
+      const text = [...`${prefix}${comment.text}`].slice(0, 1000).join("");
+      quote.disabled = true;
+      try {
+        await createPost(text);
+        showToast("已转贴");
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "转贴失败");
+      } finally {
+        quote.disabled = false;
+      }
+    });
+    actions.append(like, repost, quote);
 
     const me = getAccount();
     if (me && (canModerate || comment.author.handle === me.profile.handle)) {

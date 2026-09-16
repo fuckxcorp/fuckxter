@@ -299,7 +299,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       }>(request);
       return json(
         {
-          upload: await presignMediaUpload(env, user.id, user.handle, {
+          upload: await presignMediaUpload(env, user.id, {
             storageConfigId:
               typeof body.storageConfigId === "string"
                 ? body.storageConfigId
@@ -328,7 +328,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       }>(request);
       return json(
         {
-          media: await finalizeMediaUpload(env, user.id, user.handle, {
+          media: await finalizeMediaUpload(env, user.id, {
             objectKey:
               typeof body.objectKey === "string" ? body.objectKey : undefined,
             originalName:
@@ -354,7 +354,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     if (parts.length === 2 && method === "POST") {
       const user = await requireUser(request, env);
       return json(
-        { media: await uploadMedia(request, env, user.id, user.handle) },
+        { media: await uploadMedia(request, env, user.id) },
         request,
         env,
         { status: 201 },

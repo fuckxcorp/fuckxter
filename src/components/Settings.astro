@@ -576,25 +576,22 @@ const sectionTitles: Record<SettingsSection, string> = {
                 连接你自己的对象存储（S3 API
                 兼容），媒体文件将直接上传到你的桶中，存储成本完全由你掌控。
               </p>
-              <div class="fk-fieldset fk-upload-mode-setting">
-                <p class="fk-fieldset-title">上传方式</p>
-                <label class="fk-field">
-                  <span class="fk-field-label">图片上传</span>
-                  <select data-role="upload-mode-setting">
-                    <option value="proxy">代理上传（推荐，无需 CORS）</option>
-                    <option value="direct">直传存储桶（需要配置 CORS）</option>
-                  </select>
-                </label>
-                <p class="fk-form-hint">
-                  代理上传由 Worker 写入对象存储；直传由浏览器直接写入 S3/R2。
-                </p>
-              </div>
               <div class="fk-storage-toolbar">
-                <select
-                  class="fk-storage-select"
-                  data-role="s3-config-select"
-                  aria-label="选择 S3 配置"
-                />
+                <div class="fk-storage-selects">
+                  <select
+                    class="fk-storage-select"
+                    data-role="upload-mode-setting"
+                    aria-label="选择上传方式"
+                  >
+                    <option value="proxy">代理上传</option>
+                    <option value="direct">直传存储桶</option>
+                  </select>
+                  <select
+                    class="fk-storage-select"
+                    data-role="s3-config-select"
+                    aria-label="选择 S3 配置"
+                  />
+                </div>
                 <button type="button" class="fk-ghost-btn" data-role="s3-new">
                   新增
                 </button>

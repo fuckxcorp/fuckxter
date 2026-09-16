@@ -164,10 +164,11 @@ export async function signedS3Request(
   return { response, endpoint };
 }
 
-export async function presignS3Put(
+export async function presignS3Request(
   input: S3Config,
+  method: "PUT" | "DELETE",
   key: string,
-  contentType: string,
+  contentType?: string,
   expiresSeconds = 900,
 ): Promise<{
   url: string;
@@ -192,9 +193,11 @@ export async function presignS3Put(
   const dateStamp = amzDate.slice(0, 8);
   const scope = `${dateStamp}/${region}/s3/aws4_request`;
   const credential = `${accessKeyId}/${scope}`;
-  const signedHeaders = "content-type;host";
+  const signedHeaders = contentType ? "content-type;host" : "host";
   const canonicalUri = encodePath(target.pathname || "/");
-  const canonicalHeaders = `content-type:${contentType.trim()}\nhost:${target.host}\n`;
+  const canonicalHeaders = contentType
+    ? `content-type:${contentType.trim()}\nhost:${target.host}\n`
+    : `host:${target.host}\n`;
   const queryEntries: [string, string][] = [
     ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
     ["X-Amz-Credential", credential],
@@ -208,7 +211,7 @@ export async function presignS3Put(
     .map(([name, value]) => `${name}=${value}`)
     .join("&");
   const canonicalRequest = [
-    "PUT",
+    method,
     canonicalUri,
     canonicalQuery,
     canonicalHeaders,
@@ -237,39 +240,54 @@ export async function presignS3Put(
 
   return {
     url: url.toString(),
-    headers: { "Content-Type": contentType },
+    headers: contentType ? { "Content-Type": contentType } : {},
     expiresAt: new Date(now.getTime() + expiresSeconds * 1000).toISOString(),
   };
 }
 
+export function presignS3Put(
+  input: S3Config,
+  key: string,
+  contentType: string,
+  expiresSeconds = 900,
+) {
+  return presignS3Request(input, "PUT", key, contentType, expiresSeconds);
+}
+
 export async function testStorageConnection(input: S3Config): Promise<string> {
-  const key = `__fuckxter-connection-test/${crypto.randomUUID()}.txt`;
+  const key = `fuckxter/media/__connection-test-${crypto.randomUUID()}.txt`;
   const body = crypto.getRandomValues(new Uint8Array(32)).buffer;
-  const put = await signedS3Request(input, "PUT", key, body, "text/plain");
-  if (!put.response.ok) {
+  const put = await presignS3Request(input, "PUT", key, "text/plain");
+  const putResponse = await fetch(put.url, {
+    method: "PUT",
+    headers: put.headers,
+    body,
+  });
+  if (!putResponse.ok) {
     let detail = "";
     try {
-      detail = (await put.response.text()).trim().slice(0, 240);
+      detail = (await putResponse.text()).trim().slice(0, 240);
     } catch {}
     throw new HttpError(
       502,
       "S3_WRITE_FAILED",
-      `Write test failed (S3 ${put.response.status})${detail ? `: ${detail}` : "."}`,
+      `Write test failed (S3 ${putResponse.status})${detail ? `: ${detail}` : "."}`,
     );
   }
 
-  const remove = await signedS3Request(input, "DELETE", key);
-  if (!remove.response.ok) {
+  const remove = await presignS3Request(input, "DELETE", key);
+  const removeResponse = await fetch(remove.url, { method: "DELETE" });
+  if (!removeResponse.ok) {
     let detail = "";
     try {
-      detail = (await remove.response.text()).trim().slice(0, 240);
+      detail = (await removeResponse.text()).trim().slice(0, 240);
     } catch {}
     throw new HttpError(
       502,
       "S3_DELETE_FAILED",
-      `Delete test failed (S3 ${remove.response.status})${detail ? `: ${detail}` : "."}`,
+      `Delete test failed (S3 ${removeResponse.status})${detail ? `: ${detail}` : "."}`,
     );
   }
 
-  return `Connection succeeded: ${input.bucket} @ ${put.endpoint.host}`;
+  return `Connection succeeded: ${input.bucket} @ ${new URL(put.url).host}`;
 }

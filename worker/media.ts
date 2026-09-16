@@ -1,6 +1,6 @@
 import { HttpError } from "./http";
 import type { Env, MediaRow } from "./platform";
-import { presignS3Put, signedS3Request } from "./s3";
+import { presignS3Put, presignS3Request, signedS3Request } from "./s3";
 import { randomId, randomToken } from "./security";
 import { getStorageConfig } from "./storage";
 import { usernameKey } from "./usernames";
@@ -161,12 +161,7 @@ async function readImage(request: Request): Promise<{
   };
 }
 
-export async function uploadMedia(
-  request: Request,
-  env: Env,
-  userId: string,
-  handle: string,
-) {
+export async function uploadMedia(request: Request, env: Env, userId: string) {
   const { bytes, contentType, originalName } = await readImage(request);
 
   const requestedConfigId =
@@ -181,14 +176,13 @@ export async function uploadMedia(
   }
 
   const extension = MEDIA_EXTENSIONS[contentType] ?? "bin";
-  const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
-  const { response } = await signedS3Request(
-    config,
-    "PUT",
-    objectKey,
-    bytes,
-    contentType,
-  );
+  const objectKey = `fuckxter/media/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
+  const upload = await presignS3Request(config, "PUT", objectKey, contentType);
+  const response = await fetch(upload.url, {
+    method: "PUT",
+    headers: upload.headers,
+    body: bytes,
+  });
   if (!response.ok) {
     let detail = "";
     try {
@@ -247,7 +241,6 @@ export async function uploadMedia(
 export async function presignMediaUpload(
   env: Env,
   userId: string,
-  handle: string,
   input: {
     storageConfigId?: string;
     fileName?: string;
@@ -271,7 +264,7 @@ export async function presignMediaUpload(
       "Configure S3-compatible storage first.",
     );
   }
-  const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
+  const objectKey = `fuckxter/media/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
   const presigned = await presignS3Put(config, objectKey, contentType, 3600);
   return {
     objectKey,
@@ -285,7 +278,6 @@ export async function presignMediaUpload(
 export async function finalizeMediaUpload(
   env: Env,
   userId: string,
-  handle: string,
   input: {
     objectKey?: string;
     originalName?: string;
@@ -294,7 +286,7 @@ export async function finalizeMediaUpload(
   },
 ) {
   const objectKey = input.objectKey?.trim() ?? "";
-  const prefix = `media/${handle}/`;
+  const prefix = "fuckxter/media/";
   if (
     !objectKey.startsWith(prefix) ||
     objectKey.length === prefix.length ||
