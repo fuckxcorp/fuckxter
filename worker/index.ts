@@ -89,6 +89,24 @@ function routeSegments(pathname: string): string[] {
   return ["", ...pathname.split("/").filter(Boolean)];
 }
 
+const POST_ASSET_PATH = /^\/post\/([^/]+)\/([^/]+)\/?$/i;
+const USER_ASSET_PATH = /^\/user\/([^/]+)\/?$/i;
+const PRETTY_ASSET_PATHS = new Set([
+  "/notice",
+  "/saved",
+  "/settings",
+  "/settings/profile",
+  "/settings/security",
+  "/settings/storage",
+]);
+
+function assetPagePath(pathname: string): string | null {
+  if (POST_ASSET_PATH.test(pathname) || pathname === "/post") return "/post/";
+  if (USER_ASSET_PATH.test(pathname) || pathname === "/user") return "/user/";
+  if (PRETTY_ASSET_PATHS.has(pathname)) return `${pathname}/`;
+  return null;
+}
+
 async function route(request: Request, env: Env, url: URL): Promise<Response> {
   const parts = routeSegments(url.pathname);
   const method = request.method;
@@ -690,6 +708,15 @@ export default {
       hostname === "127.0.0.1" ||
       hostname === "::1";
     if (!isApiHost) {
+      const assetPath = assetPagePath(url.pathname);
+      if (
+        assetPath &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        const assetUrl = new URL(url);
+        assetUrl.pathname = assetPath;
+        return env.ASSETS.fetch(new Request(assetUrl, request));
+      }
       return env.ASSETS.fetch(request);
     }
 
