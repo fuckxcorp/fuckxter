@@ -16,15 +16,138 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
           data-role="user-head"
           aria-label="用户资料"
         >
-          <p class="fk-status">加载中…</p>
+          <section class="fk-user-head-card" data-role="user-card">
+            <div class="fk-user-row">
+              <a
+                class="fk-user-avatar fk-avatar-link"
+                data-role="user-avatar"
+                href="#"
+                aria-label="用户主页"
+              >
+                <span
+                  class="fk-avatar-fallback"
+                  data-role="user-avatar-fallback">?</span
+                >
+                <img
+                  class="fk-avatar-image"
+                  data-role="user-avatar-image"
+                  alt=""
+                />
+              </a>
+
+              <div class="fk-user-who">
+                <div class="fk-user-name-line">
+                  <strong data-role="user-name">加载中…</strong>
+                  <span data-role="user-verified" hidden>
+                    <svg
+                      class="fk-verified"
+                      viewBox="0 0 24 24"
+                      aria-label="认证账号"
+                      role="img"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M12 1.5l2.6 2 3.2-.4 1.2 3 3 1.2-.4 3.2 2 2.5-2 2.5.4 3.2-3 1.2-1.2 3-3.2-.4-2.6 2-2.6-2-3.2.4-1.2-3-3-1.2.4-3.2-2-2.5 2-2.5-.4-3.2 3-1.2 1.2-3 3.2.4z"
+                      ></path>
+                      <path
+                        class="fk-verified-check"
+                        d="M10.7 15.9l-3-3 1.3-1.3 1.7 1.7 4.3-4.3 1.3 1.3z"
+                      ></path>
+                    </svg>
+                  </span>
+                </div>
+                <div class="fk-user-handle" data-role="user-handle"></div>
+                <p class="fk-user-bio" data-role="user-bio"></p>
+              </div>
+            </div>
+
+            <div class="fk-user-meta">
+              <span class="fk-user-chip" data-role="user-chip-gender" hidden>
+                <span class="fk-user-chip-label">性别</span>
+                <span class="fk-user-chip-value" data-role="user-gender"></span>
+              </span>
+              <span class="fk-user-chip" data-role="user-chip-region" hidden>
+                <span class="fk-user-chip-label">地区</span>
+                <span class="fk-user-chip-value" data-role="user-region"></span>
+              </span>
+              <span class="fk-user-chip" data-role="user-chip-birthday" hidden>
+                <span class="fk-user-chip-label">生日</span>
+                <span class="fk-user-chip-value" data-role="user-birthday"
+                ></span>
+              </span>
+              <span class="fk-user-chip" data-role="user-chip-created" hidden>
+                <span class="fk-user-chip-label">加入时间</span>
+                <span class="fk-user-chip-value" data-role="user-created"
+                ></span>
+              </span>
+              <span
+                class="fk-user-chip"
+                data-role="user-chip-posts-count"
+                hidden
+              >
+                <span class="fk-user-chip-label">帖子</span>
+                <span class="fk-user-chip-value" data-role="user-posts-count"
+                ></span>
+              </span>
+              <span class="fk-user-chip" data-role="user-chip-followers" hidden>
+                <span class="fk-user-chip-label">关注者</span>
+                <span class="fk-user-chip-value" data-role="user-followers"
+                ></span>
+              </span>
+              <span class="fk-user-chip" data-role="user-chip-following" hidden>
+                <span class="fk-user-chip-label">正在关注</span>
+                <span class="fk-user-chip-value" data-role="user-following"
+                ></span>
+              </span>
+            </div>
+
+            <div class="fk-user-actions">
+              <button
+                type="button"
+                class="fk-primary-btn"
+                data-role="user-edit"
+                hidden
+              >
+                编辑资料
+              </button>
+              <button
+                type="button"
+                class="fk-primary-btn"
+                data-role="user-follow"
+                hidden
+              >
+                关注
+              </button>
+            </div>
+          </section>
+          <p class="fk-status" data-role="user-status" hidden></p>
         </section>
         <div class="fk-user-stream">
-          <div class="fk-user-banner-host" data-role="user-banner" hidden></div>
+          <div class="fk-user-banner-host" data-role="user-banner" hidden>
+            <div
+              class="fk-user-banner is-media-loading"
+              data-role="user-banner-card"
+            >
+              <img
+                class="fk-user-banner-image"
+                data-role="user-banner-image"
+                alt=""
+              />
+            </div>
+          </div>
           <section
             class="fk-user-posts"
             data-role="user-posts"
             aria-label="该用户的帖子"
           >
+            <article class="fk-post fk-user-post-skeleton" aria-hidden="true">
+              <span class="fk-skeleton fk-skeleton-avatar"></span>
+              <div class="fk-skeleton-copy">
+                <span class="fk-skeleton fk-skeleton-line is-short"></span>
+                <span class="fk-skeleton fk-skeleton-line"></span>
+                <span class="fk-skeleton fk-skeleton-line is-medium"></span>
+              </div>
+            </article>
           </section>
         </div>
       </div>
@@ -50,10 +173,8 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     type Account,
   } from "../../lib/fuckxter/auth";
   import {
-    authorAvatar,
-    el,
+    avatarGradient,
     fmtCount,
-    ICONS,
     renderPost,
     setFollowButtonState,
     showToast,
@@ -68,113 +189,68 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
   const fullTime = (iso: string) =>
     new Date(iso).toLocaleString("zh-CN", { dateStyle: "long" });
 
-  function renderUserBanner(profile: UserProfile): HTMLElement | null {
-    if (!profile.headerUrl) return null;
-
-    const banner = el("div", "fk-user-banner is-media-loading");
-    const headerImage = el("img", "fk-user-banner-image");
-    headerImage.src = profile.headerUrl.startsWith("/")
-      ? apiEndpoint(profile.headerUrl)
-      : profile.headerUrl;
-    headerImage.alt = `${profile.name} 的主页头图`;
-    headerImage.loading = "eager";
-    headerImage.decoding = "async";
-    banner.append(headerImage);
-    headerImage.addEventListener(
-      "load",
-      () => banner.classList.add("is-media-ready"),
-      { once: true },
-    );
-    headerImage.addEventListener("error", () => banner.remove(), {
-      once: true,
-    });
-    return banner;
+  function setUserChip(card: HTMLElement, role: string, value: string): void {
+    const chip = card.querySelector<HTMLElement>(
+      `[data-role=user-chip-${role}]`,
+    )!;
+    const output = card.querySelector<HTMLElement>(`[data-role=user-${role}]`)!;
+    chip.hidden = !value;
+    output.textContent = value;
   }
 
-  function renderUserHead(profile: UserProfile, isOwn: boolean): HTMLElement {
-    const card = el("section", "fk-user-head-card");
+  function fillUserProfile(
+    card: HTMLElement,
+    profile: UserProfile,
+    isOwn: boolean,
+  ): void {
+    const role = <T extends Element>(name: string): T =>
+      card.querySelector<T>(`[data-role=user-${name}]`)!;
+    const avatar = role<HTMLAnchorElement>("avatar");
+    const avatarFallback = role<HTMLSpanElement>("avatar-fallback");
+    const avatarImage = role<HTMLImageElement>("avatar-image");
+    const verified = role<HTMLElement>("verified");
+    const edit = role<HTMLButtonElement>("edit");
+    const follow = role<HTMLButtonElement>("follow");
 
-    const row = el("div", "fk-user-row");
-    const avatar = authorAvatar(
-      profile.handle,
-      profile.name,
-      "fk-user-avatar",
-      profile.avatarUrl,
-    );
+    avatar.href = userPath(profile.handle);
+    avatar.dataset.handle = profile.handle;
     avatar.title = profile.name;
+    avatar.setAttribute(
+      "aria-label",
+      `查看 ${profile.name}（@${profile.handle}）的主页`,
+    );
+    avatar.setAttribute("style", avatarGradient(profile.handle));
+    avatarFallback.textContent =
+      [...profile.name.trim()][0]?.toLocaleUpperCase() ?? "?";
+    avatarImage.src = profile.avatarUrl
+      ? profile.avatarUrl.startsWith("/")
+        ? apiEndpoint(profile.avatarUrl)
+        : profile.avatarUrl
+      : "/user.avif";
+    avatarImage.alt = profile.name;
 
-    const who = el("div", "fk-user-who");
-    const nameLine = el("div", "fk-user-name-line");
-    const name = el("strong");
-    name.textContent = profile.name;
-    nameLine.append(name);
-    if (profile.verified)
-      nameLine.insertAdjacentHTML("beforeend", ICONS.verified);
-    const handle = el("div", "fk-user-handle");
-    handle.textContent = `@${profile.handle}`;
-    const bio = el("p", "fk-user-bio");
-    bio.textContent = profile.bio || "这个人很懒，什么都没有写。";
-    who.append(nameLine, handle, bio);
-    row.append(avatar, who);
+    role<HTMLElement>("name").textContent = profile.name;
+    role<HTMLElement>("handle").textContent = `@${profile.handle}`;
+    role<HTMLElement>("bio").textContent =
+      profile.bio || "这个人很懒，什么都没有写。";
+    verified.toggleAttribute("hidden", !profile.verified);
 
-    const meta = el("div", "fk-user-meta");
-    const chip = (label: string, value: string) => {
-      if (!value) return;
-      const span = el("span", "fk-user-chip");
-      const chipLabel = el("span", "fk-user-chip-label");
-      chipLabel.textContent = label;
-      const chipValue = el("span", "fk-user-chip-value");
-      chipValue.textContent = value;
-      span.append(chipLabel, chipValue);
-      meta.append(span);
-    };
-    chip("性别", profile.gender);
-    chip("地区", profile.region);
-    chip("生日", profile.birthday);
-    chip("加入时间", fullTime(profile.createdAt));
-    chip("帖子", String(profile.stats.posts));
-    chip("关注者", String(profile.stats.followers));
-    chip("正在关注", String(profile.stats.following));
+    setUserChip(card, "gender", profile.gender);
+    setUserChip(card, "region", profile.region);
+    setUserChip(card, "birthday", profile.birthday);
+    setUserChip(card, "created", fullTime(profile.createdAt));
+    setUserChip(card, "posts-count", String(profile.stats.posts));
+    setUserChip(card, "followers", String(profile.stats.followers));
+    setUserChip(card, "following", String(profile.stats.following));
 
-    card.append(row, meta);
-
-    const actions = el("div", "fk-user-actions");
-    if (isOwn) {
-      const edit = el("button", "fk-primary-btn");
-      edit.type = "button";
-      edit.textContent = "编辑资料";
-      edit.addEventListener("click", () => navigate("/settings/profile"));
-
-      actions.append(edit);
-    } else {
-      const follow = el("button", "fk-primary-btn");
-      follow.type = "button";
-      const renderFollow = (following: boolean) => {
-        follow.textContent = following ? "已关注" : "关注";
-        follow.classList.toggle("fk-ghost-btn", following);
-      };
-      renderFollow(profile.viewer.following);
-      follow.addEventListener("click", async () => {
-        follow.disabled = true;
-        const next = !follow.classList.contains("fk-ghost-btn");
-        try {
-          const result = await setFollow(profile.handle, next);
-          profile.viewer.following = result.following;
-          profile.stats.followers = result.followers;
-          renderFollow(result.following);
-        } catch (error) {
-          if (error instanceof ApiError && error.status === 401) {
-            requestAuthentication();
-          }
-        } finally {
-          follow.disabled = false;
-        }
-      });
-      actions.append(follow);
+    edit.hidden = !isOwn;
+    follow.hidden = isOwn;
+    if (!isOwn) {
+      follow.dataset.handle = profile.handle;
+      follow.dataset.following = String(profile.viewer.following);
+      follow.textContent = profile.viewer.following ? "已关注" : "关注";
+      follow.classList.toggle("fk-ghost-btn", profile.viewer.following);
     }
-    card.append(actions);
-
-    return card;
   }
 
   function bindPostList(
@@ -310,13 +386,63 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         history.length > 1 ? history.back() : (location.href = "/"),
       );
 
-    const head = container.querySelector<HTMLElement>("[data-role=user-head]")!;
+    const card = container.querySelector<HTMLElement>("[data-role=user-card]")!;
+    const userStatus = container.querySelector<HTMLElement>(
+      "[data-role=user-status]",
+    )!;
     const postsRoot = container.querySelector<HTMLElement>(
       "[data-role=user-posts]",
     )!;
     const bannerHost = container.querySelector<HTMLElement>(
       "[data-role=user-banner]",
     )!;
+    const bannerCard = container.querySelector<HTMLElement>(
+      "[data-role=user-banner-card]",
+    )!;
+    const bannerImage = container.querySelector<HTMLImageElement>(
+      "[data-role=user-banner-image]",
+    )!;
+    const edit = container.querySelector<HTMLButtonElement>(
+      "[data-role=user-edit]",
+    )!;
+    const follow = container.querySelector<HTMLButtonElement>(
+      "[data-role=user-follow]",
+    )!;
+
+    edit.addEventListener("click", () => navigate("/settings/profile"));
+    follow.addEventListener("click", async () => {
+      if (!follow.dataset.handle) return;
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      follow.disabled = true;
+      const next = follow.dataset.following !== "true";
+      try {
+        const result = await setFollow(follow.dataset.handle, next);
+        follow.dataset.following = String(result.following);
+        follow.textContent = result.following ? "已关注" : "关注";
+        follow.classList.toggle("fk-ghost-btn", result.following);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+          requestAuthentication();
+        }
+      } finally {
+        follow.disabled = false;
+      }
+    });
+    bannerImage.addEventListener(
+      "load",
+      () => bannerCard.classList.add("is-media-ready"),
+      { once: true },
+    );
+    bannerImage.addEventListener(
+      "error",
+      () => {
+        bannerHost.hidden = true;
+      },
+      { once: true },
+    );
 
     const account: Account | null = getAccount();
     const handle = (
@@ -335,18 +461,30 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       .then(([profile, posts]) => {
         const isOwn = account?.profile.handle === profile.handle;
         document.title = `@${handle} | FuckXter`;
-        const banner = renderUserBanner(profile);
-        head.replaceChildren(renderUserHead(profile, isOwn));
-        bannerHost.replaceChildren();
-        bannerHost.hidden = !banner;
-        if (banner) bannerHost.append(banner);
+        userStatus.hidden = true;
+        card.hidden = false;
+        fillUserProfile(card, profile, isOwn);
+        if (profile.headerUrl) {
+          bannerCard.classList.remove("is-media-ready");
+          bannerCard.classList.add("is-media-loading");
+          bannerImage.src = profile.headerUrl.startsWith("/")
+            ? apiEndpoint(profile.headerUrl)
+            : profile.headerUrl;
+          bannerImage.alt = `${profile.name} 的主页头图`;
+          bannerHost.hidden = false;
+        } else {
+          bannerImage.removeAttribute("src");
+          bannerHost.hidden = true;
+        }
         bindPostList(postsRoot, posts, () => {});
       })
       .catch((error: unknown) => {
         bannerHost.hidden = true;
-        head.replaceChildren(
-          statusRow(error instanceof Error ? error.message : "用户加载失败。"),
-        );
+        card.hidden = true;
+        userStatus.hidden = false;
+        userStatus.textContent =
+          error instanceof Error ? error.message : "用户加载失败。";
+        postsRoot.replaceChildren();
       });
   };
 

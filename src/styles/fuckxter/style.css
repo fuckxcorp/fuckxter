@@ -1479,6 +1479,10 @@
   font-size: 0.9rem;
 }
 
+.fk-status[hidden] {
+  display: none;
+}
+
 .fk-retry-btn {
   border: 1px solid var(--color-border-strong);
   background: var(--color-bg);
@@ -2609,6 +2613,10 @@
   font-size: 0.8rem;
 }
 
+.fk-user-chip[hidden] {
+  display: none;
+}
+
 .fk-user-chip-label {
   flex: none;
   color: var(--color-text-muted);
@@ -2635,6 +2643,10 @@
   border: 1px solid var(--color-border);
   border-radius: 14px;
   background: var(--color-bg-raised);
+}
+
+.fk-user-post-skeleton {
+  pointer-events: none;
 }
 
 @media (max-width: 900px) {
