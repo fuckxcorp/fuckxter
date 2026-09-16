@@ -27,26 +27,26 @@ export function getTimeline(
   cursor: string | null,
 ): Promise<FeedPage> {
   return apiRequest<FeedPage>(
-    `/api/timeline?${query({ tab, cursor, limit: "10" })}`,
+    `/timeline?${query({ tab, cursor, limit: "10" })}`,
   );
 }
 
 export function createPost(text: string, mediaId?: string): Promise<Post> {
-  return apiRequest<Post>("/api/posts", {
+  return apiRequest<Post>("/posts", {
     method: "POST",
     body: JSON.stringify({ text, mediaId }),
   });
 }
 
 export function updatePost(id: string, text: string): Promise<Post> {
-  return apiRequest<Post>(`/api/posts/${encodeURIComponent(id)}`, {
+  return apiRequest<Post>(`/posts/${encodeURIComponent(id)}`, {
     method: "PATCH",
     body: JSON.stringify({ text }),
   });
 }
 
 export async function deletePost(id: string): Promise<void> {
-  await apiRequest(`/api/posts/${encodeURIComponent(id)}`, {
+  await apiRequest(`/posts/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
@@ -72,7 +72,7 @@ async function proxyUploadMedia(
     "X-File-Name": encodeURIComponent(file.name),
   };
   if (storageConfigId) headers["X-Storage-Config-Id"] = storageConfigId;
-  const response = await apiRequest<{ media: PostMedia }>("/api/media", {
+  const response = await apiRequest<{ media: PostMedia }>("/media", {
     method: "POST",
     headers,
     body: file,
@@ -133,7 +133,7 @@ export async function uploadMedia(
   let stage: "presign" | "upload" | "finalize" = "presign";
   try {
     const presign = await apiRequest<{ upload: MediaUploadTicket }>(
-      "/api/media/uploads",
+      "/media/uploads",
       {
         method: "POST",
         body: JSON.stringify({
@@ -151,18 +151,15 @@ export async function uploadMedia(
       onProgress,
     );
     stage = "finalize";
-    const response = await apiRequest<{ media: PostMedia }>(
-      "/api/media/finalize",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          objectKey: presign.upload.objectKey,
-          originalName: presign.upload.originalName,
-          contentType: presign.upload.contentType,
-          storageConfigId: presign.upload.storageConfigId,
-        }),
-      },
-    );
+    const response = await apiRequest<{ media: PostMedia }>("/media/finalize", {
+      method: "POST",
+      body: JSON.stringify({
+        objectKey: presign.upload.objectKey,
+        originalName: presign.upload.originalName,
+        contentType: presign.upload.contentType,
+        storageConfigId: presign.upload.storageConfigId,
+      }),
+    });
     return response.media;
   } catch (error) {
     if (stage !== "finalize" && file.size <= PROXY_MEDIA_LIMIT) {
@@ -174,7 +171,7 @@ export async function uploadMedia(
 
 export async function getStorageOptions(): Promise<StorageOption[]> {
   const response = await apiRequest<{ options: StorageOption[] }>(
-    "/api/me/storage/options",
+    "/me/storage/options",
   );
   return response.options;
 }
@@ -184,7 +181,7 @@ export function getNotifications(
   limit = 30,
 ): Promise<NotificationPage> {
   return apiRequest<NotificationPage>(
-    `/api/notice?${query({ cursor, limit: String(limit) })}`,
+    `/notice?${query({ cursor, limit: String(limit) })}`,
   );
 }
 
@@ -197,7 +194,7 @@ export async function markNotificationsRead(
   id?: string,
   keepalive = false,
 ): Promise<number> {
-  const response = await apiRequest<{ unread: number }>("/api/notice", {
+  const response = await apiRequest<{ unread: number }>("/notice", {
     method: "POST",
     body: JSON.stringify(id ? { id } : {}),
     keepalive,
@@ -206,7 +203,7 @@ export async function markNotificationsRead(
 }
 
 export function toggleLike(id: string, liked: boolean): Promise<LikeResult> {
-  return apiRequest<LikeResult>(`/api/posts/${encodeURIComponent(id)}/like`, {
+  return apiRequest<LikeResult>(`/posts/${encodeURIComponent(id)}/like`, {
     method: liked ? "PUT" : "DELETE",
   });
 }
@@ -215,22 +212,19 @@ export function toggleRepost(
   id: string,
   reposted: boolean,
 ): Promise<RepostResult> {
-  return apiRequest<RepostResult>(
-    `/api/posts/${encodeURIComponent(id)}/repost`,
-    {
-      method: reposted ? "PUT" : "DELETE",
-    },
-  );
+  return apiRequest<RepostResult>(`/posts/${encodeURIComponent(id)}/repost`, {
+    method: reposted ? "PUT" : "DELETE",
+  });
 }
 
 export async function getSavedPosts(): Promise<Post[]> {
-  const response = await apiRequest<{ posts: Post[] }>("/api/me/saved");
+  const response = await apiRequest<{ posts: Post[] }>("/me/saved");
   return response.posts;
 }
 
 export async function toggleSave(post: Post, saved: boolean): Promise<Post[]> {
   const response = await apiRequest<{ posts: Post[] }>(
-    `/api/posts/${encodeURIComponent(post.id)}/save`,
+    `/posts/${encodeURIComponent(post.id)}/save`,
     {
       method: saved ? "PUT" : "DELETE",
     },
@@ -244,7 +238,7 @@ export async function getPostByPath(
 ): Promise<Post | null> {
   try {
     return await apiRequest<Post>(
-      `/api/posts/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`,
+      `/posts/${encodeURIComponent(handle)}/${encodeURIComponent(slug)}`,
     );
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
@@ -254,18 +248,18 @@ export async function getPostByPath(
 
 export async function getPostsByUser(handle: string): Promise<Post[]> {
   const response = await apiRequest<{ posts: Post[] }>(
-    `/api/users/${encodeURIComponent(handle)}/posts`,
+    `/users/${encodeURIComponent(handle)}/posts`,
   );
   return response.posts;
 }
 
 export function searchPosts(queryText: string): Promise<SearchResult> {
-  return apiRequest<SearchResult>(`/api/search?${query({ q: queryText })}`);
+  return apiRequest<SearchResult>(`/search?${query({ q: queryText })}`);
 }
 
 export function getComments(postId: string): Promise<CommentPage> {
   return apiRequest<CommentPage>(
-    `/api/posts/${encodeURIComponent(postId)}/comments`,
+    `/posts/${encodeURIComponent(postId)}/comments`,
   );
 }
 
@@ -274,7 +268,7 @@ export async function createComment(
   text: string,
 ): Promise<Comment> {
   const response = await apiRequest<{ comment: Comment }>(
-    `/api/posts/${encodeURIComponent(postId)}/comments`,
+    `/posts/${encodeURIComponent(postId)}/comments`,
     {
       method: "POST",
       body: JSON.stringify({ text }),
@@ -288,7 +282,7 @@ export async function deleteComment(
   commentId: string,
 ): Promise<void> {
   await apiRequest(
-    `/api/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
     {
       method: "DELETE",
     },
@@ -297,7 +291,7 @@ export async function deleteComment(
 
 export async function getUserProfile(handle: string): Promise<UserProfile> {
   const response = await apiRequest<{ user: UserProfile }>(
-    `/api/users/${encodeURIComponent(handle)}`,
+    `/users/${encodeURIComponent(handle)}`,
   );
   return response.user;
 }
@@ -306,7 +300,7 @@ export function setFollow(
   handle: string,
   following: boolean,
 ): Promise<{ handle: string; following: boolean; followers: number }> {
-  return apiRequest(`/api/users/${encodeURIComponent(handle)}/follow`, {
+  return apiRequest(`/users/${encodeURIComponent(handle)}/follow`, {
     method: following ? "PUT" : "DELETE",
   });
 }
@@ -317,7 +311,7 @@ export function uploadAvatar(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open("PUT", apiEndpoint("/api/me/avatar"));
+    request.open("PUT", apiEndpoint("/me/avatar"));
     request.withCredentials = true;
     request.setRequestHeader("Accept", "application/json");
     request.setRequestHeader("Content-Type", file.type);
@@ -370,7 +364,7 @@ export function uploadHeader(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open("PUT", apiEndpoint("/api/me/header"));
+    request.open("PUT", apiEndpoint("/me/header"));
     request.withCredentials = true;
     request.setRequestHeader("Accept", "application/json");
     request.setRequestHeader("Content-Type", file.type);
@@ -418,13 +412,13 @@ export function uploadHeader(
 }
 
 export async function removeAvatar(): Promise<void> {
-  await apiRequest("/api/me/avatar", {
+  await apiRequest("/me/avatar", {
     method: "DELETE",
   });
 }
 
 export async function removeHeader(): Promise<void> {
-  await apiRequest("/api/me/header", {
+  await apiRequest("/me/header", {
     method: "DELETE",
   });
 }

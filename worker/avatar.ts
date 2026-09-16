@@ -7,10 +7,10 @@ export function buildAvatarUrl(input: {
   updatedAt: string;
 }): string | null {
   if (input.avatarKey) {
-    return `/api/avatars/${encodeURIComponent(input.handle)}?v=${encodeURIComponent(input.updatedAt)}`;
+    return `/avatars/${encodeURIComponent(input.handle)}?v=${encodeURIComponent(input.updatedAt)}`;
   }
   return input.avatarMediaId
-    ? `/api/media/${encodeURIComponent(input.avatarMediaId)}`
+    ? `/media/${encodeURIComponent(input.avatarMediaId)}`
     : null;
 }
 
@@ -20,7 +20,7 @@ export function buildHeaderUrl(input: {
   exists: boolean;
 }): string | null {
   return input.exists
-    ? `/api/headers/${encodeURIComponent(input.handle)}?v=${encodeURIComponent(input.updatedAt)}`
+    ? `/headers/${encodeURIComponent(input.handle)}?v=${encodeURIComponent(input.updatedAt)}`
     : null;
 }
 

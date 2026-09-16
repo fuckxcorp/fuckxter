@@ -92,7 +92,7 @@ function setAccount(next: Account | null): void {
 export function hydrateSession(force = false): Promise<Account | null> {
   if (!force && sessionPromise) return sessionPromise;
 
-  sessionPromise = apiRequest<AccountResponse>("/api/auth/me")
+  sessionPromise = apiRequest<AccountResponse>("/auth/me")
     .then((response) => {
       setAccount(response.account ? normalizeAccount(response.account) : null);
       return account;
@@ -127,7 +127,7 @@ export async function signIn(input: {
   password: string;
   code?: string;
 }): Promise<Account> {
-  const response = await apiRequest<AccountResponse>("/api/auth/login", {
+  const response = await apiRequest<AccountResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -141,7 +141,7 @@ export async function signIn(input: {
 
 export async function signOut(): Promise<void> {
   try {
-    await apiRequest<void>("/api/auth/logout", { method: "POST" });
+    await apiRequest<void>("/auth/logout", { method: "POST" });
   } finally {
     setAccount(null);
     sessionPromise = Promise.resolve(null);
@@ -156,7 +156,7 @@ export async function updateProfile(input: {
   birthday: string;
   handle: string;
 }): Promise<Account> {
-  const response = await apiRequest<AccountResponse>("/api/me", {
+  const response = await apiRequest<AccountResponse>("/me", {
     method: "PATCH",
     body: JSON.stringify(input),
   });
@@ -171,7 +171,7 @@ export async function changeEmail(input: {
   email: string;
   password: string;
 }): Promise<Account> {
-  const response = await apiRequest<AccountResponse>("/api/me/email", {
+  const response = await apiRequest<AccountResponse>("/me/email", {
     method: "PUT",
     body: JSON.stringify(input),
   });
@@ -186,20 +186,20 @@ export async function changePassword(input: {
   current: string;
   next: string;
 }): Promise<void> {
-  await apiRequest<void>("/api/me/password", {
+  await apiRequest<void>("/me/password", {
     method: "PUT",
     body: JSON.stringify(input),
   });
 }
 
 export async function beginTwoFactor(): Promise<{ secret: string }> {
-  return apiRequest<{ secret: string }>("/api/me/2fa/setup", {
+  return apiRequest<{ secret: string }>("/me/2fa/setup", {
     method: "POST",
   });
 }
 
 export async function confirmTwoFactor(code: string): Promise<Account> {
-  const response = await apiRequest<AccountResponse>("/api/me/2fa/confirm", {
+  const response = await apiRequest<AccountResponse>("/me/2fa/confirm", {
     method: "POST",
     body: JSON.stringify({ code }),
   });
@@ -217,7 +217,7 @@ export async function generateRecoveryCodes(): Promise<{
   const response = await apiRequest<{
     codes: string[];
     recoveryCodeCount: number;
-  }>("/api/me/2fa/recovery-codes", {
+  }>("/me/2fa/recovery-codes", {
     method: "POST",
   });
   if (account) {
@@ -231,15 +231,13 @@ export async function getS3Configs(): Promise<{
   defaultId: string | null;
 }> {
   return apiRequest<{ configs: S3Config[]; defaultId: string | null }>(
-    "/api/me/storage",
+    "/me/storage",
   );
 }
 
 export async function saveS3Config(config: S3Config): Promise<S3Config> {
   const response = await apiRequest<{ config: S3Config }>(
-    config.id
-      ? `/api/me/storage/${encodeURIComponent(config.id)}`
-      : "/api/me/storage",
+    config.id ? `/me/storage/${encodeURIComponent(config.id)}` : "/me/storage",
     {
       method: config.id ? "PUT" : "POST",
       body: JSON.stringify(config),
@@ -249,18 +247,15 @@ export async function saveS3Config(config: S3Config): Promise<S3Config> {
 }
 
 export async function deleteS3Config(id: string): Promise<void> {
-  await apiRequest(`/api/me/storage/${encodeURIComponent(id)}`, {
+  await apiRequest(`/me/storage/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
 }
 
 export async function testS3Connection(config: S3Config): Promise<string> {
-  const response = await apiRequest<{ message: string }>(
-    "/api/me/storage/test",
-    {
-      method: "POST",
-      body: JSON.stringify(config),
-    },
-  );
+  const response = await apiRequest<{ message: string }>("/me/storage/test", {
+    method: "POST",
+    body: JSON.stringify(config),
+  });
   return response.message;
 }

@@ -280,7 +280,7 @@ export async function createPost(
     }
     mediaJson = JSON.stringify({
       id: media.id,
-      url: `/api/media/${encodeURIComponent(media.id)}`,
+      url: `/media/${encodeURIComponent(media.id)}`,
       alt: media.original_name,
       contentType: media.content_type,
       byteSize: Number(media.byte_size),

@@ -78,13 +78,14 @@ function segment(values: string[], index: number): string {
   }
 }
 
-async function route(request: Request, env: Env, url: URL): Promise<Response> {
-  const parts = url.pathname.split("/").filter(Boolean);
-  const method = request.method;
+function apiSegments(pathname: string): string[] {
+  const parts = pathname.split("/").filter(Boolean);
+  return parts[0] === "api" ? parts.slice(1) : parts;
+}
 
-  if (parts[0] !== "api") {
-    throw new HttpError(404, "NOT_FOUND", "Endpoint not found.");
-  }
+async function route(request: Request, env: Env, url: URL): Promise<Response> {
+  const parts = apiSegments(url.pathname);
+  const method = request.method;
 
   if (parts[1] === "health" && parts.length === 2 && method === "GET") {
     const result = await env.DB.prepare("SELECT 1 AS ok").first<{
@@ -656,7 +657,14 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname !== "/api" && !url.pathname.startsWith("/api/")) {
+    const hostname = url.hostname.toLowerCase();
+    const isApiHost =
+      hostname === "api.fuckxter.site" ||
+      hostname === "localhost" ||
+      hostname === "127.0.0.1";
+    const isLegacyApiPath =
+      url.pathname === "/api" || url.pathname.startsWith("/api/");
+    if (!isApiHost && !isLegacyApiPath) {
       return env.ASSETS.fetch(request);
     }
 

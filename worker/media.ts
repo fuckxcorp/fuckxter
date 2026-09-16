@@ -123,7 +123,7 @@ async function sha256Hex(bytes: BufferSource): Promise<string> {
 function mediaJson(row: MediaRow) {
   return {
     id: row.id,
-    url: `/api/media/${encodeURIComponent(row.id)}`,
+    url: `/media/${encodeURIComponent(row.id)}`,
     alt: row.original_name,
     contentType: row.content_type,
     byteSize: Number(row.byte_size),
@@ -420,7 +420,7 @@ export async function uploadAvatar(
   if (current?.avatar_key && current.avatar_key !== objectKey) {
     await env.MEDIA_CACHE.delete(current.avatar_key);
   }
-  return `/api/avatars/${encodeURIComponent(handle)}`;
+  return `/avatars/${encodeURIComponent(handle)}`;
 }
 
 export async function uploadHeader(
@@ -443,7 +443,7 @@ export async function uploadHeader(
   await env.DB.prepare("UPDATE users SET updated_at = ? WHERE id = ?")
     .bind(new Date().toISOString(), userId)
     .run();
-  return `/api/headers/${encodeURIComponent(handle)}`;
+  return `/headers/${encodeURIComponent(handle)}`;
 }
 
 export async function moveAvatar(
