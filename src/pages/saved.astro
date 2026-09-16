@@ -1,13 +1,13 @@
 ---
 import "../styles/saved.css";
 
-import FuckxterSubpageHeader from "../components/FuckxterSubpageHeader.astro";
-import FuckxterLayout from "../layouts/FuckxterLayout.astro";
+import Header from "../components/Header.astro";
+import Layout from "../layouts/Layout.astro";
 ---
 
-<FuckxterLayout title="收藏">
+<Layout title="收藏">
   <div class="fk-app fk-subpage" data-fk-saved>
-    <FuckxterSubpageHeader />
+    <Header />
 
     <main class="fk-notice-main">
       <section class="fk-notice-panel">
@@ -22,7 +22,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
       </section>
     </main>
   </div>
-</FuckxterLayout>
+</Layout>
 
 <script>
   import { navigate } from "astro:transitions/client";

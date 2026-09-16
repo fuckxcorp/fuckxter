@@ -11,6 +11,7 @@ import type {
   RepostResult,
   SearchResult,
   StorageOption,
+  UserSummary,
   UserProfile,
 } from "./types";
 
@@ -253,8 +254,18 @@ export async function getPostsByUser(handle: string): Promise<Post[]> {
   return response.posts;
 }
 
-export function searchPosts(queryText: string): Promise<SearchResult> {
+export function search(queryText: string): Promise<SearchResult> {
   return apiRequest<SearchResult>(`/search?${query({ q: queryText })}`);
+}
+
+export async function getUserList(
+  handle: string,
+  kind: "followers" | "following",
+): Promise<UserSummary[]> {
+  const response = await apiRequest<{ users: UserSummary[] }>(
+    `/users/${encodeURIComponent(handle)}/${kind}`,
+  );
+  return response.users;
 }
 
 export function getComments(postId: string): Promise<CommentPage> {

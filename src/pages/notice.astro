@@ -1,13 +1,13 @@
 ---
 import "../styles/notice.css";
 
-import FuckxterSubpageHeader from "../components/FuckxterSubpageHeader.astro";
-import FuckxterLayout from "../layouts/FuckxterLayout.astro";
+import Header from "../components/Header.astro";
+import Layout from "../layouts/Layout.astro";
 ---
 
-<FuckxterLayout title="通知">
+<Layout title="通知">
   <div class="fk-app fk-subpage" data-fk-notice>
-    <FuckxterSubpageHeader showRefresh />
+    <Header showRefresh />
 
     <main class="fk-notice-main">
       <section class="fk-notice-panel">
@@ -37,7 +37,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
       </section>
     </main>
   </div>
-</FuckxterLayout>
+</Layout>
 
 <script>
   import { getNotifications, markNotificationsRead } from "../lib/fuckxter/api";

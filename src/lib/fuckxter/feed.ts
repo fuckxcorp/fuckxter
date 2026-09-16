@@ -5,7 +5,7 @@ import {
   deletePost,
   getStorageOptions,
   getTimeline,
-  searchPosts,
+  search,
   setFollow,
   toggleLike,
   toggleRepost,
@@ -15,6 +15,7 @@ import {
 } from "./api";
 import { getAccount, requestAuthentication, toFeedUser } from "./auth";
 import {
+  authorAvatar,
   avatarGradient,
   el,
   fmtCount,
@@ -71,7 +72,7 @@ function searchHead(result: SearchResult, exit: () => void): HTMLElement {
   strong.textContent = `“${result.query}”`;
   label.append(
     document.createTextNode(
-      `搜索 ${strong.textContent} · ${result.posts.length} 条结果`,
+      `搜索 ${strong.textContent} · ${result.users.length} 个用户 · ${result.posts.length} 条帖子`,
     ),
   );
   const exitBtn = el("button", "fk-search-exit");
@@ -80,6 +81,35 @@ function searchHead(result: SearchResult, exit: () => void): HTMLElement {
   exitBtn.addEventListener("click", exit);
   head.append(label, exitBtn);
   return head;
+}
+
+function searchUsersSection(result: SearchResult): HTMLElement | null {
+  if (result.users.length === 0) return null;
+  const section = el("section", "fk-search-users");
+  const title = el("h2", "fk-search-users-title");
+  title.textContent = "用户";
+  section.append(title);
+  for (const user of result.users) {
+    const row = el("div", "fk-search-user");
+    const avatar = authorAvatar(
+      user.handle,
+      user.name,
+      "fk-avatar",
+      user.avatarUrl,
+    );
+    const copy = el("a", "fk-search-user-copy");
+    copy.href = userPath(user.handle);
+    const name = el("strong");
+    name.textContent = user.name;
+    const handle = el("span");
+    handle.textContent = `@${user.handle}`;
+    const bio = el("p");
+    bio.textContent = user.bio || "这个人很懒，什么都没有写。";
+    copy.append(name, handle, bio);
+    row.append(avatar, copy);
+    section.append(row);
+  }
+  return section;
 }
 
 export function mountFeed(container: HTMLElement): FeedControls {
@@ -381,10 +411,14 @@ export function mountFeed(container: HTMLElement): FeedControls {
     composer.hidden = true;
     setSentinelBusy(true);
     try {
-      const result = await searchPosts(query);
+      const result = await search(query);
       if (seq !== state.seq) return;
       resetFeed(searchHead(result, exitSearch));
-      if (result.posts.length === 0) feed.append(statusRow("没有找到相关内容"));
+      const usersSection = searchUsersSection(result);
+      if (usersSection) columnsRoot?.before(usersSection);
+      if (result.users.length === 0 && result.posts.length === 0) {
+        feed.append(statusRow("没有找到相关内容"));
+      }
       for (const post of result.posts) addPost(post);
     } catch {
       if (seq === state.seq) renderError(() => doSearch(query));

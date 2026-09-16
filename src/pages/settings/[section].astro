@@ -1,7 +1,7 @@
 ---
 import "../../styles/settings.css";
 
-import FuckxterSettingsPage from "../../components/FuckxterSettingsPage.astro";
+import Settings from "../../components/Settings.astro";
 
 type SettingsSection = "profile" | "security" | "storage";
 
@@ -20,4 +20,4 @@ export function getStaticPaths() {
 const { section } = Astro.props;
 ---
 
-<FuckxterSettingsPage section={section} />
+<Settings section={section} />

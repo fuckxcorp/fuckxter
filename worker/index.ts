@@ -63,7 +63,14 @@ import {
   getStorageOptions,
   saveStorageConfig,
 } from "./storage";
-import { clearAvatar, clearHeader, getUserProfile, setFollow } from "./users";
+import {
+  clearAvatar,
+  clearHeader,
+  getFollowUsers,
+  getUserProfile,
+  searchUsers,
+  setFollow,
+} from "./users";
 
 function withCookie(response: Response, cookie: string): Response {
   response.headers.append("Set-Cookie", cookie);
@@ -311,11 +318,12 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
 
   if (parts[1] === "search" && parts.length === 2 && method === "GET") {
     const user = await getOptionalUser(request, env);
-    return json(
-      await searchPosts(env, user?.id ?? null, url.searchParams.get("q") ?? ""),
-      request,
-      env,
-    );
+    const query = url.searchParams.get("q") ?? "";
+    const [postResult, users] = await Promise.all([
+      searchPosts(env, user?.id ?? null, query),
+      searchUsers(env, query),
+    ]);
+    return json({ ...postResult, users }, request, env);
   }
 
   if (parts[1] === "me") {
@@ -612,6 +620,25 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
       return json(post, request, env);
     }
+  }
+
+  if (
+    parts[1] === "users" &&
+    (parts[3] === "followers" || parts[3] === "following") &&
+    parts.length === 4 &&
+    method === "GET"
+  ) {
+    return json(
+      {
+        users: await getFollowUsers(
+          env,
+          segment(parts, 2),
+          parts[3] === "followers" ? "followers" : "following",
+        ),
+      },
+      request,
+      env,
+    );
   }
 
   if (parts[1] === "users" && parts.length === 3 && method === "GET") {

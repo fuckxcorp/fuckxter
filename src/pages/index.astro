@@ -1,10 +1,10 @@
 ---
 import "../styles/home.css";
 
-import FuckxterLayout from "../layouts/FuckxterLayout.astro";
+import Layout from "../layouts/Layout.astro";
 ---
 
-<FuckxterLayout title="FuckXter">
+<Layout title="FuckXter">
   <div class="fk-app" data-fuckxter>
     <header class="fk-topbar">
       <a class="fk-brand" href="/" aria-label="FuckXter 首页">
@@ -43,8 +43,8 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
         <input
           class="fk-search-input"
           type="search"
-          placeholder="搜索 FuckXter"
-          aria-label="搜索 FuckXter"
+          placeholder="搜索用户或帖子"
+          aria-label="搜索用户或帖子"
           autocomplete="off"
         />
       </div>
@@ -357,7 +357,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
       </button>
     </div>
   </div>
-</FuckxterLayout>
+</Layout>
 
 <script>
   import { mountFuckxterBySelector } from "../lib/fuckxter/client";

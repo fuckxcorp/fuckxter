@@ -573,6 +573,23 @@
   border-color: transparent;
 }
 
+@media (min-width: 901px) {
+  .fk-side-composer {
+    flex: 1 1 auto;
+    min-height: 220px;
+  }
+
+  .fk-side-composer .fk-composer-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .fk-side-composer .fk-side-comment-input {
+    flex: 1 1 auto;
+    min-height: 140px;
+  }
+}
+
 .fk-comment-count {
   color: var(--color-text-muted);
   font-size: 0.72rem;

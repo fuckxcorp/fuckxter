@@ -2,7 +2,6 @@
 /settings /settings/ 200
 /settings/profile /settings/profile/ 200
 /settings/security /settings/security/ 200
-/settings/saved /saved/ 301
 /settings/storage /settings/storage/ 200
 /saved /saved/ 200
 /user /user/ 200

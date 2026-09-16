@@ -68,7 +68,17 @@ export interface RepostResult {
 
 export interface SearchResult {
   query: string;
+  users: UserSummary[];
   posts: Post[];
+}
+
+export interface UserSummary {
+  id: string;
+  name: string;
+  handle: string;
+  verified?: boolean;
+  bio: string;
+  avatarUrl: string | null;
 }
 
 export interface Comment {

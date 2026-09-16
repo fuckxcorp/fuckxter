@@ -72,7 +72,7 @@
   display: grid;
   place-items: center;
   width: 100%;
-  aspect-ratio: 5 / 2;
+  aspect-ratio: 5 / 1;
   overflow: hidden;
   border: 1px dashed var(--color-border-strong);
   border-radius: 11px;
@@ -84,7 +84,7 @@
 .fk-profile-header-preview {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .fk-profile-header-actions {
@@ -251,7 +251,7 @@
 .fk-header-crop-canvas {
   display: block;
   width: 100%;
-  aspect-ratio: 5 / 2;
+  aspect-ratio: 5 / 1;
   background: var(--color-bg-subtle);
   cursor: grab;
   touch-action: none;
@@ -429,7 +429,7 @@
 
 .fk-security-forms {
   display: grid;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: start;
 }
 
@@ -438,12 +438,27 @@
 }
 
 .fk-security-forms + .fk-security-forms {
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 }
 
 @media (min-width: 960px) {
-  .fk-security-forms {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  [data-settings-pane="security"] {
+    columns: 2;
+    column-gap: 1rem;
+  }
+
+  [data-settings-pane="security"] .fk-settings-title {
+    column-span: all;
+    margin-bottom: 0.75rem;
+  }
+
+  [data-settings-pane="security"] .fk-security-forms {
+    display: contents;
+  }
+
+  [data-settings-pane="security"] .fk-fieldset {
+    break-inside: avoid;
+    margin: 0 0 0.75rem;
   }
 }
 

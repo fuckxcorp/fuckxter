@@ -23,6 +23,33 @@ interface ProfileRow {
   following: number;
 }
 
+interface UserSummaryRow {
+  id: string;
+  handle: string;
+  name: string;
+  verified: number;
+  bio: string;
+  avatar_media_id: string | null;
+  avatar_key: string | null;
+  updated_at: string;
+}
+
+function publicUserSummary(row: UserSummaryRow) {
+  return {
+    id: row.id,
+    handle: row.handle,
+    name: row.name,
+    verified: Boolean(row.verified),
+    bio: row.bio,
+    avatarUrl: buildAvatarUrl({
+      handle: row.handle,
+      avatarKey: row.avatar_key,
+      avatarMediaId: row.avatar_media_id,
+      updatedAt: row.updated_at,
+    }),
+  };
+}
+
 function publicProfile(row: ProfileRow, headerUrl: string | null) {
   return {
     id: row.id,
@@ -97,6 +124,48 @@ export async function getUserProfile(
       exists: Boolean(header),
     }),
   );
+}
+
+export async function searchUsers(env: Env, query: string, limit = 10) {
+  const value = query.trim();
+  if (!value) return [];
+  const pattern = `%${value}%`;
+  const result = await env.DB.prepare(
+    `SELECT id, handle, name, verified, bio, avatar_media_id, avatar_key, updated_at
+     FROM users
+     WHERE handle LIKE ? OR name LIKE ?
+     ORDER BY CASE WHEN handle = ? THEN 0 ELSE 1 END, handle ASC
+     LIMIT ?`,
+  )
+    .bind(
+      pattern,
+      pattern,
+      usernameKey(value),
+      Math.min(Math.max(limit, 1), 20),
+    )
+    .all<UserSummaryRow>();
+  return (result.results ?? []).map(publicUserSummary);
+}
+
+export async function getFollowUsers(
+  env: Env,
+  handle: string,
+  kind: "followers" | "following",
+) {
+  const relation =
+    kind === "followers" ? "u.id = f.follower_id" : "u.id = f.followee_id";
+  const result = await env.DB.prepare(
+    `SELECT u.id, u.handle, u.name, u.verified, u.bio,
+            u.avatar_media_id, u.avatar_key, u.updated_at
+     FROM follows f
+     JOIN users u ON ${relation}
+     WHERE ${kind === "followers" ? "f.followee_id" : "f.follower_id"} = ?
+     ORDER BY f.created_at DESC
+     LIMIT 100`,
+  )
+    .bind(usernameKey(handle))
+    .all<UserSummaryRow>();
+  return (result.results ?? []).map(publicUserSummary);
 }
 
 export async function setFollow(

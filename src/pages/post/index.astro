@@ -1,13 +1,13 @@
 ---
 import "../../styles/post.css";
 
-import FuckxterLayout from "../../layouts/FuckxterLayout.astro";
-import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro";
+import Layout from "../../layouts/Layout.astro";
+import Header from "../../components/Header.astro";
 ---
 
-<FuckxterLayout title="详情">
+<Layout title="详情">
   <div class="fk-app fk-subpage" data-fk-post>
-    <FuckxterSubpageHeader />
+    <Header />
 
     <div class="fk-post-layout">
       <div class="fk-post-main">
@@ -57,7 +57,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       </aside>
     </div>
   </div>
-</FuckxterLayout>
+</Layout>
 
 <script>
   import { navigate } from "astro:transitions/client";
