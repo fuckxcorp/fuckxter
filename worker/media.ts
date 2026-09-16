@@ -9,8 +9,8 @@ import { headerObjectKey } from "./avatar";
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 const AVATAR_MAX_DIMENSION = 512;
 const MEDIA_MAX_DIMENSION = 2048;
-const HEADER_MAX_WIDTH = 1000;
-const HEADER_MAX_HEIGHT = 200;
+const HEADER_MAX_WIDTH = 1500;
+const HEADER_MAX_HEIGHT = 300;
 const STREAM_FALLBACK_BYTES = 25 * 1024 * 1024;
 const AVIF_QUALITY = 82;
 const HEADER_AVIF_QUALITY = 92;
@@ -167,13 +167,7 @@ export async function uploadMedia(
   userId: string,
   handle: string,
 ) {
-  const { bytes: sourceBytes, originalName } = await readImage(request);
-  const bytes = await convertToAvif(env, sourceBytes, {
-    width: MEDIA_MAX_DIMENSION,
-    height: MEDIA_MAX_DIMENSION,
-    animated: true,
-  });
-  const contentType = "image/avif";
+  const { bytes, contentType, originalName } = await readImage(request);
 
   const requestedConfigId =
     request.headers.get("X-Storage-Config-Id")?.trim() || undefined;
@@ -186,7 +180,8 @@ export async function uploadMedia(
     );
   }
 
-  const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.avif`;
+  const extension = MEDIA_EXTENSIONS[contentType] ?? "bin";
+  const objectKey = `media/${handle}/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
   const { response } = await signedS3Request(
     config,
     "PUT",
@@ -195,10 +190,14 @@ export async function uploadMedia(
     contentType,
   );
   if (!response.ok) {
+    let detail = "";
+    try {
+      detail = (await response.text()).trim().slice(0, 240);
+    } catch {}
     throw new HttpError(
       502,
       "MEDIA_UPLOAD_FAILED",
-      `Media upload failed (S3 ${response.status}).`,
+      `Media upload failed (S3 ${response.status})${detail ? `: ${detail}` : "."}`,
     );
   }
 

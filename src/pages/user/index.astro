@@ -166,21 +166,6 @@ import Header from "../../components/Header.astro";
             </article>
           </section>
         </div>
-
-        <dialog class="fk-user-list-dialog" data-role="user-list-dialog">
-          <header class="fk-user-list-head">
-            <h4 data-role="user-list-title">粉丝</h4>
-            <button
-              type="button"
-              class="fk-dialog-close"
-              data-role="user-list-close"
-              aria-label="关闭"
-            >
-              ×
-            </button>
-          </header>
-          <div class="fk-user-list" data-role="user-list"></div>
-        </dialog>
       </div>
     </div>
   </div>
@@ -190,7 +175,6 @@ import Header from "../../components/Header.astro";
   import { navigate } from "astro:transitions/client";
   import {
     getUserProfile,
-    getUserList,
     getPostsByUser,
     setFollow,
     toggleLike,
@@ -203,9 +187,7 @@ import Header from "../../components/Header.astro";
     requestAuthentication,
   } from "../../lib/fuckxter/auth";
   import {
-    authorAvatar,
     avatarGradient,
-    el,
     fmtCount,
     renderPost,
     setFollowButtonState,
@@ -215,11 +197,7 @@ import Header from "../../components/Header.astro";
   import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
   import { onFuckxterPageReady } from "../../lib/fuckxter/page";
   import { openPostShareMenu } from "../../lib/fuckxter/share";
-  import type {
-    Post,
-    UserProfile,
-    UserSummary,
-  } from "../../lib/fuckxter/types";
+  import type { Post, UserProfile } from "../../lib/fuckxter/types";
   import { parseUserPath, postPath, userPath } from "../../lib/fuckxter/urls";
 
   const fullTime = (iso: string) =>
@@ -287,35 +265,6 @@ import Header from "../../components/Header.astro";
       follow.textContent = profile.viewer.following ? "已关注" : "关注";
       follow.classList.toggle("fk-ghost-btn", profile.viewer.following);
     }
-  }
-
-  function renderUserList(users: UserSummary[]): DocumentFragment {
-    const fragment = document.createDocumentFragment();
-    if (users.length === 0) {
-      fragment.append(statusRow("这里还没有用户。"));
-      return fragment;
-    }
-    for (const user of users) {
-      const row = el("div", "fk-user-list-item");
-      const avatar = authorAvatar(
-        user.handle,
-        user.name,
-        "fk-avatar",
-        user.avatarUrl,
-      );
-      const copy = el("a", "fk-user-list-copy");
-      copy.href = userPath(user.handle);
-      const name = el("strong");
-      name.textContent = user.name;
-      const handle = el("span");
-      handle.textContent = `@${user.handle}`;
-      const bio = el("p");
-      bio.textContent = user.bio || "这个人很懒，什么都没有写。";
-      copy.append(name, handle, bio);
-      row.append(avatar, copy);
-      fragment.append(row);
-    }
-    return fragment;
   }
 
   function bindPostList(
@@ -466,19 +415,6 @@ import Header from "../../components/Header.astro";
     const followingChip = container.querySelector<HTMLButtonElement>(
       "[data-role=user-chip-following]",
     )!;
-    const userListDialog = container.querySelector<HTMLDialogElement>(
-      "[data-role=user-list-dialog]",
-    )!;
-    const userListTitle = container.querySelector<HTMLElement>(
-      "[data-role=user-list-title]",
-    )!;
-    const userList = container.querySelector<HTMLElement>(
-      "[data-role=user-list]",
-    )!;
-    const userListClose = container.querySelector<HTMLButtonElement>(
-      "[data-role=user-list-close]",
-    )!;
-
     edit.addEventListener("click", () => navigate("/settings/profile"));
     follow.addEventListener("click", async () => {
       if (!follow.dataset.handle) return;
@@ -522,31 +458,16 @@ import Header from "../../components/Header.astro";
     ).then((value) => value.replace(/^@/, "").toLowerCase());
     let currentProfile: UserProfile | null = null;
 
-    const openUserList = async (kind: "followers" | "following") => {
+    const openConnections = (kind: "followers" | "following") => {
       if (!currentProfile) return;
-      userListTitle.textContent = kind === "followers" ? "粉丝" : "关注";
-      userList.replaceChildren(statusRow("正在加载…"));
-      if (!userListDialog.open) userListDialog.showModal();
-      try {
-        const users = await getUserList(currentProfile.handle, kind);
-        userList.replaceChildren(renderUserList(users));
-      } catch (error) {
-        userList.replaceChildren(
-          statusRow(error instanceof Error ? error.message : "用户加载失败"),
-        );
-      }
+      void navigate(`${userPath(currentProfile.handle)}/${kind}`);
     };
 
     followersChip.addEventListener("click", () => {
-      void openUserList("followers");
+      openConnections("followers");
     });
     followingChip.addEventListener("click", () => {
-      void openUserList("following");
-    });
-    userListClose.addEventListener("click", () => userListDialog.close());
-    userListDialog.addEventListener("cancel", (event) => {
-      event.preventDefault();
-      userListDialog.close();
+      openConnections("following");
     });
 
     void handlePromise

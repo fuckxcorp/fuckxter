@@ -415,7 +415,7 @@ import Header from "../../components/Header.astro";
     status.setAttribute("aria-live", "polite");
     const list = el("div", "fk-comments-list fk-thread-list");
 
-    composerBody.append(composerActions, status);
+    composerBody.append(status, composerActions);
     composer.append(composerAvatar, composerBody);
 
     const resizeCommentInput = () => {

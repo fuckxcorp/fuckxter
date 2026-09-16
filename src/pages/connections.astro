@@ -1,0 +1,102 @@
+---
+import "../styles/user.css";
+
+import Header from "../components/Header.astro";
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="关注关系">
+  <div class="fk-app fk-subpage" data-fk-connections>
+    <Header />
+    <main class="fk-connections-main">
+      <section class="fk-connections-panel">
+        <header class="fk-connections-head">
+          <h1 data-role="connections-title">关注关系</h1>
+          <p data-role="connections-summary">正在加载…</p>
+        </header>
+        <div class="fk-user-list" data-role="connections-list"></div>
+      </section>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  import { getUserList } from "../lib/fuckxter/api";
+  import { authorAvatar, el, statusRow } from "../lib/fuckxter/dom";
+  import { onFuckxterPageReady } from "../lib/fuckxter/page";
+  import { userPath } from "../lib/fuckxter/urls";
+
+  const renderUsers = (users: Awaited<ReturnType<typeof getUserList>>) => {
+    const fragment = document.createDocumentFragment();
+    if (users.length === 0) {
+      fragment.append(statusRow("这里还没有用户。"));
+      return fragment;
+    }
+    for (const user of users) {
+      const row = el("div", "fk-user-list-item");
+      const avatar = authorAvatar(
+        user.handle,
+        user.name,
+        "fk-avatar",
+        user.avatarUrl,
+      );
+      const copy = el("a", "fk-user-list-copy");
+      copy.href = userPath(user.handle);
+      const name = el("strong");
+      name.textContent = user.name;
+      const handle = el("span");
+      handle.textContent = `@${user.handle}`;
+      const bio = el("p");
+      bio.textContent = user.bio || "这个人很懒，什么都没有写。";
+      copy.append(name, handle, bio);
+      row.append(avatar, copy);
+      fragment.append(row);
+    }
+    return fragment;
+  };
+
+  onFuckxterPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-fk-connections]");
+    if (!root || root.dataset.fkConnectionsMounted === "true") return;
+    root.dataset.fkConnectionsMounted = "true";
+
+    root
+      .querySelector<HTMLButtonElement>("[data-role=back]")!
+      .addEventListener("click", () =>
+        history.length > 1 ? history.back() : (location.href = "/"),
+      );
+
+    const match = location.pathname.match(
+      /^\/user\/([^/]+)\/(followers|following)\/?$/i,
+    );
+    const title = root.querySelector<HTMLElement>(
+      "[data-role=connections-title]",
+    )!;
+    const summary = root.querySelector<HTMLElement>(
+      "[data-role=connections-summary]",
+    )!;
+    const list = root.querySelector<HTMLElement>(
+      "[data-role=connections-list]",
+    )!;
+    if (!match) {
+      title.textContent = "未找到用户";
+      summary.textContent = "关注关系地址无效";
+      return;
+    }
+
+    const handle = decodeURIComponent(match[1]);
+    const kind = match[2].toLowerCase() as "followers" | "following";
+    title.textContent = kind === "followers" ? "粉丝" : "关注";
+    document.title = `${title.textContent} · @${handle} | FuckXter`;
+
+    void getUserList(handle, kind)
+      .then((users) => {
+        summary.textContent = `${users.length} 个用户`;
+        list.replaceChildren(renderUsers(users));
+      })
+      .catch((error) => {
+        summary.textContent =
+          error instanceof Error ? error.message : "用户加载失败";
+      });
+  });
+</script>

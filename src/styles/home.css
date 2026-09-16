@@ -369,11 +369,27 @@
     padding: 0.9rem 0.75rem;
   }
 
+  .fk-composer-foot {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
   .fk-media-storage {
-    flex-basis: 11rem;
+    flex: 1 1 auto;
   }
 
   .fk-media-storage select {
-    max-width: 7.5rem;
+    width: 100%;
+    max-width: none;
+  }
+
+  .fk-char-count {
+    display: none;
+  }
+
+  .fk-post-btn {
+    flex: none;
+    margin-left: auto;
+    padding-inline: 1rem;
   }
 }

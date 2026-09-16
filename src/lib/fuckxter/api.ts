@@ -131,6 +131,10 @@ export async function uploadMedia(
   storageConfigId?: string,
   onProgress?: (percent: number) => void,
 ): Promise<PostMedia> {
+  if (file.size <= PROXY_MEDIA_LIMIT) {
+    return proxyUploadMedia(file, storageConfigId);
+  }
+
   let stage: "presign" | "upload" | "finalize" = "presign";
   try {
     const presign = await apiRequest<{ upload: MediaUploadTicket }>(

@@ -46,6 +46,7 @@ import Layout from "../layouts/Layout.astro";
   import { apiEndpoint } from "../lib/fuckxter/http";
   import { onFuckxterPageReady } from "../lib/fuckxter/page";
   import type { Notification } from "../lib/fuckxter/types";
+  import { userPath } from "../lib/fuckxter/urls";
 
   function noticeTarget(notice: Notification): string | null {
     if (
@@ -97,12 +98,16 @@ import Layout from "../layouts/Layout.astro";
   }
 
   function noticeAvatar(notice: Notification): HTMLElement {
-    const avatar = el("span", "fk-notice-avatar");
     if (!notice.actor) {
+      const avatar = el("span", "fk-notice-avatar");
       avatar.classList.add("is-system");
       avatar.textContent = "SYS";
       return avatar;
     }
+    const avatar = el("a", "fk-notice-avatar fk-avatar-link");
+    avatar.href = userPath(notice.actor.handle);
+    avatar.dataset.handle = notice.actor.handle;
+    avatar.setAttribute("aria-label", `查看 ${notice.actor.name} 的主页`);
     avatar.setAttribute("style", avatarGradient(notice.actor.handle));
     const image = el("img", "fk-avatar-image");
     image.src = notice.actor.avatarUrl
@@ -218,13 +223,16 @@ import Layout from "../layouts/Layout.astro";
         detail.textContent =
           message.detail || (target ? "点击查看详情" : "暂无更多内容");
         content.append(detail);
-        if (target) {
-          const openHint = el("span", "fk-notice-open-hint");
-          openHint.textContent = "查看详情 →";
-          content.append(openHint);
-        }
-
         const openNotice = (event: Event) => {
+          const actorLink = (
+            event.target as HTMLElement
+          ).closest<HTMLAnchorElement>(".fk-notice-avatar.fk-avatar-link");
+          if (actorLink?.dataset.handle) {
+            event.preventDefault();
+            void markRead(notice, item);
+            location.href = userPath(actorLink.dataset.handle);
+            return;
+          }
           void markRead(notice, item);
           if (!target) return;
           event.preventDefault();

@@ -58,7 +58,6 @@
 
 .fk-user-banner {
   width: 100%;
-  max-width: 1000px;
   aspect-ratio: 5 / 1;
   border: 1px solid var(--color-border);
   border-radius: 15px;
@@ -185,7 +184,6 @@
 
 .fk-user-chip-action {
   box-sizing: border-box;
-  min-height: 2.5rem;
   width: 100%;
   color: inherit;
   cursor: pointer;
@@ -230,6 +228,34 @@
   border-radius: 16px;
   background: var(--color-bg-raised);
   color: var(--color-text);
+}
+
+.fk-connections-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.fk-connections-panel {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.fk-connections-head {
+  margin-bottom: 1rem;
+}
+
+.fk-connections-head h1 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 1.35rem;
+}
+
+.fk-connections-head p {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 
 .fk-user-list-dialog::backdrop {
@@ -310,9 +336,26 @@
 
   .fk-user-inner {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "banner"
+      "profile"
+      "posts";
+    grid-template-rows: auto auto auto;
     gap: 1rem;
     width: 98%;
     height: auto;
+  }
+
+  .fk-user-stream {
+    display: contents;
+  }
+
+  .fk-user-banner-host {
+    grid-area: banner;
+  }
+
+  .fk-user-head {
+    grid-area: profile;
   }
 
   .fk-user-head-card {
@@ -321,6 +364,7 @@
   }
 
   .fk-user-posts {
+    grid-area: posts;
     flex: none;
     padding: 0 0 0;
     overflow: visible;

@@ -91,7 +91,9 @@ function routeSegments(pathname: string): string[] {
 
 const POST_ASSET_PATH = /^\/post\/([^/]+)\/([^/]+)\/?$/i;
 const USER_ASSET_PATH = /^\/user\/([^/]+)\/?$/i;
+const CONNECTIONS_ASSET_PATH = /^\/user\/([^/]+)\/(followers|following)\/?$/i;
 const PRETTY_ASSET_PATHS = new Set([
+  "/connections",
   "/notice",
   "/saved",
   "/settings",
@@ -102,6 +104,7 @@ const PRETTY_ASSET_PATHS = new Set([
 
 function assetPagePath(pathname: string): string | null {
   if (POST_ASSET_PATH.test(pathname) || pathname === "/post") return "/post/";
+  if (CONNECTIONS_ASSET_PATH.test(pathname)) return "/connections/";
   if (USER_ASSET_PATH.test(pathname) || pathname === "/user") return "/user/";
   if (PRETTY_ASSET_PATHS.has(pathname)) return `${pathname}/`;
   return null;
