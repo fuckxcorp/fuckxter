@@ -24,3 +24,4 @@ minimumReleaseAgeExclude:
   - '@cloudflare/workerd-linux-arm64@1.20260915.1'
   - '@cloudflare/workerd-windows-64@1.20260915.1'
   - workerd@1.20260915.1
+  - prettier@3.9.7
