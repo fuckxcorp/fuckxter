@@ -325,21 +325,13 @@
   margin-bottom: 1rem;
 }
 
-.fk-storage-selects {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
-  min-width: 0;
+.fk-upload-mode-setting {
+  margin-bottom: 1rem;
 }
 
 @media (max-width: 640px) {
   .fk-storage-toolbar {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .fk-storage-selects {
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 

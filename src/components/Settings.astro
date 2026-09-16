@@ -577,21 +577,11 @@ const sectionTitles: Record<SettingsSection, string> = {
                 兼容），媒体文件将直接上传到你的桶中，存储成本完全由你掌控。
               </p>
               <div class="fk-storage-toolbar">
-                <div class="fk-storage-selects">
-                  <select
-                    class="fk-storage-select"
-                    data-role="upload-mode-setting"
-                    aria-label="选择上传方式"
-                  >
-                    <option value="proxy">代理上传</option>
-                    <option value="direct">直传存储桶</option>
-                  </select>
-                  <select
-                    class="fk-storage-select"
-                    data-role="s3-config-select"
-                    aria-label="选择 S3 配置"
-                  />
-                </div>
+                <select
+                  class="fk-storage-select"
+                  data-role="s3-config-select"
+                  aria-label="选择 S3 配置"
+                />
                 <button type="button" class="fk-ghost-btn" data-role="s3-new">
                   新增
                 </button>
@@ -604,6 +594,17 @@ const sectionTitles: Record<SettingsSection, string> = {
                   删除
                 </button>
               </div>
+              <label class="fk-field fk-upload-mode-setting">
+                <span class="fk-field-label">上传方式</span>
+                <select
+                  class="fk-storage-select"
+                  data-role="upload-mode-setting"
+                  aria-label="选择上传方式"
+                >
+                  <option value="proxy">代理上传</option>
+                  <option value="direct">直传存储桶</option>
+                </select>
+              </label>
               <form data-role="s3-form" novalidate>
                 <label class="fk-field">
                   <span class="fk-field-label">配置名称</span>
