@@ -91,28 +91,26 @@ import Header from "../../components/Header.astro";
                 <span class="fk-user-chip-value" data-role="user-posts-count"
                 ></span>
               </span>
-              <button
-                type="button"
+              <a
                 class="fk-user-chip fk-user-chip-action"
                 data-role="user-chip-followers"
-                data-user-list="followers"
+                href="#"
                 hidden
               >
                 <span class="fk-user-chip-label">粉丝</span>
                 <span class="fk-user-chip-value" data-role="user-followers"
                 ></span>
-              </button>
-              <button
-                type="button"
+              </a>
+              <a
                 class="fk-user-chip fk-user-chip-action"
                 data-role="user-chip-following"
-                data-user-list="following"
+                href="#"
                 hidden
               >
                 <span class="fk-user-chip-label">关注</span>
                 <span class="fk-user-chip-value" data-role="user-following"
                 ></span>
-              </button>
+              </a>
             </div>
 
             <div class="fk-user-actions">
@@ -174,6 +172,7 @@ import Header from "../../components/Header.astro";
 <script>
   import { navigate } from "astro:transitions/client";
   import {
+    deletePost,
     getUserProfile,
     getPostsByUser,
     setFollow,
@@ -225,6 +224,8 @@ import Header from "../../components/Header.astro";
     const verified = role<HTMLElement>("verified");
     const edit = role<HTMLButtonElement>("edit");
     const follow = role<HTMLButtonElement>("follow");
+    const followersChip = role<HTMLAnchorElement>("chip-followers");
+    const followingChip = role<HTMLAnchorElement>("chip-following");
 
     avatar.href = userPath(profile.handle);
     avatar.dataset.handle = profile.handle;
@@ -248,6 +249,8 @@ import Header from "../../components/Header.astro";
     role<HTMLElement>("bio").textContent =
       profile.bio || "这个人很懒，什么都没有写。";
     verified.toggleAttribute("hidden", !profile.verified);
+    followersChip.href = `${userPath(profile.handle)}/followers`;
+    followingChip.href = `${userPath(profile.handle)}/following`;
 
     setUserChip(card, "gender", profile.gender);
     setUserChip(card, "region", profile.region);
@@ -335,6 +338,31 @@ import Header from "../../components/Header.astro";
         return;
       }
 
+      if (action === "delete") {
+        if (!confirm("确定删除这条帖子吗？")) return;
+        btn.disabled = true;
+        try {
+          await deletePost(post.id);
+          const index = posts.indexOf(post);
+          if (index !== -1) posts.splice(index, 1);
+          article?.remove();
+          const userCard = document.querySelector<HTMLElement>(
+            "[data-role=user-card]",
+          );
+          if (userCard) {
+            setUserChip(userCard, "posts-count", String(posts.length));
+          }
+          if (posts.length === 0) {
+            root.replaceChildren(statusRow("还没有发过帖子。"));
+          }
+          showToast("帖子已删除");
+        } catch (error) {
+          btn.disabled = false;
+          showToast(error instanceof Error ? error.message : "删除失败");
+        }
+        return;
+      }
+
       if (action === "reply") {
         if (!getAccount()) {
           requestAuthentication();
@@ -409,12 +437,6 @@ import Header from "../../components/Header.astro";
     const follow = container.querySelector<HTMLButtonElement>(
       "[data-role=user-follow]",
     )!;
-    const followersChip = container.querySelector<HTMLButtonElement>(
-      "[data-role=user-chip-followers]",
-    )!;
-    const followingChip = container.querySelector<HTMLButtonElement>(
-      "[data-role=user-chip-following]",
-    )!;
     edit.addEventListener("click", () => navigate("/settings/profile"));
     follow.addEventListener("click", async () => {
       if (!follow.dataset.handle) return;
@@ -457,18 +479,6 @@ import Header from "../../components/Header.astro";
         : sessionPromise.then((account) => account?.profile.handle ?? "")
     ).then((value) => value.replace(/^@/, "").toLowerCase());
     let currentProfile: UserProfile | null = null;
-
-    const openConnections = (kind: "followers" | "following") => {
-      if (!currentProfile) return;
-      void navigate(`${userPath(currentProfile.handle)}/${kind}`);
-    };
-
-    followersChip.addEventListener("click", () => {
-      openConnections("followers");
-    });
-    followingChip.addEventListener("click", () => {
-      openConnections("following");
-    });
 
     void handlePromise
       .then((handle) => {

@@ -189,6 +189,7 @@
   cursor: pointer;
   font: inherit;
   text-align: left;
+  text-decoration: none;
 }
 
 .fk-user-chip-action:hover,
