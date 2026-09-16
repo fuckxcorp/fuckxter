@@ -85,7 +85,8 @@ const sectionTitles: Record<SettingsSection, string> = {
                   <div>
                     <strong>主页头图</strong>
                     <small>
-                      自定义您个人主页最上面的图片,最大不可超过1000px*300px,文件大小限制30MB(会自动处理并压缩)
+                      自定义您个人主页最上面的图片，推荐比例 5:1，最大处理尺寸
+                      2000×400，文件大小限制 30MB。
                     </small>
                   </div>
                   <button
@@ -191,14 +192,14 @@ const sectionTitles: Record<SettingsSection, string> = {
               >
                 <h4>调整头图显示区域</h4>
                 <p class="fk-header-crop-hint">
-                  下方区域就是主页头图的最终显示范围（10:3）。拖动图片选择位置，使用滑杆调整缩放。
+                  下方区域就是主页头图的最终显示范围（5:1）。拖动图片选择位置，使用滑杆调整缩放。
                 </p>
                 <div class="fk-header-crop-stage">
                   <canvas
                     class="fk-header-crop-canvas"
                     data-role="header-crop-canvas"
-                    width="1000"
-                    height="300"
+                    width="2000"
+                    height="400"
                     aria-label="头图裁切预览"
                   />
                   <span class="fk-header-crop-label">主页显示区域</span>

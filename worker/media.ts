@@ -9,8 +9,8 @@ import { headerObjectKey } from "./avatar";
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 const AVATAR_MAX_DIMENSION = 512;
 const MEDIA_MAX_DIMENSION = 2048;
-const HEADER_MAX_WIDTH = 1000;
-const HEADER_MAX_HEIGHT = 300;
+const HEADER_MAX_WIDTH = 2000;
+const HEADER_MAX_HEIGHT = 400;
 const STREAM_FALLBACK_BYTES = 25 * 1024 * 1024;
 const AVIF_QUALITY = 82;
 const ALLOWED_MEDIA = new Set([
