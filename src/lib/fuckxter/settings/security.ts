@@ -16,6 +16,31 @@ export function mountSecuritySettings(
   root: HTMLElement,
   context: SettingsContext,
 ): void {
+  const securityPane = root.querySelector<HTMLElement>(
+    "[data-settings-pane=security]",
+  )!;
+  const formGroups = [
+    ...securityPane.querySelectorAll<HTMLElement>(".fk-security-forms"),
+  ];
+  if (formGroups.length > 0) {
+    const cards = formGroups.flatMap((group) => [
+      ...group.querySelectorAll<HTMLElement>(":scope > .fk-fieldset"),
+    ]);
+    const masonry = document.createElement("div");
+    masonry.className = "fk-security-masonry";
+    const columns = [0, 1].map(() => {
+      const column = document.createElement("div");
+      column.className = "fk-security-column";
+      masonry.append(column);
+      return column;
+    });
+    cards.forEach((card, index) => {
+      columns[index % columns.length].append(card);
+    });
+    securityPane.insertBefore(masonry, formGroups[0]);
+    formGroups.forEach((group) => group.remove());
+  }
+
   const emailForm = root.querySelector<HTMLFormElement>(
     "[data-role=email-form]",
   )!;
