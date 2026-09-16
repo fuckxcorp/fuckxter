@@ -34,7 +34,7 @@ avatars/<username>.avif
 headers/<username>.avif
 ```
 
-上传头像、主页头图和帖子图片时会通过 Cloudflare Images binding 转换为 AVIF（quality `82`）。头像最大 512×512，主页头图最大 2000×400，帖子图片最大 2048×2048，均保持宽高比且不会上采样。
+上传头像、主页头图和帖子图片时会通过 Cloudflare Images binding 转换为 AVIF（默认 quality `82`，头图 quality `92`）。头像最大 512×512，主页头图最大 3000×600，帖子图片最大 2048×2048，均保持宽高比且不会上采样。
 
 帖子附件默认通过预签名 URL 由浏览器直传用户自己的 S3 存储，不设置应用层文件大小上限。存储桶需要允许站点域名执行 `PUT`，并允许 `Content-Type` 请求头。例如 Cloudflare R2 的 CORS 可以配置为：
 

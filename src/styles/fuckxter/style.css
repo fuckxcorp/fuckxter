@@ -511,6 +511,21 @@
   color: var(--color-text-strong);
 }
 
+.fk-avatar-crop-hint {
+  margin: 0 0 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.fk-avatar-crop-stage {
+  position: relative;
+  width: min(280px, 100%);
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
 .fk-avatar-crop-canvas {
   display: block;
   width: 100%;
@@ -525,6 +540,30 @@
 
 .fk-avatar-crop-canvas:active {
   cursor: grabbing;
+}
+
+.fk-avatar-crop-outline {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px color-mix(in srgb, #000 42%, transparent);
+  pointer-events: none;
+}
+
+.fk-avatar-crop-label {
+  position: absolute;
+  bottom: 0.55rem;
+  left: 50%;
+  z-index: 3;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #000 62%, transparent);
+  color: #fff;
+  font-size: 0.7rem;
+  pointer-events: none;
+  translate: -50% 0;
 }
 
 .fk-avatar-zoom {
@@ -660,8 +699,10 @@
 }
 
 .fk-field textarea {
-  resize: vertical;
-  min-height: 84px;
+  min-height: 112px;
+  max-height: 160px;
+  resize: none;
+  overflow-y: auto;
 }
 
 .fk-field .fk-char-count {
@@ -2267,9 +2308,12 @@
 .fk-side-composer .fk-composer-body {
   flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
 }
 
 .fk-thread-composer .fk-side-comment-input {
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
   min-height: 2.8rem;
   max-height: 360px;

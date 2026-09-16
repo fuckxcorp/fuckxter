@@ -76,7 +76,7 @@ const sectionTitles: Record<SettingsSection, string> = {
                     <strong>主页头图</strong>
                     <small>
                       自定义您个人主页最上面的图片，推荐比例 5:1，最大处理尺寸
-                      2000×400，文件大小限制 30MB。
+                      3000×600，文件大小限制 30MB。
                     </small>
                   </div>
                   <button
@@ -142,12 +142,19 @@ const sectionTitles: Record<SettingsSection, string> = {
               />
               <dialog class="fk-avatar-dialog" data-role="avatar-crop-dialog">
                 <h4>裁切头像</h4>
-                <canvas
-                  class="fk-avatar-crop-canvas"
-                  data-role="avatar-crop-canvas"
-                  width="280"
-                  height="280"
-                />
+                <p class="fk-avatar-crop-hint">
+                  拖动和缩放图片，让头像完整落在圆形区域内。
+                </p>
+                <div class="fk-avatar-crop-stage">
+                  <canvas
+                    class="fk-avatar-crop-canvas"
+                    data-role="avatar-crop-canvas"
+                    width="280"
+                    height="280"
+                  />
+                  <span class="fk-avatar-crop-outline" aria-hidden="true" />
+                  <span class="fk-avatar-crop-label">头像显示区域</span>
+                </div>
                 <label class="fk-avatar-zoom">
                   <span>缩放</span>
                   <input
@@ -188,8 +195,8 @@ const sectionTitles: Record<SettingsSection, string> = {
                   <canvas
                     class="fk-header-crop-canvas"
                     data-role="header-crop-canvas"
-                    width="2000"
-                    height="400"
+                    width="3000"
+                    height="600"
                     aria-label="头图裁切预览"
                   />
                   <span class="fk-header-crop-label">主页显示区域</span>

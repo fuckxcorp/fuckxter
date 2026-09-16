@@ -9,10 +9,11 @@ import { headerObjectKey } from "./avatar";
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 const AVATAR_MAX_DIMENSION = 512;
 const MEDIA_MAX_DIMENSION = 2048;
-const HEADER_MAX_WIDTH = 2000;
-const HEADER_MAX_HEIGHT = 400;
+const HEADER_MAX_WIDTH = 3000;
+const HEADER_MAX_HEIGHT = 600;
 const STREAM_FALLBACK_BYTES = 25 * 1024 * 1024;
 const AVIF_QUALITY = 82;
+const HEADER_AVIF_QUALITY = 92;
 const ALLOWED_MEDIA = new Set([
   "image/jpeg",
   "image/png",
@@ -75,6 +76,7 @@ async function convertToAvif(
     width: number;
     height: number;
     animated: boolean;
+    quality?: number;
   },
 ): Promise<ArrayBuffer> {
   const body = new Response(bytes).body;
@@ -95,7 +97,7 @@ async function convertToAvif(
       })
       .output({
         format: "image/avif",
-        quality: AVIF_QUALITY,
+        quality: options.quality ?? AVIF_QUALITY,
         anim: options.animated,
       });
     const response = output.response();
@@ -434,6 +436,7 @@ export async function uploadHeader(
     width: HEADER_MAX_WIDTH,
     height: HEADER_MAX_HEIGHT,
     animated: false,
+    quality: HEADER_AVIF_QUALITY,
   });
   const contentType = "image/avif";
   const objectKey = headerObjectKey(handle);
