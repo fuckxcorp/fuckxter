@@ -18,12 +18,15 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         >
           <p class="fk-status">加载中…</p>
         </section>
-        <section
-          class="fk-user-posts"
-          data-role="user-posts"
-          aria-label="该用户的帖子"
-        >
-        </section>
+        <div class="fk-user-stream">
+          <div class="fk-user-banner-host" data-role="user-banner" hidden></div>
+          <section
+            class="fk-user-posts"
+            data-role="user-posts"
+            aria-label="该用户的帖子"
+          >
+          </section>
+        </div>
       </div>
     </div>
   </div>
@@ -65,38 +68,30 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
   const fullTime = (iso: string) =>
     new Date(iso).toLocaleString("zh-CN", { dateStyle: "long" });
 
-  function renderUserHead(
-    profile: UserProfile,
-    isOwn: boolean,
-  ): DocumentFragment {
-    const fragment = document.createDocumentFragment();
-    let banner: HTMLElement | null = null;
-    if (profile.headerUrl) {
-      banner = el("div", "fk-user-banner is-media-loading");
-      const headerImage = el("img", "fk-user-banner-image");
-      headerImage.src = profile.headerUrl.startsWith("/")
-        ? apiEndpoint(profile.headerUrl)
-        : profile.headerUrl;
-      headerImage.alt = `${profile.name} 的主页头图`;
-      headerImage.loading = "eager";
-      headerImage.decoding = "async";
-      banner.append(headerImage);
-      headerImage.addEventListener(
-        "load",
-        () => banner?.classList.add("is-media-ready"),
-        { once: true },
-      );
-      headerImage.addEventListener(
-        "error",
-        () => {
-          banner
-            ?.closest<HTMLElement>(".fk-user-inner")
-            ?.classList.remove("has-header");
-          banner?.remove();
-        },
-        { once: true },
-      );
-    }
+  function renderUserBanner(profile: UserProfile): HTMLElement | null {
+    if (!profile.headerUrl) return null;
+
+    const banner = el("div", "fk-user-banner is-media-loading");
+    const headerImage = el("img", "fk-user-banner-image");
+    headerImage.src = profile.headerUrl.startsWith("/")
+      ? apiEndpoint(profile.headerUrl)
+      : profile.headerUrl;
+    headerImage.alt = `${profile.name} 的主页头图`;
+    headerImage.loading = "eager";
+    headerImage.decoding = "async";
+    banner.append(headerImage);
+    headerImage.addEventListener(
+      "load",
+      () => banner.classList.add("is-media-ready"),
+      { once: true },
+    );
+    headerImage.addEventListener("error", () => banner.remove(), {
+      once: true,
+    });
+    return banner;
+  }
+
+  function renderUserHead(profile: UserProfile, isOwn: boolean): HTMLElement {
     const card = el("section", "fk-user-head-card");
 
     const row = el("div", "fk-user-row");
@@ -179,9 +174,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     }
     card.append(actions);
 
-    fragment.append(card);
-    if (banner) fragment.append(banner);
-    return fragment;
+    return card;
   }
 
   function bindPostList(
@@ -321,6 +314,9 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     const postsRoot = container.querySelector<HTMLElement>(
       "[data-role=user-posts]",
     )!;
+    const bannerHost = container.querySelector<HTMLElement>(
+      "[data-role=user-banner]",
+    )!;
 
     const account: Account | null = getAccount();
     const handle = (
@@ -338,13 +334,16 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     void Promise.all([getUserProfile(handle), getPostsByUser(handle)])
       .then(([profile, posts]) => {
         const isOwn = account?.profile.handle === profile.handle;
-        const inner = head.closest<HTMLElement>(".fk-user-inner");
-        inner?.classList.toggle("has-header", Boolean(profile.headerUrl));
         document.title = `@${handle} | FuckXter`;
+        const banner = renderUserBanner(profile);
         head.replaceChildren(renderUserHead(profile, isOwn));
+        bannerHost.replaceChildren();
+        bannerHost.hidden = !banner;
+        if (banner) bannerHost.append(banner);
         bindPostList(postsRoot, posts, () => {});
       })
       .catch((error: unknown) => {
+        bannerHost.hidden = true;
         head.replaceChildren(
           statusRow(error instanceof Error ? error.message : "用户加载失败。"),
         );

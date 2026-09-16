@@ -2451,28 +2451,19 @@
 .fk-user-inner {
   display: grid;
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-  grid-template-areas: "profile posts";
-  grid-template-rows: minmax(0, 1fr);
   gap: 1.5rem;
   width: 98%;
   height: 100%;
   margin: 0 auto;
 }
 
-.fk-user-inner.has-header {
-  grid-template-areas:
-    "profile banner"
-    "profile posts";
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
 .fk-user-head {
-  display: contents;
+  min-width: 0;
+  min-height: 0;
 }
 
 .fk-user-head-card {
-  grid-area: profile;
-  align-self: stretch;
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--color-border);
@@ -2481,11 +2472,22 @@
 }
 
 .fk-user-head > .fk-status {
-  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.fk-user-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fk-user-banner-host[hidden] {
+  display: none;
 }
 
 .fk-user-banner {
-  grid-area: banner;
   width: 100%;
   height: clamp(140px, 20vh, 210px);
   border: 1px solid var(--color-border);
@@ -2519,8 +2521,8 @@
 }
 
 .fk-user-posts {
-  grid-area: posts;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.8rem;
   min-height: 0;
@@ -2643,21 +2645,9 @@
 
   .fk-user-inner {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "profile"
-      "posts";
-    grid-template-rows: auto auto;
     gap: 1rem;
     width: 98%;
     height: auto;
-  }
-
-  .fk-user-inner.has-header {
-    grid-template-areas:
-      "profile"
-      "banner"
-      "posts";
-    grid-template-rows: auto auto auto;
   }
 
   .fk-user-banner {
@@ -2670,6 +2660,7 @@
   }
 
   .fk-user-posts {
+    flex: none;
     padding: 0 0 0;
     overflow: visible;
   }
