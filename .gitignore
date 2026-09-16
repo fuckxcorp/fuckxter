@@ -5,6 +5,7 @@ dist/
 
 # dependencies
 node_modules/
+pnpm-lock.yaml
 
 # logs
 npm-debug.log*
@@ -15,7 +16,6 @@ pnpm-debug.log*
 # environment variables
 .env
 .env.production
-.dev.vars
 
 # Cloudflare
 .wrangler/
