@@ -794,21 +794,20 @@
 .fk-security-forms {
   display: grid;
   gap: 1rem;
+  align-items: stretch;
+}
+
+.fk-security-forms .fk-fieldset {
+  margin-bottom: 0;
+}
+
+.fk-security-forms + .fk-security-forms {
+  margin-top: 1rem;
 }
 
 @media (min-width: 960px) {
   .fk-security-forms {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    margin-bottom: 1rem;
-  }
-
-  .fk-security-forms .fk-fieldset {
-    margin-bottom: 0;
-  }
-
-  .fk-security-advanced {
-    margin-bottom: 0;
   }
 }
 
