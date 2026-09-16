@@ -3,8 +3,8 @@ allowBuilds:
   sharp: true
   workerd: false
 minimumReleaseAgeExclude:
-  - miniflare@5.20260911.1-alpha
-  - wrangler@4.131.2
+  - miniflare@5.20260915.0-alpha
+  - wrangler@4.132.0
   - astro@7.3.2
   - "@astrojs/internal-helpers@0.11.0"
   - "@astrojs/markdown-satteri@0.4.1"
@@ -18,9 +18,9 @@ minimumReleaseAgeExclude:
   - "@bruits/satteri-win32-arm64-msvc@0.10.5"
   - "@bruits/satteri-win32-x64-msvc@0.10.5"
   - satteri@0.10.5
-  - "@cloudflare/workerd-darwin-64@1.20260911.1"
-  - "@cloudflare/workerd-darwin-arm64@1.20260911.1"
-  - "@cloudflare/workerd-linux-64@1.20260911.1"
-  - "@cloudflare/workerd-linux-arm64@1.20260911.1"
-  - "@cloudflare/workerd-windows-64@1.20260911.1"
-  - workerd@1.20260911.1
+  - '@cloudflare/workerd-darwin-64@1.20260915.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20260915.1'
+  - '@cloudflare/workerd-linux-64@1.20260915.1'
+  - '@cloudflare/workerd-linux-arm64@1.20260915.1'
+  - '@cloudflare/workerd-windows-64@1.20260915.1'
+  - workerd@1.20260915.1
