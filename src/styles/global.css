@@ -443,6 +443,78 @@ body {
   padding: 0.7rem 1.2rem;
 }
 
+.fk-field {
+  display: block;
+  margin-bottom: 0.85rem;
+}
+
+.fk-field[hidden] {
+  display: none;
+}
+
+.fk-field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.fk-field input,
+.fk-field select,
+.fk-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-text-strong);
+  font-family: inherit;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.fk-field input:focus,
+.fk-field select:focus,
+.fk-field textarea:focus {
+  border-color: var(--color-accent);
+}
+
+.fk-field input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: var(--color-bg-subtle);
+}
+
+.fk-field textarea {
+  min-height: 112px;
+  max-height: 160px;
+  resize: none;
+  overflow-y: auto;
+}
+
+.fk-field .fk-char-count {
+  display: block;
+  margin-top: 0.25rem;
+  text-align: right;
+}
+
+.fk-form-status {
+  min-height: 1.2em;
+  margin: 0.2rem 0 0.6rem;
+  color: var(--color-accent);
+  font-size: 0.85rem;
+}
+
+.fk-form-hint {
+  margin: 0.8rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
 .fk-primary-btn {
   border: 0;
   cursor: pointer;
