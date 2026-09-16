@@ -111,13 +111,17 @@ interface WorkerExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
 }
 
-function cacheableAssetResponse(response: Response): Response {
+function cacheableAssetResponse(
+  response: Response,
+  immutable: boolean,
+): Response {
   const headers = new Headers(response.headers);
-  if ((headers.get("Content-Type") ?? "").includes("text/html")) {
+  if (immutable) {
     headers.set(
       "Cache-Control",
-      "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+      "public, max-age=31536000, s-maxage=31536000, immutable",
     );
+    headers.set("CDN-Cache-Control", "public, max-age=31536000, immutable");
   }
   return new Response(response.body, {
     status: response.status,
@@ -132,10 +136,11 @@ async function fetchAsset(
   assetUrl: URL,
   cacheUrl: URL,
   context: WorkerExecutionContext,
+  cacheable: boolean,
 ): Promise<Response> {
   const cache = (caches as CacheStorage & { default: Cache }).default;
   const cacheKey = new Request(cacheUrl, { method: request.method });
-  const cached = await cache.match(cacheKey);
+  const cached = cacheable ? await cache.match(cacheKey) : undefined;
   if (cached) {
     const headers = new Headers(cached.headers);
     headers.set("X-Fuckxter-Cache", "HIT");
@@ -151,16 +156,31 @@ async function fetchAsset(
     await new Promise((resolve) => setTimeout(resolve, 50));
     response = await env.ASSETS.fetch(new Request(assetUrl, request));
   }
-  if (!response.ok || (request.method !== "GET" && request.method !== "HEAD")) {
+  if (
+    !cacheable ||
+    !response.ok ||
+    (request.method !== "GET" && request.method !== "HEAD")
+  ) {
+    if ((response.headers.get("Content-Type") ?? "").includes("text/html")) {
+      const headers = new Headers(response.headers);
+      headers.set("Cache-Control", "no-store, max-age=0");
+      headers.set("CDN-Cache-Control", "no-store");
+      headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
     return response;
   }
 
-  const cacheable = cacheableAssetResponse(response);
-  const headers = new Headers(cacheable.headers);
+  const stored = cacheableAssetResponse(response, true);
+  const headers = new Headers(stored.headers);
   headers.set("X-Fuckxter-Cache", "MISS");
-  const result = new Response(cacheable.body, {
-    status: cacheable.status,
-    statusText: cacheable.statusText,
+  const result = new Response(stored.body, {
+    status: stored.status,
+    statusText: stored.statusText,
     headers,
   });
   context.waitUntil(cache.put(cacheKey, result.clone()));
@@ -773,6 +793,8 @@ export default {
       hostname === "::1";
     if (!isApiHost) {
       const assetPath = assetPagePath(url.pathname);
+      const fileName = url.pathname.split("/").at(-1) ?? "";
+      const cacheable = !assetPath && fileName.includes(".");
       if (
         assetPath &&
         (request.method === "GET" || request.method === "HEAD")
@@ -781,9 +803,9 @@ export default {
         assetUrl.pathname = assetPath;
         const cacheUrl = new URL(assetUrl);
         cacheUrl.search = "";
-        return fetchAsset(request, env, assetUrl, cacheUrl, context);
+        return fetchAsset(request, env, assetUrl, cacheUrl, context, cacheable);
       }
-      return fetchAsset(request, env, url, url, context);
+      return fetchAsset(request, env, url, url, context, cacheable);
     }
 
     const headers = corsHeaders(request, env);
