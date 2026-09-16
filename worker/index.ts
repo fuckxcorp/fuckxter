@@ -78,13 +78,12 @@ function segment(values: string[], index: number): string {
   }
 }
 
-function apiSegments(pathname: string): string[] {
-  const parts = pathname.split("/").filter(Boolean);
-  return parts[0] === "api" ? parts.slice(1) : parts;
+function routeSegments(pathname: string): string[] {
+  return ["", ...pathname.split("/").filter(Boolean)];
 }
 
 async function route(request: Request, env: Env, url: URL): Promise<Response> {
-  const parts = apiSegments(url.pathname);
+  const parts = routeSegments(url.pathname);
   const method = request.method;
 
   if (parts[1] === "health" && parts.length === 2 && method === "GET") {
@@ -661,10 +660,9 @@ export default {
     const isApiHost =
       hostname === "api.fuckxter.site" ||
       hostname === "localhost" ||
-      hostname === "127.0.0.1";
-    const isLegacyApiPath =
-      url.pathname === "/api" || url.pathname.startsWith("/api/");
-    if (!isApiHost && !isLegacyApiPath) {
+      hostname === "127.0.0.1" ||
+      hostname === "::1";
+    if (!isApiHost) {
       return env.ASSETS.fetch(request);
     }
 

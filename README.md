@@ -18,7 +18,7 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 前端是静态站点，运行时通过 `PUBLIC_FUCKXTER_API_URL` 访问 Worker。
 本地开发默认使用 `http://localhost:8787`，生产环境默认使用 `https://api.fuckxter.site`。
-API 路径直接挂在独立域名的根路径下，例如 `https://api.fuckxter.site/timeline`。
+API 路径直接挂在独立域名的根路径下，例如 `https://api.fuckxter.site/timeline`。旧 `/api` 前缀已移除。
 
 ## 媒体存储
 
