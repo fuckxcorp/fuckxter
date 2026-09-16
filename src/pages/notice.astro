@@ -42,7 +42,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
 <script>
   import { getNotifications, markNotificationsRead } from "../lib/fuckxter/api";
   import { hydrateSession } from "../lib/fuckxter/auth";
-  import { avatarGradient, el, relativeTime } from "../lib/fuckxter/dom";
+  import { avatarGradient, el, ICONS, relativeTime } from "../lib/fuckxter/dom";
   import { apiEndpoint } from "../lib/fuckxter/http";
   import { onFuckxterPageReady } from "../lib/fuckxter/page";
   import type { Notification } from "../lib/fuckxter/types";
@@ -69,27 +69,26 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
     action: string;
     detail: string;
   } {
-    const actor = notice.actor?.name ?? "系统";
     if (notice.type === "reply") {
       return {
-        action: `${actor} 回帖了你的帖子`,
+        action: "回帖了你的帖子",
         detail: notice.comment?.text ?? notice.post?.text ?? "",
       };
     }
     if (notice.type === "like") {
       return {
-        action: `${actor} 赞了你的帖子`,
+        action: "赞了你的帖子",
         detail: notice.post?.text ?? "",
       };
     }
     if (notice.type === "repost") {
       return {
-        action: `${actor} 转发了你的帖子`,
+        action: "转发了你的帖子",
         detail: notice.post?.text ?? "",
       };
     }
     if (notice.type === "follow") {
-      return { action: `${actor} 关注了你`, detail: "" };
+      return { action: "关注了你", detail: "查看对方的主页" };
     }
     return {
       action: String(notice.data.title ?? "系统通知"),
@@ -192,23 +191,37 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
         const item = el("article", "fk-notice-item");
         item.classList.toggle("is-unread", !notice.read);
         const target = noticeTarget(notice);
-        const copy = el(target ? "a" : "div", "fk-notice-copy");
-        if (target && copy instanceof HTMLAnchorElement) copy.href = target;
-
         const message = noticeMessage(notice);
-        const action = el("strong", "fk-notice-action");
-        action.textContent = message.action;
+        const actor = el("div", "fk-notice-actor");
+        const actorCopy = el("div", "fk-notice-actor-copy");
+        const actorNameLine = el("div", "fk-notice-actor-name");
+        const actorName = el("strong");
+        actorName.textContent = notice.actor?.name ?? "系统";
+        actorNameLine.append(actorName);
+        if (notice.actor?.verified) {
+          actorNameLine.insertAdjacentHTML("beforeend", ICONS.verified);
+        }
+        const actorMeta = el("span", "fk-notice-actor-handle");
+        actorMeta.textContent = notice.actor
+          ? `@${notice.actor.handle}`
+          : "FuckXter 官方通知";
         const time = el("time", "fk-notice-time");
         time.dateTime = notice.createdAt;
         time.textContent = relativeTime(notice.createdAt);
-        const head = el("div", "fk-notice-meta");
-        head.append(action, time);
-        copy.append(head);
+        const action = el("span", "fk-notice-action");
+        action.textContent = message.action;
+        actorCopy.append(actorNameLine, actorMeta, action, time);
+        actor.append(noticeAvatar(notice), actorCopy);
 
-        if (message.detail) {
-          const detail = el("p", "fk-notice-text");
-          detail.textContent = message.detail;
-          copy.append(detail);
+        const content = el("div", "fk-notice-content");
+        const detail = el("p", "fk-notice-text");
+        detail.textContent =
+          message.detail || (target ? "点击查看详情" : "暂无更多内容");
+        content.append(detail);
+        if (target) {
+          const openHint = el("span", "fk-notice-open-hint");
+          openHint.textContent = "查看详情 →";
+          content.append(openHint);
         }
 
         const openNotice = (event: Event) => {
@@ -226,7 +239,7 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
           openNotice(event);
         });
 
-        item.append(noticeAvatar(notice), copy);
+        item.append(actor, content);
         list.append(item);
       }
       updateSummary();

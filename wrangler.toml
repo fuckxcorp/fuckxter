@@ -5,6 +5,9 @@ compatibility_date = "2026-09-08"
 [placement]
 mode = "smart"
 
+[cache]
+enabled = true
+
 [assets]
 directory = "./dist"
 binding = "ASSETS"

@@ -31,6 +31,7 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
 
 <script>
   import { navigate } from "astro:transitions/client";
+  import { prefetch } from "astro:prefetch";
   import {
     getUserProfile,
     getPostsByUser,
@@ -47,7 +48,6 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
   } from "../../lib/fuckxter/auth";
   import {
     authorAvatar,
-    avatarGradient,
     el,
     fmtCount,
     ICONS,
@@ -70,9 +70,9 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     isOwn: boolean,
   ): DocumentFragment {
     const fragment = document.createDocumentFragment();
-    const banner = el("div", "fk-user-banner");
-    banner.setAttribute("style", avatarGradient(profile.handle));
+    let banner: HTMLElement | null = null;
     if (profile.headerUrl) {
+      banner = el("div", "fk-user-banner is-media-loading");
       const headerImage = el("img", "fk-user-banner-image");
       headerImage.src = profile.headerUrl.startsWith("/")
         ? apiEndpoint(profile.headerUrl)
@@ -81,6 +81,21 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
       headerImage.loading = "eager";
       headerImage.decoding = "async";
       banner.append(headerImage);
+      headerImage.addEventListener(
+        "load",
+        () => banner?.classList.add("is-media-ready"),
+        { once: true },
+      );
+      headerImage.addEventListener(
+        "error",
+        () => {
+          banner
+            ?.closest<HTMLElement>(".fk-user-inner")
+            ?.classList.remove("has-header");
+          banner?.remove();
+        },
+        { once: true },
+      );
     }
     const card = el("section", "fk-user-head-card");
 
@@ -164,7 +179,8 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     }
     card.append(actions);
 
-    fragment.append(banner, card);
+    fragment.append(card);
+    if (banner) fragment.append(banner);
     return fragment;
   }
 
@@ -178,6 +194,19 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         ? [statusRow("还没有发过帖子。")]
         : posts.map((post) => renderPost(post))),
     );
+
+    const prefetched = new Set<string>();
+    root.addEventListener("pointerover", (event) => {
+      const article = (event.target as HTMLElement).closest<HTMLElement>(
+        ".fk-post",
+      );
+      const id = article?.dataset.postId;
+      if (!id || prefetched.has(id)) return;
+      const post = posts.find((item) => item.id === id);
+      if (!post) return;
+      prefetched.add(id);
+      prefetch(postPath(post));
+    });
 
     root.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
@@ -309,6 +338,8 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     void Promise.all([getUserProfile(handle), getPostsByUser(handle)])
       .then(([profile, posts]) => {
         const isOwn = account?.profile.handle === profile.handle;
+        const inner = head.closest<HTMLElement>(".fk-user-inner");
+        inner?.classList.toggle("has-header", Boolean(profile.headerUrl));
         document.title = `@${handle} | FuckXter`;
         head.replaceChildren(renderUserHead(profile, isOwn));
         bindPostList(postsRoot, posts, () => {});

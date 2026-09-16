@@ -20,19 +20,19 @@ export const ICONS = {
     '<svg class="fk-verified" viewBox="0 0 24 24" aria-label="认证账号" role="img"><path fill="currentColor" d="M12 1.5l2.6 2 3.2-.4 1.2 3 3 1.2-.4 3.2 2 2.5-2 2.5.4 3.2-3 1.2-1.2 3-3.2-.4-2.6 2-2.6-2-3.2.4-1.2-3-3-1.2.4-3.2-2-2.5 2-2.5-.4-3.2 3-1.2 1.2-3 3.2.4z"></path><path class="fk-verified-check" d="M10.7 15.9l-3-3 1.3-1.3 1.7 1.7 4.3-4.3 1.3 1.3z"></path></svg>',
 };
 
-const AVATAR_GRADIENTS: [string, string][] = [
-  ["#f97316", "#ef4444"],
-  ["#8b5cf6", "#6366f1"],
-  ["#06b6d4", "#3b82f6"],
-  ["#10b981", "#14b8a6"],
-  ["#f43f5e", "#ec4899"],
-  ["#f59e0b", "#d97706"],
+const AVATAR_GRADIENTS: [number, number][] = [
+  [24, 334],
+  [258, 231],
+  [190, 218],
+  [160, 174],
+  [348, 330],
+  [38, 28],
 ];
 
 export function avatarGradient(handle: string): string {
   const hash = [...handle].reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   const [from, to] = AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
-  return `background-image: linear-gradient(135deg, ${from}, ${to})`;
+  return `background-image: linear-gradient(115deg, hsl(${from} 44% 72%), hsl(${to} 48% 58%), hsl(${from} 38% 66%)); background-size: 220% 100%;`;
 }
 
 export function relativeTime(iso: string): string {
@@ -174,6 +174,8 @@ export function authorAvatar(
   avatar.dataset.handle = handle;
   avatar.href = `/user/${encodeURIComponent(handle)}`;
   avatar.setAttribute("style", avatarGradient(handle));
+  const fallback = el("span", "fk-avatar-fallback");
+  fallback.textContent = [...name.trim()][0]?.toLocaleUpperCase() ?? "?";
   const image = el("img", "fk-avatar-image");
   image.src =
     avatarUrl && avatarUrl.startsWith("/")
@@ -182,7 +184,7 @@ export function authorAvatar(
   image.alt = name;
   image.loading = "lazy";
   image.decoding = "async";
-  avatar.append(image);
+  avatar.append(fallback, image);
   avatar.title = `查看 @${handle} 的主页`;
   avatar.setAttribute("aria-label", `查看 ${name}（@${handle}）的主页`);
   return avatar;

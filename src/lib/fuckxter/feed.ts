@@ -1,4 +1,5 @@
 import { navigate } from "astro:transitions/client";
+import { prefetch } from "astro:prefetch";
 import {
   createPost,
   deletePost,
@@ -230,6 +231,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
   let activeColumnCount = 0;
   const orderedPosts: HTMLElement[] = [];
   const postsById = new Map<string, Post>();
+  const prefetchedPosts = new Set<string>();
 
   const shortestColumn = (): HTMLElement => {
     let target = columns[0];
@@ -437,6 +439,18 @@ export function mountFeed(container: HTMLElement): FeedControls {
     button.querySelector<HTMLElement>(".fk-action-count")!.textContent =
       count > 0 ? fmtCount(count) : "";
   };
+
+  feed.addEventListener("pointerover", (event) => {
+    const article = (event.target as HTMLElement).closest<HTMLElement>(
+      ".fk-post",
+    );
+    const id = article?.dataset.postId;
+    if (!id || prefetchedPosts.has(id)) return;
+    const post = postsById.get(id);
+    if (!post) return;
+    prefetchedPosts.add(id);
+    prefetch(postPath(post));
+  });
 
   feed.addEventListener("click", async (event) => {
     const target = event.target as HTMLElement;

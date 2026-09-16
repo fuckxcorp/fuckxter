@@ -181,10 +181,16 @@ export async function getStorageOptions(): Promise<StorageOption[]> {
 
 export function getNotifications(
   cursor: string | null,
+  limit = 30,
 ): Promise<NotificationPage> {
   return apiRequest<NotificationPage>(
-    `/api/notice?${query({ cursor, limit: "30" })}`,
+    `/api/notice?${query({ cursor, limit: String(limit) })}`,
   );
+}
+
+export async function getUnreadNotificationCount(): Promise<number> {
+  const page = await getNotifications(null, 1);
+  return page.unread;
 }
 
 export async function markNotificationsRead(

@@ -12,10 +12,49 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
     <div class="fk-post-layout">
       <div class="fk-post-main">
         <div class="fk-post-main-inner" data-role="post-detail">
-          <p class="fk-status">加载中…</p>
+          <section class="fk-thread" aria-label="正在加载帖子">
+            <header class="fk-thread-head">
+              <h1>帖子线程</h1>
+              <p>发起与回帖按时间排列</p>
+            </header>
+
+            <article class="fk-thread-post fk-thread-origin fk-post-skeleton">
+              <span class="fk-skeleton fk-skeleton-pill"></span>
+              <span class="fk-skeleton fk-skeleton-avatar"></span>
+              <div class="fk-skeleton-copy">
+                <span class="fk-skeleton fk-skeleton-line is-short"></span>
+                <span class="fk-skeleton fk-skeleton-line"></span>
+                <span class="fk-skeleton fk-skeleton-line is-medium"></span>
+              </div>
+            </article>
+
+            <section class="fk-thread-replies">
+              <header class="fk-replies-head">
+                <h2>回帖</h2>
+                <span>加载中</span>
+              </header>
+            </section>
+          </section>
         </div>
       </div>
-      <aside class="fk-post-side" data-role="post-side" hidden></aside>
+      <aside class="fk-post-side" data-role="post-side" aria-label="帖子信息">
+        <section class="fk-post-info">
+          <h4 class="fk-post-info-title">详情</h4>
+          <div class="fk-detail-skeleton">
+            <span class="fk-skeleton fk-skeleton-avatar is-small"></span>
+            <span class="fk-skeleton fk-skeleton-line is-medium"></span>
+            <span class="fk-skeleton fk-skeleton-line"></span>
+          </div>
+        </section>
+        <section class="fk-post-controls">
+          <h4 class="fk-post-controls-title">互动</h4>
+          <div class="fk-control-skeleton">
+            <span class="fk-skeleton fk-skeleton-button"></span>
+            <span class="fk-skeleton fk-skeleton-button"></span>
+            <span class="fk-skeleton fk-skeleton-button"></span>
+          </div>
+        </section>
+      </aside>
     </div>
   </div>
 </FuckxterLayout>
@@ -586,9 +625,10 @@ import FuckxterSubpageHeader from "../../components/FuckxterSubpageHeader.astro"
         side.hidden = false;
       })
       .catch((error: unknown) => {
-        host.replaceChildren(
-          statusRow(error instanceof Error ? error.message : "帖子加载失败。"),
-        );
+        const message =
+          error instanceof Error ? error.message : "帖子加载失败。";
+        host.replaceChildren(statusRow(message));
+        side.replaceChildren(statusRow(message));
       });
   };
 

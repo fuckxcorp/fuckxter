@@ -85,6 +85,10 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
             <circle cx="12" cy="8" r="4"></circle>
             <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"></path>
           </svg>
+          <span
+            class="fk-account-notice-dot"
+            data-role="account-notice-dot"
+            hidden></span>
         </button>
 
         <div
@@ -106,28 +110,31 @@ import FuckxterLayout from "../layouts/FuckxterLayout.astro";
           </div>
 
           <div data-role="user-items" hidden>
-            <div class="fk-menu-user">
+            <button
+              type="button"
+              class="fk-menu-user"
+              role="menuitem"
+              data-account-open="profile"
+              aria-label="进入我的主页"
+            >
               <span class="fk-menu-user-avatar" data-role="menu-avatar"></span>
               <span class="fk-menu-user-meta">
                 <strong data-role="menu-name"></strong>
                 <small data-role="menu-handle"></small>
               </span>
-            </div>
-            <button
-              type="button"
-              class="fk-menu-item"
-              role="menuitem"
-              data-account-open="profile"
-            >
-              主页
             </button>
             <button
               type="button"
-              class="fk-menu-item"
+              class="fk-menu-item fk-notice-menu-item"
               role="menuitem"
               data-account-open="notice"
+              data-role="notice-menu-item"
             >
-              通知
+              <span>通知</span>
+              <span
+                class="fk-notice-menu-badge"
+                data-role="notice-menu-badge"
+                hidden></span>
             </button>
             <button
               type="button"

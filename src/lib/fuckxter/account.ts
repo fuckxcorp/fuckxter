@@ -6,6 +6,7 @@ import {
   signOut,
   type Account,
 } from "./auth";
+import { getUnreadNotificationCount } from "./api";
 import { avatarGradient } from "./dom";
 import { ApiError, apiEndpoint } from "./http";
 import { userPath } from "./urls";
@@ -55,6 +56,15 @@ export function mountAccountControls(
   const accountIcon = container.querySelector<SVGElement>(
     "[data-role=account-icon]",
   )!;
+  const noticeMenuItem = accountMenu.querySelector<HTMLElement>(
+    "[data-role=notice-menu-item]",
+  )!;
+  const noticeMenuBadge = accountMenu.querySelector<HTMLElement>(
+    "[data-role=notice-menu-badge]",
+  )!;
+  const accountNoticeDot = container.querySelector<HTMLElement>(
+    "[data-role=account-notice-dot]",
+  )!;
   const themeTrigger = accountMenu.querySelector<HTMLButtonElement>(
     "[data-account-open=theme]",
   )!;
@@ -67,6 +77,32 @@ export function mountAccountControls(
   )!;
 
   let account: Account | null = getAccount();
+  let unreadRequestId = 0;
+
+  const setUnreadNotifications = (count: number) => {
+    const unread = Math.max(0, Math.floor(count));
+    const hasUnread = unread > 0;
+    accountNoticeDot.hidden = !hasUnread;
+    noticeMenuBadge.hidden = !hasUnread;
+    noticeMenuBadge.textContent = unread > 99 ? "99+" : String(unread);
+    noticeMenuItem.classList.toggle("has-unread", hasUnread);
+    noticeMenuItem.setAttribute(
+      "aria-label",
+      hasUnread ? `通知，${unread} 条未读` : "通知",
+    );
+  };
+
+  const refreshUnreadNotifications = async (owner: string) => {
+    const requestId = ++unreadRequestId;
+    try {
+      const unread = await getUnreadNotificationCount();
+      if (requestId !== unreadRequestId) return;
+      if (!account || account.profile.handle !== owner) return;
+      setUnreadNotifications(unread);
+    } catch {
+      // Notification status must not block the account menu.
+    }
+  };
 
   const applyThemeChoice = (mode: string) => {
     localStorage.setItem("theme", mode);
@@ -116,7 +152,10 @@ export function mountAccountControls(
       signoutItems.hidden = false;
       accountBtn.setAttribute("aria-label", "账号菜单");
       accountBtn.title = "账号菜单";
+      void refreshUnreadNotifications(account.profile.handle);
     } else {
+      unreadRequestId += 1;
+      setUnreadNotifications(0);
       accountAvatar.hidden = true;
       accountIcon.removeAttribute("style");
       authItems.hidden = false;
@@ -312,6 +351,18 @@ export function mountAccountControls(
 
   renderAccountUI();
 
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "visible" && account) {
+      void refreshUnreadNotifications(account.profile.handle);
+    }
+  };
+  const unreadInterval = window.setInterval(() => {
+    if (document.visibilityState === "visible" && account) {
+      void refreshUnreadNotifications(account.profile.handle);
+    }
+  }, 30_000);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+
   return {
     sync: () => {
       account = getAccount();
@@ -322,6 +373,8 @@ export function mountAccountControls(
       document.removeEventListener("keydown", onMenuKeydown, true);
       document.removeEventListener("keydown", onModalKeydown, true);
       window.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.clearInterval(unreadInterval);
       modalKeysBound = false;
     },
   };
