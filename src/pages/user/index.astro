@@ -188,7 +188,6 @@ import Header from "../../components/Header.astro";
 
 <script>
   import { navigate } from "astro:transitions/client";
-  import { prefetch } from "astro:prefetch";
   import {
     getUserProfile,
     getUserList,
@@ -329,19 +328,6 @@ import Header from "../../components/Header.astro";
         ? [statusRow("还没有发过帖子。")]
         : posts.map((post) => renderPost(post))),
     );
-
-    const prefetched = new Set<string>();
-    root.addEventListener("pointerover", (event) => {
-      const article = (event.target as HTMLElement).closest<HTMLElement>(
-        ".fk-post",
-      );
-      const id = article?.dataset.postId;
-      if (!id || prefetched.has(id)) return;
-      const post = posts.find((item) => item.id === id);
-      if (!post) return;
-      prefetched.add(id);
-      prefetch(postPath(post));
-    });
 
     root.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
