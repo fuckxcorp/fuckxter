@@ -1,7 +1,9 @@
 ---
+import "../../styles/settings.css";
+
 import FuckxterSettingsPage from "../../components/FuckxterSettingsPage.astro";
 
-type SettingsSection = "profile" | "security" | "saved" | "storage";
+type SettingsSection = "profile" | "security" | "storage";
 
 interface Props {
   section: SettingsSection;
@@ -11,7 +13,6 @@ export function getStaticPaths() {
   return [
     { params: { section: "profile" }, props: { section: "profile" } },
     { params: { section: "security" }, props: { section: "security" } },
-    { params: { section: "saved" }, props: { section: "saved" } },
     { params: { section: "storage" }, props: { section: "storage" } },
   ];
 }

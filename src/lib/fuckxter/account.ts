@@ -261,7 +261,7 @@ export function mountAccountControls(
         navigate("/notice");
       } else if (open.dataset.accountOpen === "saved" && account) {
         closeAccountMenu();
-        navigate("/settings/saved");
+        navigate("/saved");
       } else if (open.dataset.accountOpen === "settings" && account) {
         closeAccountMenu();
         navigate("/settings/profile");

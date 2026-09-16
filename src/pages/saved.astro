@@ -1,0 +1,51 @@
+---
+import "../styles/saved.css";
+
+import FuckxterSubpageHeader from "../components/FuckxterSubpageHeader.astro";
+import FuckxterLayout from "../layouts/FuckxterLayout.astro";
+---
+
+<FuckxterLayout title="收藏">
+  <div class="fk-app fk-subpage" data-fk-saved>
+    <FuckxterSubpageHeader />
+
+    <main class="fk-notice-main">
+      <section class="fk-notice-panel">
+        <header class="fk-notice-head">
+          <div>
+            <h1>收藏</h1>
+            <p>你保存的帖子</p>
+          </div>
+        </header>
+        <div class="fk-notice-list" data-role="saved-list"></div>
+        <p class="fk-status" data-role="saved-empty" hidden>还没有收藏内容</p>
+      </section>
+    </main>
+  </div>
+</FuckxterLayout>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import { hydrateSession } from "../lib/fuckxter/auth";
+  import { onFuckxterPageReady } from "../lib/fuckxter/page";
+  import { mountSavedSettings } from "../lib/fuckxter/settings/saved";
+
+  onFuckxterPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-fk-saved]");
+    if (!root || root.dataset.fkSavedMounted === "true") return;
+    root.dataset.fkSavedMounted = "true";
+
+    void hydrateSession().then((account) => {
+      if (!account) {
+        void navigate("/");
+        return;
+      }
+      root
+        .querySelector<HTMLButtonElement>("[data-role=back]")!
+        .addEventListener("click", () =>
+          history.length > 1 ? history.back() : (location.href = "/"),
+        );
+      mountSavedSettings(root);
+    });
+  });
+</script>

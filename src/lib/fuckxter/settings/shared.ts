@@ -1,6 +1,6 @@
 import type { Account } from "../auth";
 
-export type SettingsSection = "profile" | "security" | "saved" | "storage";
+export type SettingsSection = "profile" | "security" | "storage";
 
 export interface SettingsContext {
   getAccount: () => Account | null;

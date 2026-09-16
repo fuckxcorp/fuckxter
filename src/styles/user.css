@@ -1,0 +1,241 @@
+/* 用户主页 */
+.fk-avatar-link {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  transition: filter 150ms ease;
+}
+
+.fk-avatar-link:hover {
+  filter: brightness(1.1);
+}
+
+.fk-user-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.fk-user-inner {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 1.5rem;
+  width: 98%;
+  height: 100%;
+  margin: 0 auto;
+}
+
+.fk-user-head {
+  min-width: 0;
+  min-height: 0;
+}
+
+.fk-user-head-card {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-bg-raised);
+}
+
+.fk-user-head > .fk-status {
+  margin: 0;
+}
+
+.fk-user-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fk-user-banner-host[hidden] {
+  display: none;
+}
+
+.fk-user-banner {
+  width: 100%;
+  max-width: 1000px;
+  aspect-ratio: 5 / 2;
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  background-position: center;
+  background-size: cover;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.fk-user-banner.is-media-loading {
+  background-image: linear-gradient(
+    105deg,
+    var(--color-bg-subtle) 18%,
+    color-mix(in srgb, var(--color-bg-hover) 78%, var(--color-bg)) 42%,
+    var(--color-bg-subtle) 66%
+  );
+  background-size: 220% 100%;
+  animation: fk-placeholder-shimmer 1.6s ease-in-out infinite;
+}
+
+.fk-user-banner.is-media-ready {
+  animation: none;
+}
+
+.fk-user-banner-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fk-user-posts {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-height: 0;
+  margin-top: 0;
+  padding: 0 0.25rem 3rem;
+  overflow-y: auto;
+}
+
+.fk-user-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.25rem 1.25rem 0;
+  margin-top: 0;
+  text-align: left;
+}
+
+.fk-user-avatar {
+  box-sizing: border-box;
+  flex: none;
+  width: 88px;
+  height: 88px;
+  aspect-ratio: 1;
+  border: 4px solid var(--color-bg-raised);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+  overflow: hidden;
+  user-select: none;
+}
+
+.fk-user-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fk-user-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fk-user-name-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  color: var(--color-text-strong);
+  font-size: 1.2rem;
+}
+
+.fk-user-handle {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.fk-user-bio {
+  margin: 0.6rem 0 0;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.fk-user-meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.fk-user-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-soft);
+  font-size: 0.8rem;
+}
+
+.fk-user-chip[hidden] {
+  display: none;
+}
+
+.fk-user-chip-label {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.fk-user-chip-value {
+  min-width: 0;
+  color: var(--color-text-strong);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.fk-user-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem 1.25rem;
+}
+
+.fk-user-actions .fk-primary-btn {
+  width: 100%;
+}
+
+.fk-user-posts .fk-post {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-raised);
+}
+
+.fk-user-post-skeleton {
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .fk-user-main {
+    padding: 1rem 1rem 3rem;
+    overflow-y: auto;
+  }
+
+  .fk-user-inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    width: 98%;
+    height: auto;
+  }
+
+  .fk-user-head-card {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .fk-user-posts {
+    flex: none;
+    padding: 0 0 0;
+    overflow: visible;
+  }
+}

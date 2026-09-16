@@ -1,7 +1,6 @@
 import { navigate } from "astro:transitions/client";
 import { getAccount, hydrateSession, type Account } from "../auth";
 import { mountProfileSettings } from "./profile";
-import { mountSavedSettings } from "./saved";
 import { mountSecuritySettings } from "./security";
 import { type SettingsContext, type SettingsSection } from "./shared";
 import { mountStorageSettings } from "./storage";
@@ -49,7 +48,6 @@ async function mountSettings(
   };
 
   if (initialTab === "profile") mountProfileSettings(root, context);
-  else if (initialTab === "saved") mountSavedSettings(root);
   else if (initialTab === "security") mountSecuritySettings(root, context);
   else mountStorageSettings(root);
 }

@@ -1,10 +1,8 @@
 ---
-import "../styles/fuckxter/style.css";
-
 import FuckxterLayout from "../layouts/FuckxterLayout.astro";
 import FuckxterSubpageHeader from "./FuckxterSubpageHeader.astro";
 
-type SettingsSection = "profile" | "security" | "saved" | "storage";
+type SettingsSection = "profile" | "security" | "storage";
 
 interface Props {
   section: SettingsSection;
@@ -14,7 +12,6 @@ const { section } = Astro.props;
 const sectionTitles: Record<SettingsSection, string> = {
   profile: "个人资料",
   security: "访问控制",
-  saved: "收藏",
   storage: "S3 存储",
 };
 ---
@@ -75,8 +72,8 @@ const sectionTitles: Record<SettingsSection, string> = {
                   <div>
                     <strong>主页头图</strong>
                     <small>
-                      自定义您个人主页最上面的图片，推荐比例 5:1，最大处理尺寸
-                      3000×600，文件大小限制 30MB。
+                      自定义您个人主页最上面的图片，推荐比例 5:2，最大处理尺寸
+                      1000×400，文件大小限制 30MB。
                     </small>
                   </div>
                   <button
@@ -189,14 +186,14 @@ const sectionTitles: Record<SettingsSection, string> = {
               >
                 <h4>调整头图显示区域</h4>
                 <p class="fk-header-crop-hint">
-                  下方区域就是主页头图的最终显示范围（5:1）。拖动图片选择位置，使用滑杆调整缩放。
+                  下方区域就是主页头图的最终显示范围（5:2）。拖动图片选择位置，使用滑杆调整缩放。
                 </p>
                 <div class="fk-header-crop-stage">
                   <canvas
                     class="fk-header-crop-canvas"
                     data-role="header-crop-canvas"
-                    width="3000"
-                    height="600"
+                    width="1000"
+                    height="400"
                     aria-label="头图裁切预览"
                   />
                   <span class="fk-header-crop-label">主页显示区域</span>
@@ -303,21 +300,6 @@ const sectionTitles: Record<SettingsSection, string> = {
                   保存更改
                 </button>
               </form>
-            </section>
-          )
-        }
-
-        {
-          section === "saved" && (
-            <section data-settings-pane="saved">
-              <h3 class="fk-settings-title">收藏</h3>
-              <p class="fk-form-hint">
-                你收藏的帖子会保存在本机，点击卡片可在独立页面打开。
-              </p>
-              <div class="fk-saved-list" data-role="saved-list" />
-              <p class="fk-status" data-role="saved-empty" hidden>
-                还没有收藏内容
-              </p>
             </section>
           )
         }
@@ -653,7 +635,7 @@ const sectionTitles: Record<SettingsSection, string> = {
     mountFuckxterSettings(
       root,
       (root.dataset.settingsSection ?? "profile") as
-        "profile" | "security" | "saved" | "storage",
+        "profile" | "security" | "storage",
     );
   });
 </script>
