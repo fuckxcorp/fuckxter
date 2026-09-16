@@ -141,6 +141,12 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStorage = container.querySelector<HTMLSelectElement>(
     "[data-role=media-storage]",
   )!;
+  const uploadModeWrap = container.querySelector<HTMLElement>(
+    "[data-role=upload-mode-wrap]",
+  )!;
+  const uploadMode = container.querySelector<HTMLSelectElement>(
+    "[data-role=upload-mode]",
+  )!;
   const searchInput =
     container.querySelector<HTMLInputElement>(".fk-search-input")!;
   const composerAvatar = container.querySelector<HTMLElement>(
@@ -225,6 +231,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     composerInput.placeholder = account ? "有什么新鲜事？" : "注册后才能发帖";
     mediaStorageWrap.hidden = !account;
     mediaStorage.disabled = !account;
+    uploadModeWrap.hidden = !account;
+    uploadMode.disabled = !account;
     const owner = account?.profile.handle ?? null;
     if (owner !== storageOwner) {
       storageOwner = owner;
@@ -683,6 +691,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         (percent) => {
           mediaStatus.textContent = `上传中 ${percent}%`;
         },
+        uploadMode.value === "direct" ? "direct" : "proxy",
       );
       mediaStatus.textContent = `已添加：${file.name}`;
     } catch (error) {

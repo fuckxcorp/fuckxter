@@ -79,7 +79,7 @@ export function validateStorageInput(input: S3Config): void {
 
 export async function signedS3Request(
   input: S3Config,
-  method: "GET" | "HEAD" | "PUT",
+  method: "GET" | "HEAD" | "PUT" | "DELETE",
   key: string,
   body?: ArrayBuffer,
   contentType?: string,
@@ -243,20 +243,33 @@ export async function presignS3Put(
 }
 
 export async function testStorageConnection(input: S3Config): Promise<string> {
-  const { response, endpoint } = await signedS3Request(input, "HEAD", "");
-  if (response.ok) {
-    return `Connection succeeded: ${input.bucket} @ ${endpoint.host}`;
-  }
-  if (response.status === 401 || response.status === 403) {
+  const key = `__fuckxter-connection-test/${crypto.randomUUID()}.txt`;
+  const body = crypto.getRandomValues(new Uint8Array(32)).buffer;
+  const put = await signedS3Request(input, "PUT", key, body, "text/plain");
+  if (!put.response.ok) {
+    let detail = "";
+    try {
+      detail = (await put.response.text()).trim().slice(0, 240);
+    } catch {}
     throw new HttpError(
-      400,
-      "S3_AUTH_FAILED",
-      "Connection failed: the access key or secret key is invalid.",
+      502,
+      "S3_WRITE_FAILED",
+      `Write test failed (S3 ${put.response.status})${detail ? `: ${detail}` : "."}`,
     );
   }
-  throw new HttpError(
-    502,
-    "S3_CONNECTION_FAILED",
-    `Connection failed: S3 returned ${response.status}.`,
-  );
+
+  const remove = await signedS3Request(input, "DELETE", key);
+  if (!remove.response.ok) {
+    let detail = "";
+    try {
+      detail = (await remove.response.text()).trim().slice(0, 240);
+    } catch {}
+    throw new HttpError(
+      502,
+      "S3_DELETE_FAILED",
+      `Delete test failed (S3 ${remove.response.status})${detail ? `: ${detail}` : "."}`,
+    );
+  }
+
+  return `Connection succeeded: ${input.bucket} @ ${put.endpoint.host}`;
 }

@@ -62,8 +62,6 @@ interface MediaUploadTicket {
   expiresAt: string;
 }
 
-const PROXY_MEDIA_LIMIT = 30 * 1024 * 1024;
-
 async function proxyUploadMedia(
   file: File,
   storageConfigId?: string,
@@ -130,48 +128,39 @@ export async function uploadMedia(
   file: File,
   storageConfigId?: string,
   onProgress?: (percent: number) => void,
+  uploadMode: "proxy" | "direct" = "proxy",
 ): Promise<PostMedia> {
-  if (file.size <= PROXY_MEDIA_LIMIT) {
+  if (uploadMode === "proxy") {
     return proxyUploadMedia(file, storageConfigId);
   }
 
-  let stage: "presign" | "upload" | "finalize" = "presign";
-  try {
-    const presign = await apiRequest<{ upload: MediaUploadTicket }>(
-      "/media/uploads",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          storageConfigId,
-          fileName: file.name,
-          contentType: file.type,
-        }),
-      },
-    );
-    stage = "upload";
-    await putFileToStorage(
-      presign.upload.url,
-      presign.upload.headers,
-      file,
-      onProgress,
-    );
-    stage = "finalize";
-    const response = await apiRequest<{ media: PostMedia }>("/media/finalize", {
+  const presign = await apiRequest<{ upload: MediaUploadTicket }>(
+    "/media/uploads",
+    {
       method: "POST",
       body: JSON.stringify({
-        objectKey: presign.upload.objectKey,
-        originalName: presign.upload.originalName,
-        contentType: presign.upload.contentType,
-        storageConfigId: presign.upload.storageConfigId,
+        storageConfigId,
+        fileName: file.name,
+        contentType: file.type,
       }),
-    });
-    return response.media;
-  } catch (error) {
-    if (stage !== "finalize" && file.size <= PROXY_MEDIA_LIMIT) {
-      return proxyUploadMedia(file, storageConfigId);
-    }
-    throw error;
-  }
+    },
+  );
+  await putFileToStorage(
+    presign.upload.url,
+    presign.upload.headers,
+    file,
+    onProgress,
+  );
+  const response = await apiRequest<{ media: PostMedia }>("/media/finalize", {
+    method: "POST",
+    body: JSON.stringify({
+      objectKey: presign.upload.objectKey,
+      originalName: presign.upload.originalName,
+      contentType: presign.upload.contentType,
+      storageConfigId: presign.upload.storageConfigId,
+    }),
+  });
+  return response.media;
 }
 
 export async function getStorageOptions(): Promise<StorageOption[]> {
