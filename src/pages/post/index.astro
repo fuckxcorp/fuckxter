@@ -68,6 +68,8 @@ import Header from "../../components/Header.astro";
     deletePost,
     getComments,
     getPostByPath,
+    getTimeline,
+    recordPostView,
     setFollow,
     toggleLike,
     toggleCommentLike,
@@ -143,7 +145,7 @@ import Header from "../../components/Header.astro";
     row("正文字数", `${[...post.text].length} 字`);
     row(
       "互动数据",
-      `${post.stats.replies} 回帖 · ${post.stats.reposts} 转发 · ${post.stats.likes} 喜欢`,
+      `${post.stats.replies} 回帖 · ${post.stats.reposts} 转发 · ${post.stats.likes} 喜欢 · ${fmtCount(post.stats.views ?? 0)} 次浏览`,
     );
     row(
       "媒体文件",
@@ -154,6 +156,51 @@ import Header from "../../components/Header.astro";
     if (post.media?.alt) row("媒体描述", post.media.alt);
 
     box.append(title, author, rows);
+    return box;
+  }
+
+  /** 右栏原来的回帖框位置改成热度榜：按浏览量排，点进去就是那条帖子。 */
+  function renderHotPosts(
+    posts: Post[] | null,
+    currentId: string,
+  ): HTMLElement {
+    const box = el("section", "fk-hot-posts");
+    const title = el("h4", "fk-hot-title");
+    title.textContent = "热门帖子";
+    const hint = el("p", "fk-hot-hint");
+    hint.textContent = "按浏览热度排序";
+    const list = el("div", "fk-hot-list");
+
+    if (posts === null) {
+      list.append(statusRow("正在加载…"));
+    } else {
+      const items = posts.filter((item) => item.id !== currentId).slice(0, 5);
+      if (items.length === 0) {
+        list.append(statusRow("暂时没有其他热门帖子。"));
+      }
+      items.forEach((item, index) => {
+        const row = el("a", "fk-hot-item");
+        row.href = postPath(item);
+        row.dataset.postId = item.id;
+
+        const rank = el("span", "fk-hot-rank");
+        rank.textContent = String(index + 1);
+
+        const body = el("span", "fk-hot-body");
+        const meta = el("span", "fk-hot-meta");
+        meta.textContent = `${item.author.name} · @${item.author.handle}`;
+        const text = el("span", "fk-hot-text");
+        text.textContent = item.text;
+        const views = el("span", "fk-hot-views");
+        views.textContent = `${fmtCount(item.stats.views ?? 0)} 次浏览`;
+        body.append(meta, text, views);
+
+        row.append(rank, body);
+        list.append(row);
+      });
+    }
+
+    box.append(title, hint, list);
     return box;
   }
 
@@ -314,9 +361,10 @@ import Header from "../../components/Header.astro";
     postId: string,
     comment: Comment,
     canModerate: boolean,
-    replyTo: (handle: string) => void,
+    replyTo: (handle: string, commentId?: string) => void,
     refreshComments: () => Promise<void>,
     status: HTMLElement,
+    nested: boolean,
   ): HTMLElement {
     const article = el("article", "fk-thread-post fk-thread-reply");
     article.id = `comment-${comment.id}`;
@@ -330,6 +378,22 @@ import Header from "../../components/Header.astro";
     );
     const body = el("div", "fk-thread-body");
     body.append(threadAuthorLine(comment.author, comment.createdAt));
+    // 沒有蓋在父回帖下面時（例如父回帖已被刪），才顯示引用行。
+    if (comment.parent && !nested) {
+      const quote = el("button", "fk-reply-quote");
+      quote.type = "button";
+      const who = el("strong");
+      who.textContent = `回覆 @${comment.parent.handle}`;
+      const snippet = el("span");
+      snippet.textContent = `：${comment.parent.text.replace(/\s+/g, " ").slice(0, 40)}`;
+      quote.append(who, snippet);
+      quote.addEventListener("click", () => {
+        document
+          .getElementById(`comment-${comment.parent!.id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      body.append(quote);
+    }
     const text = el("p", "fk-thread-text");
     text.append(renderRichText(comment.text));
     body.append(text);
@@ -338,7 +402,9 @@ import Header from "../../components/Header.astro";
     const reply = el("button", "fk-thread-link-btn");
     reply.type = "button";
     reply.textContent = "回复";
-    reply.addEventListener("click", () => replyTo(comment.author.handle));
+    reply.addEventListener("click", () =>
+      replyTo(comment.author.handle, comment.id),
+    );
     actions.append(reply);
 
     const like = actionButton("like", ICONS.heart, "喜欢", comment.stats.likes);
@@ -468,7 +534,7 @@ import Header from "../../components/Header.astro";
     count.textContent = `0 / ${MAX_COMMENT_CHARS}`;
     const composerActions = el("div", "fk-thread-composer-actions");
     composerActions.append(count, submit);
-    const composer = el("section", "fk-thread-composer fk-side-composer");
+    const composer = el("section", "fk-thread-composer");
     const composerAvatar = me
       ? authorAvatar(
           me.profile.handle,
@@ -484,7 +550,24 @@ import Header from "../../components/Header.astro";
     status.setAttribute("aria-live", "polite");
     const list = el("div", "fk-comments-list fk-thread-list");
 
-    composerBody.append(status, composerActions);
+    // 回覆某條回帖時，輸入框上方顯示一條可移除的提示。
+    const replyChip = el("div", "fk-reply-chip");
+    const replyChipLabel = el("span", "fk-reply-chip-label");
+    const replyChipClear = el("button", "fk-reply-chip-clear");
+    replyChipClear.type = "button";
+    replyChipClear.textContent = "×";
+    replyChipClear.setAttribute("aria-label", "取消回覆");
+    replyChip.append(replyChipLabel, replyChipClear);
+    replyChip.hidden = true;
+    let replyParent: string | null = null;
+    const clearReplyTarget = () => {
+      replyParent = null;
+      replyChip.hidden = true;
+      replyChipLabel.textContent = "";
+    };
+    replyChipClear.addEventListener("click", clearReplyTarget);
+
+    composerBody.append(replyChip, status, composerActions);
     composer.append(composerAvatar, composerBody);
 
     const resizeCommentInput = () => {
@@ -507,10 +590,15 @@ import Header from "../../components/Header.astro";
         submit.dataset.busy === "true";
     };
 
-    const replyTo = (handle: string) => {
+    const replyTo = (handle: string, commentId?: string) => {
       if (!me) {
-        requestAuthentication();
+        showToast("请先登录后再回帖");
         return;
+      }
+      if (commentId) {
+        replyParent = commentId;
+        replyChipLabel.textContent = `回覆 @${handle}`;
+        replyChip.hidden = false;
       }
       const prefix = `@${handle} `;
       input.value = input.value.startsWith(prefix)
@@ -531,30 +619,57 @@ import Header from "../../components/Header.astro";
       repliesCount.title =
         total > comments.length ? `仅显示最近 ${comments.length} 条回帖` : "";
       onReplyCountChange(total);
-      list.replaceChildren(
-        ...(comments.length === 0
-          ? [
-              (() => {
-                const empty = el("div", "fk-comments-empty");
-                const emptyTitle = el("strong");
-                emptyTitle.textContent = "还没有回帖";
-                const emptyHint = el("span");
-                emptyHint.textContent = "来发布第一条回帖吧。";
-                empty.append(emptyTitle, emptyHint);
-                return empty;
-              })(),
-            ]
-          : comments.map((comment) =>
-              renderReply(
-                post.id,
-                comment,
-                canModerate,
-                replyTo,
-                refreshComments,
-                status,
-              ),
-            )),
-      );
+      if (comments.length === 0) {
+        const empty = el("div", "fk-comments-empty");
+        const emptyTitle = el("strong");
+        emptyTitle.textContent = "还没有回帖";
+        const emptyHint = el("span");
+        emptyHint.textContent = "来发布第一条回帖吧。";
+        empty.append(emptyTitle, emptyHint);
+        list.replaceChildren(empty);
+        return;
+      }
+
+      // 按 parent_id 组装成楼层：回覆某条回帖就盖在它下面。
+      const byId = new Map(comments.map((comment) => [comment.id, comment]));
+      const children = new Map<string, Comment[]>();
+      const roots: Comment[] = [];
+      for (const comment of comments) {
+        const parentId =
+          comment.parent && byId.has(comment.parent.id)
+            ? comment.parent.id
+            : null;
+        if (!parentId) {
+          roots.push(comment);
+          continue;
+        }
+        const bucket = children.get(parentId) ?? [];
+        bucket.push(comment);
+        children.set(parentId, bucket);
+      }
+
+      const renderNode = (comment: Comment, depth: number): HTMLElement => {
+        const node = renderReply(
+          post.id,
+          comment,
+          canModerate,
+          replyTo,
+          refreshComments,
+          status,
+          depth > 0,
+        );
+        node.dataset.depth = String(depth);
+        if (depth > 0) node.classList.add("is-nested");
+        const kids = children.get(comment.id) ?? [];
+        if (kids.length > 0) {
+          const box = el("div", "fk-thread-children");
+          for (const kid of kids) box.append(renderNode(kid, depth + 1));
+          node.append(box);
+        }
+        return node;
+      };
+
+      list.replaceChildren(...roots.map((comment) => renderNode(comment, 0)));
     };
 
     const refreshComments = async () => {
@@ -582,8 +697,9 @@ import Header from "../../components/Header.astro";
       submit.disabled = true;
       submit.textContent = "回帖中…";
       try {
-        await createComment(post.id, text);
+        await createComment(post.id, text, replyParent ?? undefined);
         input.value = "";
+        clearReplyTarget();
         syncCommentSubmit();
         resizeCommentInput();
         status.textContent = "";
@@ -612,7 +728,8 @@ import Header from "../../components/Header.astro";
     requestAnimationFrame(resizeCommentInput);
 
     replies.append(repliesHead, list);
-    thread.append(head, renderOriginPost(post), replies);
+    // 回帖框留在左侧，紧跟在被回覆的帖子下面。
+    thread.append(head, renderOriginPost(post), composer, replies);
     if (location.hash === "#reply" && me) {
       requestAnimationFrame(() => {
         composer.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -690,7 +807,7 @@ import Header from "../../components/Header.astro";
         }
         document.title = `${post.author.name}：${post.text.slice(0, 30)} | FuckXter`;
         const controls = renderPostControls(post);
-        const { thread, composer } = renderThread(
+        const { thread } = renderThread(
           post,
           getAccount()?.profile.handle === post.author.handle,
           (count) => {
@@ -705,8 +822,24 @@ import Header from "../../components/Header.astro";
           },
         );
         host.replaceChildren(thread);
-        side.replaceChildren(renderPostInfo(post), controls, composer);
+        const hot = renderHotPosts(null, post.id);
+        side.replaceChildren(renderPostInfo(post), controls, hot);
         side.hidden = false;
+        void getTimeline("foryou", null)
+          .then((page) => {
+            hot.replaceWith(renderHotPosts(page.posts, post.id));
+          })
+          .catch(() => {
+            hot.replaceWith(renderHotPosts([], post.id));
+          });
+        void recordPostView(post.id)
+          .then((result) => {
+            post.stats.views = result.views;
+            side
+              .querySelector<HTMLElement>(".fk-post-info")
+              ?.replaceWith(renderPostInfo(post));
+          })
+          .catch(() => {});
       })
       .catch((error: unknown) => {
         const message =

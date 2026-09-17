@@ -213,11 +213,20 @@
 .fk-user-actions {
   display: flex;
   align-items: center;
+  gap: 0.6rem;
   padding: 0 1.25rem 1.25rem;
 }
 
-.fk-user-actions .fk-primary-btn {
-  width: 100%;
+.fk-user-actions .fk-primary-btn,
+.fk-user-actions .fk-ghost-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.fk-block-btn.is-danger {
+  border-color: color-mix(in srgb, var(--fk-like) 55%, transparent);
+  color: var(--fk-like);
 }
 
 .fk-user-list-dialog {

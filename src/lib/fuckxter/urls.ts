@@ -10,6 +10,25 @@ export function userPath(handle: string): string {
   return `/user/${encodeURIComponent(normalized)}`;
 }
 
+export function messagesPath(): string {
+  return "/messages";
+}
+
+export function conversationPath(handle: string): string {
+  const normalized = handle.replace(/^@/, "").normalize("NFKC").trim();
+  return `/messages/${encodeURIComponent(normalized)}`;
+}
+
+export function parseMessagePath(pathname: string): string | null {
+  const match = pathname.match(/^\/messages\/([^/]+)\/?$/i);
+  if (!match) return null;
+  try {
+    return usernameKey(decodeURIComponent(match[1]).replace(/^@/, ""));
+  } catch {
+    return null;
+  }
+}
+
 export function parsePostPath(
   pathname: string,
 ): { handle: string; slug: string } | null {

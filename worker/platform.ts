@@ -105,6 +105,7 @@ export interface PostRow {
   text: string;
   media_json: string | null;
   created_at: string;
+  visibility?: string;
   author_id: string;
   author_handle: string;
   author_name: string;
@@ -115,6 +116,7 @@ export interface PostRow {
   reply_count: number;
   repost_count: number;
   like_count: number;
+  view_count: number;
   liked: number;
   reposted: number;
   saved: number;

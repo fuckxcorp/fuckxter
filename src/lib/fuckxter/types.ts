@@ -3,7 +3,8 @@
  * 后端接口的请求/响应体都以这里为准。
  */
 
-export type FeedTab = "foryou" | "following";
+/** 推荐 = 按浏览热度，实时 = 按发布时间，关注 = 只看来往的人。 */
+export type FeedTab = "foryou" | "latest" | "following";
 
 export interface FeedUser {
   id: string;
@@ -18,6 +19,7 @@ export interface PostStats {
   replies: number;
   reposts: number;
   likes: number;
+  views: number;
 }
 
 export interface PostMedia {
@@ -36,6 +38,8 @@ export interface Post {
   text: string;
   /** ISO 8601 */
   createdAt: string;
+  /** 公开 / 仅互关可见 / 私密贴 */
+  visibility?: "public" | "mutual" | "private";
   stats: PostStats;
   media?: PostMedia;
   viewer?: {
@@ -93,6 +97,13 @@ export interface Comment {
   author: FeedUser;
   text: string;
   createdAt: string;
+  /** 回覆某條回帖時帶上被回覆的內容，用來畫出引用行。 */
+  parent?: {
+    id: string;
+    handle: string;
+    name: string;
+    text: string;
+  } | null;
   stats: {
     likes: number;
     reposts: number;
@@ -106,6 +117,33 @@ export interface Comment {
 export interface CommentPage {
   comments: Comment[];
   total: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  body: string;
+  createdAt: string;
+  mine: boolean;
+  read: boolean;
+}
+
+export interface Conversation {
+  id: string;
+  other: FeedUser;
+  lastMessageAt: string;
+  unread: number;
+  lastMessage: { body: string; mine: boolean; createdAt: string } | null;
+}
+
+export interface ConversationListPage {
+  threads: Conversation[];
+  unread: number;
+}
+
+export interface ConversationPage {
+  user: FeedUser;
+  messages: DirectMessage[];
+  unread: number;
 }
 
 export interface UserProfile {
@@ -127,6 +165,8 @@ export interface UserProfile {
   };
   viewer: {
     following: boolean;
+    blocked?: boolean;
+    blockedBy?: boolean;
   };
 }
 

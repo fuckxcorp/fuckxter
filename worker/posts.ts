@@ -12,6 +12,8 @@ const POST_SELECT = `
     p.text,
     p.media_json,
     p.created_at,
+    p.view_count,
+    p.visibility,
     u.id AS author_id,
     u.handle AS author_handle,
     u.name AS author_name,
@@ -66,14 +68,57 @@ function isPostIdConflict(error: unknown): boolean {
   );
 }
 
-function encodeCursor(createdAt: string, id: string): string {
-  return btoa(JSON.stringify([createdAt, id]))
+export type PostVisibility = "public" | "mutual" | "private";
+
+export function normalizeVisibility(value: unknown): PostVisibility {
+  if (value === "mutual" || value === "private") return value;
+  return "public";
+}
+
+/**
+ * 帖子可见性 + 拉黑过滤：
+ * - public 所有人可见
+ * - mutual 只有作者和互相关注的人可见
+ * - private 只有作者自己可见
+ * 任一方拉黑了对方，彼此的帖子都不再出现。
+ * 需要为每个 ? 传一个 viewerId（空字符串代表游客）。
+ */
+const VIEWER_FILTER = `
+  (
+    p.visibility = 'public'
+    OR p.author_id = ?
+    OR (
+      p.visibility = 'mutual'
+      AND EXISTS (
+        SELECT 1 FROM follows vf1
+        WHERE vf1.follower_id = ? AND vf1.followee_id = p.author_id
+      )
+      AND EXISTS (
+        SELECT 1 FROM follows vf2
+        WHERE vf2.follower_id = p.author_id AND vf2.followee_id = ?
+      )
+    )
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM blocks vb
+    WHERE (vb.blocker_id = ? AND vb.blocked_id = p.author_id)
+       OR (vb.blocker_id = p.author_id AND vb.blocked_id = ?)
+  )
+`;
+
+function viewerFilterParams(viewerId: string | null): string[] {
+  const viewer = viewerId ?? "";
+  return [viewer, viewer, viewer, viewer, viewer];
+}
+
+function encodeCursor(...parts: string[]): string {
+  return btoa(JSON.stringify(parts))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
 }
 
-function decodeCursor(cursor: string): [string, string] {
+function decodeCursor(cursor: string): string[] {
   try {
     const padded = cursor.replace(/-/g, "+").replace(/_/g, "/");
     const value = JSON.parse(
@@ -81,12 +126,13 @@ function decodeCursor(cursor: string): [string, string] {
     ) as unknown;
     if (
       !Array.isArray(value) ||
-      typeof value[0] !== "string" ||
-      typeof value[1] !== "string"
+      value.length < 2 ||
+      value.length > 3 ||
+      value.some((part) => typeof part !== "string")
     ) {
       throw new Error("invalid cursor");
     }
-    return [value[0], value[1]];
+    return value as string[];
   } catch {
     throw new HttpError(400, "INVALID_CURSOR", "Invalid pagination cursor.");
   }
@@ -110,10 +156,12 @@ function publicPost(row: PostRow, viewerId: string | null) {
     },
     text: row.text,
     createdAt: row.created_at,
+    visibility: row.visibility ?? "public",
     stats: {
       replies: Number(row.reply_count),
       reposts: Number(row.repost_count),
       likes: Number(row.like_count),
+      views: Number(row.view_count ?? 0),
     },
     media: row.media_json ? JSON.parse(row.media_json) : undefined,
     viewer: {
@@ -133,6 +181,13 @@ async function allPosts<T extends PostRow>(
   return result.results ?? [];
 }
 
+export type TimelineTab = "foryou" | "latest" | "following";
+
+export function timelineTab(value: string | null): TimelineTab {
+  if (value === "latest" || value === "following") return value;
+  return "foryou";
+}
+
 export async function getTimeline(
   env: Env,
   viewerId: string | null,
@@ -142,10 +197,18 @@ export async function getTimeline(
 ) {
   const viewer = viewerId ?? "";
   const limit = Math.min(Math.max(Number(limitValue ?? 10) || 10, 1), 30);
-  const params: unknown[] = [viewer, viewer, viewer, viewer];
-  const conditions = ["p.deleted_at IS NULL"];
+  const params: unknown[] = [
+    viewer,
+    viewer,
+    viewer,
+    viewer,
+    ...viewerFilterParams(viewerId),
+  ];
+  const conditions = ["p.deleted_at IS NULL", VIEWER_FILTER];
+  const resolved = timelineTab(tab);
+  const byHeat = resolved === "foryou";
 
-  if (tab === "following") {
+  if (resolved === "following") {
     if (!viewerId) {
       return { tab: "following", posts: [], nextCursor: null };
     }
@@ -156,9 +219,20 @@ export async function getTimeline(
   }
 
   if (cursor) {
-    const [createdAt, id] = decodeCursor(cursor);
-    conditions.push("(p.created_at < ? OR (p.created_at = ? AND p.id < ?))");
-    params.push(createdAt, createdAt, id);
+    const parts = decodeCursor(cursor);
+    if (byHeat && parts.length === 3) {
+      const [views, createdAt, id] = parts;
+      conditions.push(
+        `(p.view_count < ?
+          OR (p.view_count = ?
+            AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?))))`,
+      );
+      params.push(Number(views), Number(views), createdAt, createdAt, id);
+    } else {
+      const [createdAt, id] = parts;
+      conditions.push("(p.created_at < ? OR (p.created_at = ? AND p.id < ?))");
+      params.push(createdAt, createdAt, id);
+    }
   }
 
   params.push(limit + 1);
@@ -166,7 +240,11 @@ export async function getTimeline(
     env.DB.prepare(
       `${POST_SELECT}
        WHERE ${conditions.join(" AND ")}
-       ORDER BY p.created_at DESC, p.id DESC
+       ORDER BY ${
+         byHeat
+           ? "p.view_count DESC, p.created_at DESC, p.id DESC"
+           : "p.created_at DESC, p.id DESC"
+       }
        LIMIT ?`,
     ).bind(...params),
   );
@@ -175,10 +253,71 @@ export async function getTimeline(
   const last = pageRows.at(-1);
 
   return {
-    tab: tab === "following" ? "following" : "foryou",
+    tab: resolved,
     posts: pageRows.map((row) => publicPost(row, viewerId)),
-    nextCursor: hasMore && last ? encodeCursor(last.created_at, last.id) : null,
+    nextCursor:
+      hasMore && last
+        ? byHeat
+          ? encodeCursor(String(last.view_count ?? 0), last.created_at, last.id)
+          : encodeCursor(last.created_at, last.id)
+        : null,
   };
+}
+
+async function viewerKey(
+  request: Request,
+  viewerId: string | null,
+): Promise<string> {
+  if (viewerId) return `user:${viewerId}`;
+  const ip = request.headers.get("CF-Connecting-IP") ?? "";
+  const agent = request.headers.get("User-Agent") ?? "";
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${ip}\n${agent}`),
+  );
+  const hash = [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `anon:${hash.slice(0, 32)}`;
+}
+
+export async function recordPostView(
+  env: Env,
+  request: Request,
+  viewerId: string | null,
+  postId: string,
+): Promise<{ id: string; views: number; counted: boolean }> {
+  const post = await env.DB.prepare(
+    "SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL LIMIT 1",
+  )
+    .bind(postId)
+    .first<{ id: string }>();
+  if (!post) {
+    throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
+  }
+
+  const inserted = await env.DB.prepare(
+    `INSERT INTO post_views (post_id, viewer_key, created_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(post_id, viewer_key) DO NOTHING`,
+  )
+    .bind(postId, await viewerKey(request, viewerId), new Date().toISOString())
+    .run();
+
+  const counted = Number(inserted.meta?.changes ?? 0) > 0;
+  if (counted) {
+    await env.DB.prepare(
+      "UPDATE posts SET view_count = view_count + 1 WHERE id = ?",
+    )
+      .bind(postId)
+      .run();
+  }
+
+  const row = await env.DB.prepare("SELECT view_count FROM posts WHERE id = ?")
+    .bind(postId)
+    .first<{ view_count: number }>();
+
+  return { id: postId, views: Number(row?.view_count ?? 0), counted };
 }
 
 export async function getPostById(
@@ -187,9 +326,18 @@ export async function getPostById(
   id: string,
 ) {
   const row = await env.DB.prepare(
-    `${POST_SELECT} WHERE p.id = ? AND p.deleted_at IS NULL LIMIT 1`,
+    `${POST_SELECT}
+     WHERE p.id = ? AND p.deleted_at IS NULL AND ${VIEWER_FILTER}
+     LIMIT 1`,
   )
-    .bind(viewerId ?? "", viewerId ?? "", viewerId ?? "", viewerId ?? "", id)
+    .bind(
+      viewerId ?? "",
+      viewerId ?? "",
+      viewerId ?? "",
+      viewerId ?? "",
+      id,
+      ...viewerFilterParams(viewerId),
+    )
     .first<PostRow>();
   return row ? publicPost(row, viewerId) : null;
 }
@@ -204,6 +352,7 @@ export async function getPostByPath(
     `${POST_SELECT}
      WHERE p.slug = ? AND u.id = ?
        AND p.deleted_at IS NULL
+       AND ${VIEWER_FILTER}
      LIMIT 1`,
   )
     .bind(
@@ -213,6 +362,7 @@ export async function getPostByPath(
       viewerId ?? "",
       slug,
       usernameKey(handle),
+      ...viewerFilterParams(viewerId),
     )
     .first<PostRow>();
   return row ? publicPost(row, viewerId) : null;
@@ -227,6 +377,7 @@ export async function getPostsByUser(
     env.DB.prepare(
       `${POST_SELECT}
        WHERE u.id = ? AND p.deleted_at IS NULL
+         AND ${VIEWER_FILTER}
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 100`,
     ).bind(
@@ -235,6 +386,7 @@ export async function getPostsByUser(
       viewerId ?? "",
       viewerId ?? "",
       usernameKey(handle),
+      ...viewerFilterParams(viewerId),
     ),
   );
   return rows.map((row) => publicPost(row, viewerId));
@@ -245,6 +397,7 @@ export async function createPost(
   authorId: string,
   text: string,
   mediaId?: string,
+  visibility: PostVisibility = "public",
 ) {
   const cleanText = text.trim();
   if (!cleanText)
@@ -291,10 +444,11 @@ export async function createPost(
     try {
       await env.DB.prepare(
         `INSERT INTO posts (
-           id, slug, author_id, text, media_json, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           id, slug, author_id, text, media_json, visibility,
+           created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-        .bind(id, id, authorId, cleanText, mediaJson, now, now)
+        .bind(id, id, authorId, cleanText, mediaJson, visibility, now, now)
         .run();
       return getPostById(env, authorId, id);
     } catch (error) {
@@ -310,6 +464,7 @@ export async function updatePost(
   userId: string,
   postId: string,
   text: string,
+  visibility?: PostVisibility,
 ) {
   const cleanText = text.trim();
   if (!cleanText)
@@ -330,8 +485,13 @@ export async function updatePost(
   if (post.author_id !== userId) {
     throw new HttpError(403, "FORBIDDEN", "You cannot edit this post.");
   }
-  await env.DB.prepare("UPDATE posts SET text = ?, updated_at = ? WHERE id = ?")
-    .bind(cleanText, new Date().toISOString(), postId)
+  // 可见范围随时可改：不传就保留原本设定。
+  await env.DB.prepare(
+    `UPDATE posts
+     SET text = ?, visibility = COALESCE(?, visibility), updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(cleanText, visibility ?? null, new Date().toISOString(), postId)
     .run();
   return getPostById(env, userId, postId);
 }
@@ -457,9 +617,17 @@ export async function getSavedPosts(env: Env, userId: string) {
       `${POST_SELECT}
        JOIN bookmarks saved ON saved.post_id = p.id
        WHERE saved.user_id = ? AND p.deleted_at IS NULL
+         AND ${VIEWER_FILTER}
        ORDER BY saved.created_at DESC
        LIMIT 200`,
-    ).bind(userId, userId, userId, userId, userId),
+    ).bind(
+      userId,
+      userId,
+      userId,
+      userId,
+      userId,
+      ...viewerFilterParams(userId),
+    ),
   );
   return rows.map((row) => publicPost(row, userId));
 }
@@ -506,6 +674,7 @@ export async function searchPosts(
     env.DB.prepare(
       `${POST_SELECT}
        WHERE p.deleted_at IS NULL
+         AND ${VIEWER_FILTER}
          AND (p.text LIKE ? OR u.name LIKE ? OR u.handle LIKE ?)
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 50`,
@@ -517,6 +686,7 @@ export async function searchPosts(
       pattern,
       pattern,
       pattern,
+      ...viewerFilterParams(viewerId),
     ),
   );
   return { query, posts: rows.map((row) => publicPost(row, viewerId)) };
@@ -552,9 +722,15 @@ export async function getComments(
        EXISTS(
          SELECT 1 FROM comment_reposts cv
          WHERE cv.comment_id = c.id AND cv.user_id = ?
-       ) AS reposted
+       ) AS reposted,
+       parent.id AS parent_id,
+       parent.text AS parent_text,
+       pu.handle AS parent_handle,
+       pu.name AS parent_name
      FROM comments c
      JOIN users u ON u.id = c.author_id
+     LEFT JOIN comments parent ON parent.id = c.parent_id
+     LEFT JOIN users pu ON pu.id = parent.author_id
      WHERE c.post_id = ? AND c.deleted_at IS NULL
      ORDER BY c.created_at DESC, c.id DESC
      LIMIT 100`,
@@ -576,6 +752,10 @@ export async function getComments(
       repost_count: number;
       liked: number;
       reposted: number;
+      parent_id: string | null;
+      parent_text: string | null;
+      parent_handle: string | null;
+      parent_name: string | null;
     }>();
 
   const rows = [...(result.results ?? [])].reverse();
@@ -598,6 +778,15 @@ export async function getComments(
       },
       text: row.text,
       createdAt: row.created_at,
+      parent:
+        row.parent_id && row.parent_handle
+          ? {
+              id: row.parent_id,
+              handle: row.parent_handle,
+              name: row.parent_name ?? row.parent_handle,
+              text: row.parent_text ?? "",
+            }
+          : null,
       stats: {
         likes: Number(row.like_count),
         reposts: Number(row.repost_count),
@@ -684,6 +873,7 @@ export async function createComment(
   userId: string,
   postId: string,
   text: string,
+  parentId?: string,
 ) {
   const cleanText = text.trim();
   if (!cleanText) {
@@ -703,13 +893,27 @@ export async function createComment(
     .first<{ id: string; author_id: string }>();
   if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
 
+  // 回覆某条回帖：父回帖必须属于同一篇帖子。
+  let parent: { id: string; author_id: string } | null = null;
+  if (parentId) {
+    parent = await env.DB.prepare(
+      `SELECT id, author_id FROM comments
+       WHERE id = ? AND post_id = ? AND deleted_at IS NULL`,
+    )
+      .bind(parentId, postId)
+      .first<{ id: string; author_id: string }>();
+    if (!parent) {
+      throw new HttpError(404, "COMMENT_NOT_FOUND", "回覆的目标不存在。");
+    }
+  }
+
   const id = randomId();
   const now = new Date().toISOString();
   await env.DB.prepare(
-    `INSERT INTO comments (id, post_id, author_id, text, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO comments (id, post_id, author_id, text, parent_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, postId, userId, cleanText, now)
+    .bind(id, postId, userId, cleanText, parent?.id ?? null, now)
     .run();
 
   const user = await env.DB.prepare(
@@ -738,6 +942,17 @@ export async function createComment(
     eventKey: `reply:${id}`,
     data: { excerpt: cleanText.slice(0, 120) },
   });
+  if (parent && parent.author_id !== post.author_id) {
+    await createNotification(env, {
+      recipientId: parent.author_id,
+      actorId: userId,
+      type: "reply",
+      postId,
+      commentId: id,
+      eventKey: `reply-to-comment:${id}`,
+      data: { excerpt: cleanText.slice(0, 120) },
+    });
+  }
 
   return {
     id,

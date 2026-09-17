@@ -21,6 +21,8 @@ interface ProfileRow {
   follower_count: number;
   following_count: number;
   following: number;
+  blocked: number;
+  blocked_by: number;
 }
 
 interface UserSummaryRow {
@@ -85,6 +87,8 @@ function publicProfile(row: ProfileRow, headerUrl: string | null) {
     },
     viewer: {
       following: Boolean(row.following),
+      blocked: Boolean(row.blocked),
+      blockedBy: Boolean(row.blocked_by),
     },
   };
 }
@@ -117,12 +121,20 @@ export async function getUserProfile(
        EXISTS(
          SELECT 1 FROM follows vf
          WHERE vf.follower_id = ? AND vf.followee_id = u.id
-       ) AS following
+       ) AS following,
+       EXISTS(
+         SELECT 1 FROM blocks vb
+         WHERE vb.blocker_id = ? AND vb.blocked_id = u.id
+       ) AS blocked,
+       EXISTS(
+         SELECT 1 FROM blocks vb2
+         WHERE vb2.blocker_id = u.id AND vb2.blocked_id = ?
+       ) AS blocked_by
      FROM users u
      WHERE u.id = ?
      LIMIT 1`,
   )
-    .bind(viewerId ?? "", usernameKey(handle))
+    .bind(viewerId ?? "", viewerId ?? "", viewerId ?? "", usernameKey(handle))
     .first<ProfileRow>();
   if (!row) return null;
   const header = await env.MEDIA_CACHE.head(headerObjectKey(row.handle));
@@ -208,6 +220,9 @@ export async function setFollow(
       "You cannot follow yourself.",
     );
   }
+  if (await isBlockedBetween(env, followerId, target.id)) {
+    throw new HttpError(403, "BLOCKED", "你们之间存在拉黑关系。");
+  }
 
   const eventKey = `follow:${followerId}:${target.id}`;
   if (active) {
@@ -243,6 +258,66 @@ export async function setFollow(
     following: active,
     followers: Number(count?.count ?? 0),
   };
+}
+
+/** 任一方拉黑了对方就算有拉黑关系。 */
+export async function isBlockedBetween(
+  env: Env,
+  a: string,
+  b: string,
+): Promise<boolean> {
+  const row = await env.DB.prepare(
+    `SELECT 1 AS hit FROM blocks
+     WHERE (blocker_id = ? AND blocked_id = ?)
+        OR (blocker_id = ? AND blocked_id = ?)
+     LIMIT 1`,
+  )
+    .bind(a, b, b, a)
+    .first<{ hit: number }>();
+  return Boolean(row);
+}
+
+export async function setBlock(
+  env: Env,
+  blockerId: string,
+  handle: string,
+  active: boolean,
+) {
+  const target = await env.DB.prepare("SELECT id FROM users WHERE id = ?")
+    .bind(usernameKey(handle))
+    .first<{ id: string }>();
+  if (!target) throw new HttpError(404, "USER_NOT_FOUND", "User not found.");
+  if (target.id === blockerId) {
+    throw new HttpError(400, "CANNOT_BLOCK_SELF", "You cannot block yourself.");
+  }
+
+  if (active) {
+    await env.DB.prepare(
+      `INSERT INTO blocks (blocker_id, blocked_id, created_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(blocker_id, blocked_id) DO NOTHING`,
+    )
+      .bind(blockerId, target.id, new Date().toISOString())
+      .run();
+    // 拉黑后互相取消关注
+    await env.DB.prepare(
+      `DELETE FROM follows
+       WHERE (follower_id = ? AND followee_id = ?)
+          OR (follower_id = ? AND followee_id = ?)`,
+    )
+      .bind(blockerId, target.id, target.id, blockerId)
+      .run();
+    await deleteNotification(env, `follow:${blockerId}:${target.id}`);
+    await deleteNotification(env, `follow:${target.id}:${blockerId}`);
+  } else {
+    await env.DB.prepare(
+      "DELETE FROM blocks WHERE blocker_id = ? AND blocked_id = ?",
+    )
+      .bind(blockerId, target.id)
+      .run();
+  }
+
+  return { handle: target.id, blocked: active };
 }
 
 export async function clearAvatar(env: Env, userId: string) {

@@ -1,0 +1,405 @@
+/* 私信：视觉沿用首页那套（圆角卡片 + 墨色斜切板）。 */
+.fk-messages-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+
+.fk-messages-panel,
+.fk-chat {
+  width: min(760px, 100%);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fk-messages-panel {
+  overflow-y: auto;
+}
+
+.fk-chat[hidden],
+.fk-messages-panel[hidden] {
+  display: none;
+}
+
+.fk-messages-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fk-messages-head h1 {
+  margin: 0;
+  color: var(--color-text-strong);
+  font-size: 1.35rem;
+}
+
+.fk-messages-head p {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.fk-thread-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.fk-thread {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-card);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.fk-thread:hover,
+.fk-thread:focus-visible {
+  border-color: var(--color-border-strong);
+  outline: none;
+}
+
+.fk-thread.is-unread {
+  border-color: color-mix(
+    in srgb,
+    var(--color-accent) 45%,
+    var(--color-border)
+  );
+  background: var(--color-accent-soft);
+}
+
+/* 選擇器帶上外層，才壓得過 global.css 裡共用的 .fk-avatar 尺寸。 */
+.fk-thread .fk-thread-avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 0.95rem;
+}
+
+.fk-thread-body {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.fk-thread-top {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.fk-thread-top strong {
+  color: var(--color-text-strong);
+  font-size: 0.98rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-thread-top small {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-thread-top time {
+  margin-left: auto;
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.fk-thread-preview {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-thread-badge {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.45rem;
+  padding: 0 0.55rem;
+  border-radius: 0;
+  background: var(--fk-ink);
+  color: var(--fk-ink-text);
+  /* 未读数也用平行四边形，跟首页那套形状一致。 */
+  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 对话视图：头部 + 可滚动消息区 + 底部输入框。 */
+.fk-chat {
+  flex: 1 1 auto;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.fk-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
+}
+
+.fk-chat-user {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.fk-chat-user .fk-chat-avatar {
+  /* 跟首页头像框同一套：平行四边形 + 左侧淡出，图片填满。 */
+  width: 44px;
+  height: 44px;
+  border-radius: 0;
+  background: var(--fk-ink);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 9px 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%);
+  mask-image: linear-gradient(to right, transparent 0, #000 45%);
+}
+
+.fk-chat-meta {
+  display: grid;
+  min-width: 0;
+}
+
+.fk-chat-meta strong {
+  color: var(--color-text-strong);
+  font-size: 0.98rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fk-chat-meta small {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.fk-chat-profile {
+  flex: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0.38rem 1.05rem;
+  background: var(--fk-ink);
+  color: var(--fk-ink-text);
+  /* 查看主页：黑色平行四边形按钮 */
+  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    opacity 150ms ease,
+    translate 150ms ease;
+}
+
+.fk-chat-profile:hover {
+  opacity: 0.86;
+}
+
+.fk-chat-messages {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  background: var(--color-bg-subtle);
+}
+
+.fk-chat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 76%;
+}
+
+.fk-chat-row.is-mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.fk-chat-row.is-theirs {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.fk-chat-bubble {
+  margin: 0;
+  max-width: 100%;
+  padding: 0.6rem 1.15rem 0.65rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--fk-bubble-fill);
+  color: var(--fk-bubble-text);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.fk-chat-bubble-wrap {
+  position: relative;
+  isolation: isolate;
+  max-width: 100%;
+}
+
+/* 外框层：比气泡大 2px，形状一致所以看起来就是倾斜的描边。 */
+.fk-chat-bubble-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  background: var(--fk-bubble-ring);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
+/* 自己发的是墨色平行四边形；对方是反相的白底黑框，深色模式自动反过来。 */
+.fk-chat-row.is-mine {
+  --fk-bubble-fill: var(--fk-ink);
+  --fk-bubble-text: var(--fk-ink-text);
+  --fk-bubble-ring: transparent;
+}
+
+.fk-chat-row.is-theirs {
+  --fk-bubble-fill: var(--fk-ink-text);
+  --fk-bubble-text: var(--fk-ink);
+  --fk-bubble-ring: var(--fk-ink);
+}
+
+.fk-chat-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fk-chat-time {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.fk-chat-recall {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.fk-chat-row:hover .fk-chat-recall,
+.fk-chat-recall:focus-visible {
+  opacity: 1;
+}
+
+.fk-chat-recall:hover {
+  color: var(--fk-like);
+}
+
+.fk-chat-recall:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.fk-chat-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.fk-chat-input {
+  flex: 1 1 auto;
+  min-height: 2.6rem;
+  max-height: 8rem;
+  resize: vertical;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-strong);
+  font-size: 0.92rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.fk-chat-input:focus {
+  border-color: var(--color-accent);
+  background: var(--color-bg);
+}
+
+.fk-chat-composer .fk-chat-send {
+  flex: none;
+  border-radius: 0;
+  padding: 0.5rem 1.2rem;
+  background: var(--fk-ink);
+  color: var(--fk-ink-text);
+  /* 发送键跟「查看主页」同款黑色平行四边形 */
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.fk-chat-send:hover:not(:disabled) {
+  background: var(--fk-ink);
+  opacity: 0.86;
+}
+
+.fk-chat-send:disabled {
+  opacity: 0.4;
+}
+
+.fk-chat-status {
+  margin: 0;
+  padding: 0 1rem 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.fk-chat-status[hidden] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .fk-messages-main {
+    padding: 1rem 0.75rem 1rem;
+  }
+
+  .fk-chat-row {
+    max-width: 88%;
+  }
+}

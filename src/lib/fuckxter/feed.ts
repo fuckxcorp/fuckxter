@@ -4,6 +4,7 @@ import {
   deletePost,
   getStorageOptions,
   getTimeline,
+  recordPostView,
   search,
   setFollow,
   toggleLike,
@@ -16,9 +17,14 @@ import { getAccount, requestAuthentication, toFeedUser } from "./auth";
 import {
   authorAvatar,
   avatarGradient,
+  collapseSubmenus,
   el,
   fmtCount,
+  hidePanel,
+  isPanelOpen,
+  postMetaText,
   renderPost,
+  showPanel,
   setFollowButtonState,
   showToast,
   statusRow,
@@ -36,18 +42,49 @@ import { postPath, userPath } from "./urls";
 
 const MAX_CHARS = 1000;
 
+const COLUMN_STORAGE_KEY = "fk_columns";
+
 const COLUMN_QUERIES: [string, number][] = [
   ["(min-width: 2200px)", 4],
   ["(min-width: 1024px)", 3],
   ["(min-width: 700px)", 2],
 ];
 
-const columnCount = (): number => {
+/** 用户可选的列数；auto 交给断点自己判断。 */
+export type ColumnChoice = "auto" | "1" | "2" | "3";
+
+const autoColumnCount = (): number => {
   for (const [query, count] of COLUMN_QUERIES) {
     if (matchMedia(query).matches) return count;
   }
   return 1;
 };
+
+function readColumnChoice(): ColumnChoice {
+  try {
+    const stored = localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (
+      stored === "auto" ||
+      stored === "1" ||
+      stored === "2" ||
+      stored === "3"
+    ) {
+      return stored;
+    }
+  } catch {
+    // 无痕模式下 localStorage 可能不可用，退回默认值。
+  }
+  // 没设置过的话：桌面默认两列，手机端默认还是单列。
+  return matchMedia("(min-width: 700px)").matches ? "2" : "1";
+}
+
+function storeColumnChoice(choice: ColumnChoice): void {
+  try {
+    localStorage.setItem(COLUMN_STORAGE_KEY, choice);
+  } catch {
+    // 存不了就算了，本次会话仍然生效。
+  }
+}
 
 interface FeedState {
   tab: FeedTab;
@@ -117,6 +154,18 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const sentinel = container.querySelector<HTMLElement>(".fk-sentinel")!;
   const spinner = sentinel.querySelector<HTMLElement>(".fk-spinner")!;
   const tabs = [...container.querySelectorAll<HTMLButtonElement>(".fk-tab")];
+  const accountMenu = container.querySelector<HTMLElement>(
+    "[data-role=account-menu]",
+  );
+  const columnsTrigger = container.querySelector<HTMLButtonElement>(
+    "[data-role=columns-trigger]",
+  );
+  const columnsSubmenu = container.querySelector<HTMLElement>(
+    "[data-role=columns-submenu]",
+  );
+  const columnsValue = container.querySelector<HTMLElement>(
+    "[data-role=columns-value]",
+  );
   const composer = container.querySelector<HTMLElement>(".fk-composer")!;
   const composerInput =
     container.querySelector<HTMLTextAreaElement>(".fk-composer-input")!;
@@ -141,6 +190,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStorage = container.querySelector<HTMLSelectElement>(
     "[data-role=media-storage]",
   )!;
+  const visibilitySelect = container.querySelector<HTMLSelectElement>(
+    "[data-role=post-visibility]",
+  );
   const searchInput =
     container.querySelector<HTMLInputElement>(".fk-search-input")!;
   const composerAvatar = container.querySelector<HTMLElement>(
@@ -259,12 +311,17 @@ export function mountFeed(container: HTMLElement): FeedControls {
   let columnsRoot: HTMLElement | null = null;
   let columns: HTMLElement[] = [];
   let activeColumnCount = 0;
+  let columnPreference: ColumnChoice = readColumnChoice();
   const orderedPosts: HTMLElement[] = [];
   const postsById = new Map<string, Post>();
+
+  const columnCount = (): number =>
+    columnPreference === "auto" ? autoColumnCount() : Number(columnPreference);
 
   const buildColumns = (count: number): HTMLElement => {
     const root = el("div", "fk-feed-columns");
     if (count > 1) root.classList.add("is-masonry");
+    else root.classList.add("is-single");
     columns = Array.from({ length: count }, () => {
       const column = el("div", "fk-feed-col");
       root.append(column);
@@ -300,7 +357,57 @@ export function mountFeed(container: HTMLElement): FeedControls {
     matchMedia(query).addEventListener("change", onMediaChange);
   }
 
+  const syncColumnsMenu = () => {
+    if (columnsValue) {
+      columnsValue.textContent =
+        columnPreference === "auto" ? "自动" : `${columnPreference} 列`;
+    }
+    columnsSubmenu
+      ?.querySelectorAll<HTMLButtonElement>("[data-columns-choice]")
+      .forEach((item) => {
+        item.setAttribute(
+          "aria-checked",
+          String(item.dataset.columnsChoice === columnPreference),
+        );
+      });
+  };
+
+  const applyColumnChoice = (choice: ColumnChoice) => {
+    columnPreference = choice;
+    storeColumnChoice(choice);
+    syncColumnsMenu();
+    activeColumnCount = 0;
+    ensureLayout();
+  };
+
+  /** 帖子进入视口才算一次浏览，服务端对同一访客去重。 */
+  const viewedPosts = new Set<string>();
+  const viewObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const node = entry.target as HTMLElement;
+        viewObserver.unobserve(node);
+        const id = node.dataset.postId;
+        if (!id || viewedPosts.has(id)) continue;
+        viewedPosts.add(id);
+        void recordPostView(id)
+          .then((result) => {
+            const post = postsById.get(id);
+            if (post) post.stats.views = result.views;
+            const meta = node.querySelector<HTMLElement>(".fk-post-meta");
+            if (post && meta) meta.textContent = postMetaText(post, "relative");
+          })
+          .catch(() => {
+            viewedPosts.delete(id);
+          });
+      }
+    },
+    { root: scroller, rootMargin: "0px 0px -10% 0px", threshold: 0.45 },
+  );
+
   const resetFeed = (head?: HTMLElement): void => {
+    for (const node of orderedPosts) viewObserver.unobserve(node);
     orderedPosts.length = 0;
     feed.replaceChildren();
     if (head) feed.append(head);
@@ -324,6 +431,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         ? columns[orderedPosts.length - 1]
         : shortestColumn();
     column.append(node);
+    viewObserver.observe(node);
     return node;
   };
 
@@ -441,6 +549,46 @@ export function mountFeed(container: HTMLElement): FeedControls {
     void doSearch(searchInput.value);
   });
 
+  const collapseColumnsSubmenu = () => {
+    if (!columnsSubmenu) return;
+    hidePanel(columnsSubmenu);
+    columnsTrigger?.setAttribute("aria-expanded", "false");
+  };
+
+  columnsTrigger?.addEventListener("click", () => {
+    if (!columnsSubmenu) return;
+    const willOpen = !isPanelOpen(columnsSubmenu);
+    // 展開列數時把主題那類子選單收起來，兩塊面板才不會疊在一起。
+    if (willOpen) collapseSubmenus(container, columnsSubmenu);
+    if (willOpen) showPanel(columnsSubmenu);
+    else hidePanel(columnsSubmenu);
+    columnsTrigger.setAttribute("aria-expanded", String(willOpen));
+  });
+
+  columnsSubmenu?.addEventListener("click", (event) => {
+    const item = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      "[data-columns-choice]",
+    );
+    const choice = item?.dataset.columnsChoice;
+    if (choice !== "auto" && choice !== "1" && choice !== "2" && choice !== "3")
+      return;
+    applyColumnChoice(choice);
+    // 子選單保持展開，選中的白色平行四邊形動畫才看得見。
+  });
+
+  // 账号菜单收起时，列数子菜单也跟着收起，下次打开才是干净状态。
+  const accountMenuObserver = accountMenu
+    ? new MutationObserver(() => {
+        if (accountMenu.hidden) collapseColumnsSubmenu();
+      })
+    : null;
+  accountMenuObserver?.observe(accountMenu!, {
+    attributes: true,
+    attributeFilter: ["hidden"],
+  });
+
+  syncColumnsMenu();
+
   for (const tab of tabs) {
     tab.addEventListener("click", () => {
       const next = tab.dataset.tab as FeedTab | undefined;
@@ -529,7 +677,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
       const article = target.closest<HTMLElement>(".fk-post");
       const id = article?.dataset.postId;
       const post = id ? postsById.get(id) : undefined;
-      if (post) void navigate(postPath(post));
+      if (post && article) {
+        // 先给卡片一个按下去的小动画，再进详情。
+        article.classList.add("is-opening");
+        window.setTimeout(() => void navigate(postPath(post)), 140);
+      }
       return;
     }
 
@@ -596,6 +748,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
       editingPostId = post.id;
       composer.hidden = false;
       composerInput.value = post.text;
+      // 编辑时把可见范围也带出来，发出去之后还能改。
+      if (visibilitySelect)
+        visibilitySelect.value = post.visibility ?? "public";
       composerInput.style.height = "auto";
       composerInput.style.height = `${composerInput.scrollHeight}px`;
       composerBtn.textContent = "保存";
@@ -735,9 +890,17 @@ export function mountFeed(container: HTMLElement): FeedControls {
     mediaStatus.hidden = true;
     try {
       if (editingPostId) {
-        await updatePost(editingPostId, text);
+        await updatePost(
+          editingPostId,
+          text,
+          (visibilitySelect?.value as Post["visibility"]) ?? "public",
+        );
       } else {
-        await createPost(text, selectedMedia?.id);
+        await createPost(
+          text,
+          selectedMedia?.id,
+          (visibilitySelect?.value as Post["visibility"]) ?? "public",
+        );
       }
       if (state.search !== null) {
         searchInput.value = "";
@@ -787,6 +950,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     },
     dispose: () => {
       observer.disconnect();
+      viewObserver.disconnect();
+      accountMenuObserver?.disconnect();
       for (const [query] of COLUMN_QUERIES) {
         matchMedia(query).removeEventListener("change", onMediaChange);
       }

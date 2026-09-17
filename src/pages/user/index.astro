@@ -130,6 +130,22 @@ import Header from "../../components/Header.astro";
               >
                 关注
               </button>
+              <button
+                type="button"
+                class="fk-ghost-btn"
+                data-role="user-message"
+                hidden
+              >
+                私信
+              </button>
+              <button
+                type="button"
+                class="fk-ghost-btn fk-block-btn"
+                data-role="user-block"
+                hidden
+              >
+                拉黑
+              </button>
             </div>
           </section>
           <p class="fk-status" data-role="user-status" hidden></p>
@@ -175,6 +191,7 @@ import Header from "../../components/Header.astro";
     deletePost,
     getUserProfile,
     getPostsByUser,
+    setBlock,
     setFollow,
     toggleLike,
     toggleRepost,
@@ -197,7 +214,12 @@ import Header from "../../components/Header.astro";
   import { onFuckxterPageReady } from "../../lib/fuckxter/page";
   import { openPostShareMenu } from "../../lib/fuckxter/share";
   import type { Post, UserProfile } from "../../lib/fuckxter/types";
-  import { parseUserPath, postPath, userPath } from "../../lib/fuckxter/urls";
+  import {
+    conversationPath,
+    parseUserPath,
+    postPath,
+    userPath,
+  } from "../../lib/fuckxter/urls";
 
   const fullTime = (iso: string) =>
     new Date(iso).toLocaleString("zh-CN", { dateStyle: "long" });
@@ -224,6 +246,8 @@ import Header from "../../components/Header.astro";
     const verified = role<HTMLElement>("verified");
     const edit = role<HTMLButtonElement>("edit");
     const follow = role<HTMLButtonElement>("follow");
+    const message = role<HTMLButtonElement>("message");
+    const block = role<HTMLButtonElement>("block");
     const followersChip = role<HTMLAnchorElement>("chip-followers");
     const followingChip = role<HTMLAnchorElement>("chip-following");
 
@@ -261,7 +285,15 @@ import Header from "../../components/Header.astro";
     setUserChip(card, "following", String(profile.stats.following));
 
     edit.hidden = !isOwn;
-    follow.hidden = isOwn;
+    const blocked = Boolean(profile.viewer.blocked);
+    // 拉黑后关注和私信都先收起来，只留「已拉黑」可以取消。
+    follow.hidden = isOwn || blocked;
+    message.hidden = isOwn || blocked;
+    block.hidden = isOwn;
+    block.dataset.handle = profile.handle;
+    block.textContent = blocked ? "已拉黑" : "拉黑";
+    block.classList.toggle("is-danger", blocked);
+    message.dataset.handle = profile.handle;
     if (!isOwn) {
       follow.dataset.handle = profile.handle;
       follow.dataset.following = String(profile.viewer.following);
@@ -437,7 +469,42 @@ import Header from "../../components/Header.astro";
     const follow = container.querySelector<HTMLButtonElement>(
       "[data-role=user-follow]",
     )!;
+    const message = container.querySelector<HTMLButtonElement>(
+      "[data-role=user-message]",
+    )!;
+    const block = container.querySelector<HTMLButtonElement>(
+      "[data-role=user-block]",
+    )!;
     edit.addEventListener("click", () => navigate("/settings/profile"));
+    block.addEventListener("click", async () => {
+      const handle = block.dataset.handle;
+      if (!handle || !currentProfile) return;
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      const willBlock = !currentProfile.viewer.blocked;
+      block.disabled = true;
+      try {
+        await setBlock(handle, willBlock);
+        currentProfile.viewer.blocked = willBlock;
+        fillUserProfile(card, currentProfile, false);
+        bindPostList(postsRoot, await getPostsByUser(handle), () => {});
+        showToast(willBlock ? "已拉黑" : "已取消拉黑");
+      } catch {
+        showToast("操作失败，请重试");
+      } finally {
+        block.disabled = false;
+      }
+    });
+    message.addEventListener("click", () => {
+      if (!message.dataset.handle) return;
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      navigate(conversationPath(message.dataset.handle));
+    });
     follow.addEventListener("click", async () => {
       if (!follow.dataset.handle) return;
       if (!getAccount()) {
