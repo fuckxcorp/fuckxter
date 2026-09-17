@@ -75,14 +75,6 @@ export function normalizeVisibility(value: unknown): PostVisibility {
   return "public";
 }
 
-/**
- * 帖子可见性 + 拉黑过滤：
- * - public 所有人可见
- * - mutual 只有作者和互相关注的人可见
- * - private 只有作者自己可见
- * 任一方拉黑了对方，彼此的帖子都不再出现。
- * 需要为每个 ? 传一个 viewerId（空字符串代表游客）。
- */
 const VIEWER_FILTER = `
   (
     p.visibility = 'public'
@@ -109,6 +101,16 @@ const VIEWER_FILTER = `
 function viewerFilterParams(viewerId: string | null): string[] {
   const viewer = viewerId ?? "";
   return [viewer, viewer, viewer, viewer, viewer];
+}
+
+function viewerFilter(viewerId: string | null): {
+  condition: string;
+  params: string[];
+} {
+  if (!viewerId) {
+    return { condition: "p.visibility = 'public'", params: [] };
+  }
+  return { condition: VIEWER_FILTER, params: viewerFilterParams(viewerId) };
 }
 
 function encodeCursor(...parts: string[]): string {
@@ -196,15 +198,10 @@ export async function getTimeline(
   limitValue: string | null,
 ) {
   const viewer = viewerId ?? "";
+  const filter = viewerFilter(viewerId);
   const limit = Math.min(Math.max(Number(limitValue ?? 10) || 10, 1), 30);
-  const params: unknown[] = [
-    viewer,
-    viewer,
-    viewer,
-    viewer,
-    ...viewerFilterParams(viewerId),
-  ];
-  const conditions = ["p.deleted_at IS NULL", VIEWER_FILTER];
+  const params: unknown[] = [viewer, viewer, viewer, viewer, ...filter.params];
+  const conditions = ["p.deleted_at IS NULL", filter.condition];
   const resolved = timelineTab(tab);
   const byHeat = resolved === "foryou";
 
@@ -325,9 +322,10 @@ export async function getPostById(
   viewerId: string | null,
   id: string,
 ) {
+  const filter = viewerFilter(viewerId);
   const row = await env.DB.prepare(
     `${POST_SELECT}
-     WHERE p.id = ? AND p.deleted_at IS NULL AND ${VIEWER_FILTER}
+     WHERE p.id = ? AND p.deleted_at IS NULL AND ${filter.condition}
      LIMIT 1`,
   )
     .bind(
@@ -336,7 +334,7 @@ export async function getPostById(
       viewerId ?? "",
       viewerId ?? "",
       id,
-      ...viewerFilterParams(viewerId),
+      ...filter.params,
     )
     .first<PostRow>();
   return row ? publicPost(row, viewerId) : null;
@@ -348,11 +346,12 @@ export async function getPostByPath(
   handle: string,
   slug: string,
 ) {
+  const filter = viewerFilter(viewerId);
   const row = await env.DB.prepare(
     `${POST_SELECT}
      WHERE p.slug = ? AND u.id = ?
        AND p.deleted_at IS NULL
-       AND ${VIEWER_FILTER}
+       AND ${filter.condition}
      LIMIT 1`,
   )
     .bind(
@@ -362,7 +361,7 @@ export async function getPostByPath(
       viewerId ?? "",
       slug,
       usernameKey(handle),
-      ...viewerFilterParams(viewerId),
+      ...filter.params,
     )
     .first<PostRow>();
   return row ? publicPost(row, viewerId) : null;
@@ -373,11 +372,12 @@ export async function getPostsByUser(
   viewerId: string | null,
   handle: string,
 ) {
+  const filter = viewerFilter(viewerId);
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
       `${POST_SELECT}
        WHERE u.id = ? AND p.deleted_at IS NULL
-         AND ${VIEWER_FILTER}
+         AND ${filter.condition}
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 100`,
     ).bind(
@@ -386,7 +386,7 @@ export async function getPostsByUser(
       viewerId ?? "",
       viewerId ?? "",
       usernameKey(handle),
-      ...viewerFilterParams(viewerId),
+      ...filter.params,
     ),
   );
   return rows.map((row) => publicPost(row, viewerId));
@@ -485,7 +485,6 @@ export async function updatePost(
   if (post.author_id !== userId) {
     throw new HttpError(403, "FORBIDDEN", "You cannot edit this post.");
   }
-  // 可见范围随时可改：不传就保留原本设定。
   await env.DB.prepare(
     `UPDATE posts
      SET text = ?, visibility = COALESCE(?, visibility), updated_at = ?
@@ -612,22 +611,16 @@ export async function setRepost(
 }
 
 export async function getSavedPosts(env: Env, userId: string) {
+  const filter = viewerFilter(userId);
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
       `${POST_SELECT}
        JOIN bookmarks saved ON saved.post_id = p.id
        WHERE saved.user_id = ? AND p.deleted_at IS NULL
-         AND ${VIEWER_FILTER}
+         AND ${filter.condition}
        ORDER BY saved.created_at DESC
        LIMIT 200`,
-    ).bind(
-      userId,
-      userId,
-      userId,
-      userId,
-      userId,
-      ...viewerFilterParams(userId),
-    ),
+    ).bind(userId, userId, userId, userId, userId, ...filter.params),
   );
   return rows.map((row) => publicPost(row, userId));
 }
@@ -669,12 +662,13 @@ export async function searchPosts(
 ) {
   const query = queryText.trim();
   if (!query) return { query, posts: [] };
+  const filter = viewerFilter(viewerId);
   const pattern = `%${query}%`;
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
       `${POST_SELECT}
        WHERE p.deleted_at IS NULL
-         AND ${VIEWER_FILTER}
+         AND ${filter.condition}
          AND (p.text LIKE ? OR u.name LIKE ? OR u.handle LIKE ?)
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 50`,
@@ -686,7 +680,7 @@ export async function searchPosts(
       pattern,
       pattern,
       pattern,
-      ...viewerFilterParams(viewerId),
+      ...filter.params,
     ),
   );
   return { query, posts: rows.map((row) => publicPost(row, viewerId)) };
@@ -893,7 +887,6 @@ export async function createComment(
     .first<{ id: string; author_id: string }>();
   if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
 
-  // 回覆某条回帖：父回帖必须属于同一篇帖子。
   let parent: { id: string; author_id: string } | null = null;
   if (parentId) {
     parent = await env.DB.prepare(

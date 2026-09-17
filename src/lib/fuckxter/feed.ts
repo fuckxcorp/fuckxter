@@ -50,7 +50,6 @@ const COLUMN_QUERIES: [string, number][] = [
   ["(min-width: 700px)", 2],
 ];
 
-/** 用户可选的列数；auto 交给断点自己判断。 */
 export type ColumnChoice = "auto" | "1" | "2" | "3";
 
 const autoColumnCount = (): number => {
@@ -71,19 +70,15 @@ function readColumnChoice(): ColumnChoice {
     ) {
       return stored;
     }
-  } catch {
-    // 无痕模式下 localStorage 可能不可用，退回默认值。
-  }
-  // 没设置过的话：桌面默认两列，手机端默认还是单列。
+  } catch {}
+
   return matchMedia("(min-width: 700px)").matches ? "2" : "1";
 }
 
 function storeColumnChoice(choice: ColumnChoice): void {
   try {
     localStorage.setItem(COLUMN_STORAGE_KEY, choice);
-  } catch {
-    // 存不了就算了，本次会话仍然生效。
-  }
+  } catch {}
 }
 
 interface FeedState {
@@ -97,7 +92,6 @@ interface FeedState {
 
 export interface FeedControls {
   syncUser: () => void;
-  reload: () => void;
   dispose: () => void;
 }
 
@@ -289,7 +283,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
       placeholder.textContent = "默认存储桶";
       mediaStorage.append(placeholder);
     }
-    if (account) void loadStorageOptions(account.profile.handle);
     if (!account) {
       editingPostId = null;
       selectedMedia = null;
@@ -380,7 +373,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
     ensureLayout();
   };
 
-  /** 帖子进入视口才算一次浏览，服务端对同一访客去重。 */
   const viewedPosts = new Set<string>();
   const viewObserver = new IntersectionObserver(
     (entries) => {
@@ -558,7 +550,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
   columnsTrigger?.addEventListener("click", () => {
     if (!columnsSubmenu) return;
     const willOpen = !isPanelOpen(columnsSubmenu);
-    // 展開列數時把主題那類子選單收起來，兩塊面板才不會疊在一起。
     if (willOpen) collapseSubmenus(container, columnsSubmenu);
     if (willOpen) showPanel(columnsSubmenu);
     else hidePanel(columnsSubmenu);
@@ -573,10 +564,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     if (choice !== "auto" && choice !== "1" && choice !== "2" && choice !== "3")
       return;
     applyColumnChoice(choice);
-    // 子選單保持展開，選中的白色平行四邊形動畫才看得見。
   });
 
-  // 账号菜单收起时，列数子菜单也跟着收起，下次打开才是干净状态。
   const accountMenuObserver = accountMenu
     ? new MutationObserver(() => {
         if (accountMenu.hidden) collapseColumnsSubmenu();
@@ -678,7 +667,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
       const id = article?.dataset.postId;
       const post = id ? postsById.get(id) : undefined;
       if (post && article) {
-        // 先给卡片一个按下去的小动画，再进详情。
         article.classList.add("is-opening");
         window.setTimeout(() => void navigate(postPath(post)), 140);
       }
@@ -748,7 +736,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
       editingPostId = post.id;
       composer.hidden = false;
       composerInput.value = post.text;
-      // 编辑时把可见范围也带出来，发出去之后还能改。
       if (visibilitySelect)
         visibilitySelect.value = post.visibility ?? "public";
       composerInput.style.height = "auto";
@@ -810,8 +797,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     syncComposer();
   };
 
-  composerInput.addEventListener("input", syncComposer);
   composerInput.addEventListener("input", () => {
+    syncComposer();
     composerInput.style.height = "auto";
     composerInput.style.height = `${composerInput.scrollHeight}px`;
   });
@@ -829,10 +816,12 @@ export function mountFeed(container: HTMLElement): FeedControls {
   syncComposer();
 
   attachMediaBtn.addEventListener("click", () => {
-    if (!getAccount()) {
+    const account = getAccount();
+    if (!account) {
       requestAuthentication();
       return;
     }
+    void loadStorageOptions(account.profile.handle);
     mediaInput.click();
   });
 
@@ -943,11 +932,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   return {
     syncUser: syncComposerUser,
-    reload: () => {
-      state.cursor = null;
-      state.done = false;
-      void loadPage(true);
-    },
     dispose: () => {
       observer.disconnect();
       viewObserver.disconnect();

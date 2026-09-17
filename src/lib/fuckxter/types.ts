@@ -1,15 +1,9 @@
-/**
- * FuckXter 数据契约：UI 与后端共同遵守的类型定义。
- * 后端接口的请求/响应体都以这里为准。
- */
-
-/** 推荐 = 按浏览热度，实时 = 按发布时间，关注 = 只看来往的人。 */
 export type FeedTab = "foryou" | "latest" | "following";
 
 export interface FeedUser {
   id: string;
   name: string;
-  /** 不带 @ 前缀 */
+
   handle: string;
   verified?: boolean;
   avatarUrl?: string | null;
@@ -32,13 +26,13 @@ export interface PostMedia {
 
 export interface Post {
   id: string;
-  /** Stable public URL segment returned by the backend. */
+
   slug: string;
   author: FeedUser;
   text: string;
-  /** ISO 8601 */
+
   createdAt: string;
-  /** 公开 / 仅互关可见 / 私密贴 */
+
   visibility?: "public" | "mutual" | "private";
   stats: PostStats;
   media?: PostMedia;
@@ -51,7 +45,6 @@ export interface Post {
   };
 }
 
-/** 时间线分页响应：nextCursor 为 null 表示没有更多了 */
 export interface FeedPage {
   tab: FeedTab;
   posts: Post[];
@@ -97,7 +90,7 @@ export interface Comment {
   author: FeedUser;
   text: string;
   createdAt: string;
-  /** 回覆某條回帖時帶上被回覆的內容，用來畫出引用行。 */
+
   parent?: {
     id: string;
     handle: string;

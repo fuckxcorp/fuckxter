@@ -286,7 +286,6 @@ import Header from "../../components/Header.astro";
 
     edit.hidden = !isOwn;
     const blocked = Boolean(profile.viewer.blocked);
-    // 拉黑后关注和私信都先收起来，只留「已拉黑」可以取消。
     follow.hidden = isOwn || blocked;
     message.hidden = isOwn || blocked;
     block.hidden = isOwn;

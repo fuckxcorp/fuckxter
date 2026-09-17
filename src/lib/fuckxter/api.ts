@@ -267,7 +267,6 @@ export function toggleRepost(
   });
 }
 
-/** 记一次浏览；同一访客同一帖子只会算一次。 */
 export function recordPostView(id: string): Promise<{ views: number }> {
   return apiRequest<{ views: number }>(
     `/posts/${encodeURIComponent(id)}/view`,

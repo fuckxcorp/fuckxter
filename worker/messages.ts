@@ -222,7 +222,6 @@ export async function sendMessage(
   let threadId = await findThreadId(env, low, high);
   if (!threadId) {
     const candidate = randomId();
-    // 两个人都可能同时开新对话，撞到唯一键就当对方已经建好了。
     await env.DB.prepare(
       `INSERT INTO dm_threads (id, user_low_id, user_high_id, created_at, last_message_at)
        VALUES (?, ?, ?, ?, ?)
@@ -263,7 +262,6 @@ export async function markConversationRead(
     .run();
 }
 
-/** 撤回：只能删自己发出去的，删完把会话的最后消息时间重算一次。 */
 export async function recallMessage(
   env: Env,
   userId: string,

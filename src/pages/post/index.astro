@@ -159,7 +159,6 @@ import Header from "../../components/Header.astro";
     return box;
   }
 
-  /** 右栏原来的回帖框位置改成热度榜：按浏览量排，点进去就是那条帖子。 */
   function renderHotPosts(
     posts: Post[] | null,
     currentId: string,
@@ -378,7 +377,6 @@ import Header from "../../components/Header.astro";
     );
     const body = el("div", "fk-thread-body");
     body.append(threadAuthorLine(comment.author, comment.createdAt));
-    // 沒有蓋在父回帖下面時（例如父回帖已被刪），才顯示引用行。
     if (comment.parent && !nested) {
       const quote = el("button", "fk-reply-quote");
       quote.type = "button";
@@ -550,7 +548,6 @@ import Header from "../../components/Header.astro";
     status.setAttribute("aria-live", "polite");
     const list = el("div", "fk-comments-list fk-thread-list");
 
-    // 回覆某條回帖時，輸入框上方顯示一條可移除的提示。
     const replyChip = el("div", "fk-reply-chip");
     const replyChipLabel = el("span", "fk-reply-chip-label");
     const replyChipClear = el("button", "fk-reply-chip-clear");
@@ -630,7 +627,6 @@ import Header from "../../components/Header.astro";
         return;
       }
 
-      // 按 parent_id 组装成楼层：回覆某条回帖就盖在它下面。
       const byId = new Map(comments.map((comment) => [comment.id, comment]));
       const children = new Map<string, Comment[]>();
       const roots: Comment[] = [];
@@ -728,7 +724,6 @@ import Header from "../../components/Header.astro";
     requestAnimationFrame(resizeCommentInput);
 
     replies.append(repliesHead, list);
-    // 回帖框留在左侧，紧跟在被回覆的帖子下面。
     thread.append(head, renderOriginPost(post), composer, replies);
     if (location.hash === "#reply" && me) {
       requestAnimationFrame(() => {

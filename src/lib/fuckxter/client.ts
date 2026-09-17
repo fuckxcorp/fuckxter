@@ -10,10 +10,9 @@ function mountFuckxter(container: HTMLElement): void {
   const account = mountAccountControls(container, {
     onAccountChange: feed.syncUser,
   });
-  void hydrateSession().then((user) => {
+  void hydrateSession().then(() => {
     feed.syncUser();
     account.sync();
-    if (user) feed.reload();
   });
 
   document.addEventListener(

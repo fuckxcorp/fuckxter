@@ -54,7 +54,6 @@ export function fmtCount(n: number): string {
   return `${wan >= 10 ? Math.round(wan) : Math.round(wan * 10) / 10}万`;
 }
 
-/** 同一層選單裡同時只留一個子選單展開，切換時才不會兩個疊在一起。 */
 export function collapseSubmenus(
   scope: ParentNode,
   except?: HTMLElement | null,
@@ -68,11 +67,9 @@ export function collapseSubmenus(
   });
 }
 
-/** 退場動畫長度，比 CSS 稍長一點，確保動畫播完才隱藏。 */
 const PANEL_EXIT_MS = 360;
 const closingTimers = new WeakMap<HTMLElement, number>();
 
-/** 顯示浮層；如果它還在播退場動畫就把計時取消，避免被中途收掉。 */
 export function showPanel(panel: HTMLElement): void {
   const timer = closingTimers.get(panel);
   if (timer !== undefined) {
@@ -83,12 +80,10 @@ export function showPanel(panel: HTMLElement): void {
   panel.hidden = false;
 }
 
-/** 真的開著才算開著；正在收合的浮層算已關閉，這樣連點才不會卡住。 */
 export function isPanelOpen(panel: HTMLElement): boolean {
   return !panel.hidden && !panel.classList.contains("is-closing");
 }
 
-/** 收起浮層：先播和打開時對稱的退場動畫，播完才真的隱藏。 */
 export function hidePanel(panel: HTMLElement): void {
   if (panel.hidden || closingTimers.has(panel)) return;
   panel.classList.add("is-closing");
@@ -202,7 +197,7 @@ export function postHead(post: Post, timeMode: "relative" | "absolute") {
   const meta = el("span", "fk-post-meta");
   meta.textContent = postMetaText(post, timeMode);
   head.append(meta);
-  // 只有作者本人看得到非公开贴，标一下可见范围免得自己忘了。
+
   if (post.visibility && post.visibility !== "public") {
     const label = el("span", "fk-post-visibility");
     label.textContent = post.visibility === "private" ? "私密贴" : "仅互关可见";

@@ -112,7 +112,6 @@ import Layout from "../../layouts/Layout.astro";
     }
   }
 
-  /** 跟 feed 里的头像一样：渐变底 + 字母兜底 + 图片。 */
   function fillAvatar(node: HTMLElement, user: FeedUser): void {
     node.setAttribute("style", avatarGradient(user.handle));
     const fallback = el("span", "fk-avatar-fallback");
@@ -198,7 +197,6 @@ import Layout from "../../layouts/Layout.astro";
       recall.textContent = "撤回";
       foot.append(recall);
     }
-    // 气泡外面再包一层，用来画跟形状一致的外框。
     const wrap = el("div", "fk-chat-bubble-wrap");
     wrap.append(bubble);
     row.append(wrap, foot);

@@ -94,7 +94,6 @@ export function mountAccountControls(
   let unreadNotices = 0;
   let unreadMessages = 0;
 
-  /** 头像上的小红点：通知或私信有未读都会亮。 */
   const syncUnreadDot = () => {
     accountNoticeDot.hidden = unreadNotices === 0 && unreadMessages === 0;
   };
@@ -120,9 +119,7 @@ export function mountAccountControls(
       if (requestId !== unreadRequestId) return;
       if (!account || account.profile.handle !== owner) return;
       setUnreadNotifications(unread);
-    } catch {
-      // Notification status must not block the account menu.
-    }
+    } catch {}
   };
 
   const setUnreadMessages = (count: number) => {
@@ -143,12 +140,10 @@ export function mountAccountControls(
     const requestId = ++messageRequestId;
     try {
       const unread = await getUnreadMessageCount();
-      if (requestId !== unreadRequestId) return;
+      if (requestId !== messageRequestId) return;
       if (!account || account.profile.handle !== owner) return;
       setUnreadMessages(unread);
-    } catch {
-      // 私信计数失败不能影响菜单其他部分。
-    }
+    } catch {}
   };
 
   const applyThemeChoice = (mode: string) => {
@@ -224,7 +219,6 @@ export function mountAccountControls(
     themeTrigger.setAttribute("aria-expanded", "false");
   };
 
-  /** 菜单展开时，让左侧的页面像纸被掀起来一样。 */
   const setPeeled = (open: boolean) => {
     document.documentElement.classList.toggle("fk-menu-open", open);
   };
@@ -259,7 +253,6 @@ export function mountAccountControls(
 
   themeTrigger.addEventListener("click", () => {
     const willOpen = !isPanelOpen(themeSubmenu);
-    // 展開主題時把列數那類子選單收起來，兩塊面板才不會疊在一起。
     if (willOpen) collapseSubmenus(accountMenu, themeSubmenu);
     if (willOpen) showPanel(themeSubmenu);
     else hidePanel(themeSubmenu);
@@ -273,7 +266,6 @@ export function mountAccountControls(
     if (!item) return;
     applyThemeChoice(item.dataset.themeChoice!);
     syncThemeMenu();
-    // 保留選單開著，讓勾選的白色平行四邊形動畫看得見。
   });
 
   const onModalKeydown = (event: KeyboardEvent) => {

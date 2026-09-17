@@ -1,4 +1,3 @@
-/* 私信：视觉沿用首页那套（圆角卡片 + 墨色斜切板）。 */
 .fk-messages-main {
   flex: 1 1 auto;
   min-height: 0;
@@ -81,7 +80,6 @@
   background: var(--color-accent-soft);
 }
 
-/* 選擇器帶上外層，才壓得過 global.css 裡共用的 .fk-avatar 尺寸。 */
 .fk-thread .fk-thread-avatar {
   width: 46px;
   height: 46px;
@@ -143,14 +141,13 @@
   border-radius: 0;
   background: var(--fk-ink);
   color: var(--fk-ink-text);
-  /* 未读数也用平行四边形，跟首页那套形状一致。 */
+
   clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
   font-size: 0.7rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-/* 对话视图：头部 + 可滚动消息区 + 底部输入框。 */
 .fk-chat {
   flex: 1 1 auto;
   border: 1px solid var(--color-border);
@@ -180,7 +177,6 @@
 }
 
 .fk-chat-user .fk-chat-avatar {
-  /* 跟首页头像框同一套：平行四边形 + 左侧淡出，图片填满。 */
   width: 44px;
   height: 44px;
   border-radius: 0;
@@ -215,7 +211,7 @@
   padding: 0.38rem 1.05rem;
   background: var(--fk-ink);
   color: var(--fk-ink-text);
-  /* 查看主页：黑色平行四边形按钮 */
+
   clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
   font-size: 0.82rem;
   font-weight: 700;
@@ -276,7 +272,6 @@
   max-width: 100%;
 }
 
-/* 外框层：比气泡大 2px，形状一致所以看起来就是倾斜的描边。 */
 .fk-chat-bubble-wrap::before {
   content: "";
   position: absolute;
@@ -286,7 +281,6 @@
   clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
 }
 
-/* 自己发的是墨色平行四边形；对方是反相的白底黑框，深色模式自动反过来。 */
 .fk-chat-row.is-mine {
   --fk-bubble-fill: var(--fk-ink);
   --fk-bubble-text: var(--fk-ink-text);
@@ -370,7 +364,7 @@
   padding: 0.5rem 1.2rem;
   background: var(--fk-ink);
   color: var(--fk-ink-text);
-  /* 发送键跟「查看主页」同款黑色平行四边形 */
+
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
 }
 

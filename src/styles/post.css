@@ -1,4 +1,3 @@
-/* 回覆某人時輸入框上方的提示條。 */
 .fk-reply-chip {
   display: flex;
   align-items: center;
@@ -30,7 +29,6 @@
   color: var(--fk-like);
 }
 
-/* 回帖裡顯示「回覆 @某人：原文」的那一行。 */
 .fk-reply-quote {
   display: block;
   width: 100%;
@@ -54,7 +52,6 @@
   border-left-color: var(--color-accent);
 }
 
-/* 打开帖子时内容轻轻升起来。 */
 @keyframes fk-post-enter {
   from {
     opacity: 0;
@@ -618,7 +615,6 @@
   border-color: var(--color-accent);
 }
 
-/* 回帖按钮也做成墨色平行四边形。 */
 .fk-thread-composer .fk-comment-submit {
   flex: none;
   border-radius: 0;
@@ -696,7 +692,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 右栏热门帖子：按浏览量排序的紧凑列表。 */
 .fk-hot-title {
   margin: 0;
   color: var(--color-text-strong);
@@ -744,7 +739,7 @@
   border-radius: 0;
   background: var(--fk-ink);
   color: var(--fk-ink-text);
-  /* 名次也做成小平行四边形，跟首页那套形状一致。 */
+
   clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
   font-size: 0.72rem;
   font-weight: 700;
@@ -912,7 +907,7 @@
     margin-left: 0;
   }
 }
-/* 蓋樓：回覆某條回帖時，新回帖直接長在它下面。 */
+
 .fk-thread-children {
   grid-column: 1 / -1;
   display: grid;
@@ -926,5 +921,3 @@
   border-color: transparent;
   background: color-mix(in srgb, var(--color-bg-subtle) 60%, transparent);
 }
-
-/* 回覆某人時輸入框上方的提示條。 */

@@ -260,7 +260,6 @@ export async function setFollow(
   };
 }
 
-/** 任一方拉黑了对方就算有拉黑关系。 */
 export async function isBlockedBetween(
   env: Env,
   a: string,
@@ -299,7 +298,6 @@ export async function setBlock(
     )
       .bind(blockerId, target.id, new Date().toISOString())
       .run();
-    // 拉黑后互相取消关注
     await env.DB.prepare(
       `DELETE FROM follows
        WHERE (follower_id = ? AND followee_id = ?)

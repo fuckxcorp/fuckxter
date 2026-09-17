@@ -54,11 +54,9 @@ button {
   --shadow-card: 0 1px 2px rgba(35, 45, 60, 0.05);
   --shadow-trigger: 0 6px 24px rgba(35, 45, 60, 0.1);
 
-  /* 「墨色」：首頁選中標籤用的高對比配色。 */
   --fk-ink: #101215;
   --fk-ink-text: #ffffff;
 
-  /* 菜單表面自己一組，深色模式才不會變成一整塊刺眼的白。 */
   --fk-menu-surface: #101215;
   --fk-menu-text: #ffffff;
   --fk-menu-muted: rgba(255, 255, 255, 0.62);
@@ -91,7 +89,6 @@ button {
   --fk-ink: #f2f4f6;
   --fk-ink-text: #0b0c0e;
 
-  /* 深色模式：菜單改成比純黑略亮的浮起色，不再是一整塊白。 */
   --fk-menu-surface: #1a1d22;
   --fk-menu-text: #eef1f4;
   --fk-menu-muted: rgba(238, 241, 244, 0.6);
@@ -107,7 +104,6 @@ body {
   color: var(--color-text);
 }
 
-/* Let long text wrap instead of stretching the page on small screens. */
 body {
   overflow-wrap: anywhere;
 }
@@ -176,7 +172,6 @@ body {
   min-width: 0;
 }
 
-/* 平行四边形搜索框：形状放在伪元素上，颜色沿用原来的浅灰底 + 细边框。 */
 .fk-search::before {
   content: "";
   position: absolute;
@@ -223,12 +218,12 @@ body {
 
 .fk-account {
   position: relative;
-  /* 自己一層堆疊，選單才不會被下面的帖子蓋住（modal 是 80，還是壓在上面）。 */
+
   z-index: 70;
   flex: none;
   align-self: stretch;
   display: flex;
-  /* 吃掉顶栏右侧留白，形状才能贴到窗口最右缘。 */
+
   margin-right: -1rem;
 }
 
@@ -236,7 +231,7 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  /* 宽度要留在「关注」tab 右边，高度跟着顶栏。 */
+
   width: 68px;
   align-self: stretch;
   padding: 0;
@@ -245,14 +240,13 @@ body {
   background: var(--fk-menu-surface);
   cursor: pointer;
   color: var(--fk-menu-text);
-  /* 头像框：平行四边形，左斜边淡出，右斜边落在窗口外所以看不到。 */
+
   clip-path: polygon(0 0, 100% 0, 100% 100%, 9px 100%);
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%);
   mask-image: linear-gradient(to right, transparent 0, #000 45%);
   transition: color 150ms ease;
 }
 
-/* hover / 展开的反馈用叠加层，才不会遮住头像图。 */
 .fk-account-btn::after {
   content: "";
   position: absolute;
@@ -289,12 +283,11 @@ body {
   opacity: 1;
 }
 
-/* 選擇器要壓過下面那條共用的頭像規則，才不會被改回 relative。 */
 .fk-account-btn .fk-account-avatar {
   box-sizing: border-box;
   display: grid;
   place-items: center;
-  /* 绝对定位填满按钮，避免百分比尺寸互相依赖把顶栏撑开。 */
+
   position: absolute;
   inset: 0;
   aspect-ratio: auto;
@@ -407,12 +400,12 @@ body {
 
 .fk-submenu {
   position: absolute;
-  /* 讓開主選單的斜邊就好，貼近一點才像同一組（斜邊在子選單深度大約內縮 40px）。 */
+
   right: calc(100% + 62px);
   top: -0.4rem;
   z-index: 61;
   isolation: isolate;
-  /* 子選單是斜度一樣的平行四邊形：兩邊平行，下緣往右推。 */
+
   --fk-slab-left: 24px;
   --fk-slab-top-right: 24px;
   min-width: 228px;
@@ -626,20 +619,19 @@ body {
 
 .fk-menu {
   position: absolute;
-  /* 吃掉顶栏的右侧留白，让梯形右缘贴着窗口边。 */
+
   right: -1rem;
   top: calc(100% + 8px);
   z-index: 60;
   isolation: isolate;
 
-  /* 倒梯形：上缘整条贴到窗口右边，只有左边斜进来，右缘贴着窗口。 */
   --fk-menu-slant: 100px;
   --fk-slab-left: var(--fk-menu-slant);
   --fk-slab-top-right: 0px;
 
   width: min(360px, calc(100vw - 2rem));
   height: calc(100dvh - 3.5rem);
-  /* 左边留白不超过斜度，窄屏斜度变小时留白跟着缩，内容才不会被切。 */
+
   padding: 0.6rem 1.25rem 1rem min(96px, var(--fk-menu-slant));
   border: 0;
   border-radius: 0;
@@ -665,7 +657,6 @@ body {
   filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.24));
 }
 
-/* 彈出動畫：斜板從右緣「展開」，內容再一段段滑進來。 */
 @keyframes fk-slab-unfurl {
   from {
     clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
@@ -691,8 +682,7 @@ body {
 
 .fk-menu:not([hidden]) {
   animation: fk-panel-in 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  /* 朝左的投影＝菜单把左侧的「纸」掀起来时压出来的阴影。
-     文字自己那点投影落在黑板上看不出来，所以挂在整块面板上没副作用。 */
+
   filter: drop-shadow(-28px 12px 30px rgba(10, 12, 16, 0.45));
 }
 
@@ -735,7 +725,6 @@ body {
   animation-delay: 90ms;
 }
 
-/* 收起時反向播一次，跟打開時對稱（不然會直接消失）。 */
 @keyframes fk-slab-refurl {
   to {
     clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
@@ -778,7 +767,6 @@ body {
   animation: fk-row-out 220ms cubic-bezier(0.42, 0, 0.9, 1) both;
 }
 
-/* 子選單疊在主選單上，同色會糊在一起，所以它是一塊小的倒梯形，外圈還有描邊。 */
 .fk-submenu::before {
   inset: -2px;
   background: var(--fk-menu-select);
@@ -815,7 +803,6 @@ body {
   text-align: left;
 }
 
-/* 選中的選項長出一個和主題同色反相的平行四邊形（淺色主題是白底）。 */
 .fk-menu-item::before {
   content: "";
   position: absolute;
@@ -854,7 +841,6 @@ body {
   font-weight: 700;
 }
 
-/* 展开中的那一列（主题、列数）也算选中，一样长出白色平行四边形。 */
 .fk-menu-expandable[aria-expanded="true"],
 .fk-menu-expandable[aria-expanded="true"] .fk-menu-arrow {
   color: var(--fk-menu-select-text);
@@ -1250,9 +1236,8 @@ body {
   }
 
   .fk-menu {
-    /* 顶栏窄屏的左右留白是 0.6rem，这里要跟着调整才不会溢出。 */
     right: -0.6rem;
-    /* 窄屏放不下 150px 的斜度，缩到 56px 让内容还看得清楚。 */
+
     --fk-menu-slant: 56px;
   }
 

@@ -28,7 +28,6 @@
   color: var(--fk-like);
 }
 
-/* 通知 */
 .fk-notice-main {
   flex: 1 1 auto;
   min-height: 0;

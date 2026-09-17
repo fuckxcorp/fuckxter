@@ -13,11 +13,6 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
 
 <html lang="zh-CN" data-theme="light" transition:animate="none">
   <head>
-    <!--
-      ╔══════════════════════════════════════════╗
-      ║  你既然這麼喜歡開 F12，那來加入我們吧     ║
-      ╚══════════════════════════════════════════╝
-    -->
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="FuckXter 是一个开放、轻量的社交平台。" />
@@ -32,7 +27,6 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
   <body>
     <slot />
     <script is:inline>
-      // 彩蛋：開 F12 的人至少要看得到這行。
       (() => {
         console.log(
           "%c你既然這麼喜歡開 F12，那來加入我們吧",

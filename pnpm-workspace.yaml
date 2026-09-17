@@ -18,10 +18,10 @@ minimumReleaseAgeExclude:
   - "@bruits/satteri-win32-arm64-msvc@0.10.5"
   - "@bruits/satteri-win32-x64-msvc@0.10.5"
   - satteri@0.10.5
-  - '@cloudflare/workerd-darwin-64@1.20260915.1'
-  - '@cloudflare/workerd-darwin-arm64@1.20260915.1'
-  - '@cloudflare/workerd-linux-64@1.20260915.1'
-  - '@cloudflare/workerd-linux-arm64@1.20260915.1'
-  - '@cloudflare/workerd-windows-64@1.20260915.1'
+  - "@cloudflare/workerd-darwin-64@1.20260915.1"
+  - "@cloudflare/workerd-darwin-arm64@1.20260915.1"
+  - "@cloudflare/workerd-linux-64@1.20260915.1"
+  - "@cloudflare/workerd-linux-arm64@1.20260915.1"
+  - "@cloudflare/workerd-windows-64@1.20260915.1"
   - workerd@1.20260915.1
   - prettier@3.9.7
