@@ -3,9 +3,9 @@ allowBuilds:
   sharp: true
   workerd: false
 minimumReleaseAgeExclude:
-  - miniflare@5.20260915.0-alpha
-  - wrangler@4.132.0
-  - astro@7.3.2
+  - miniflare@5.20260916.0-alpha
+  - wrangler@4.133.0
+  - astro@7.3.3
   - "@astrojs/internal-helpers@0.11.0"
   - "@astrojs/markdown-satteri@0.4.1"
   - "@bruits/satteri-darwin-arm64@0.10.5"
