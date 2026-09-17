@@ -18,7 +18,10 @@ import Header from "../../components/Header.astro";
               <p>发起与回帖按时间排列</p>
             </header>
 
-            <article class="fk-thread-post fk-thread-origin fk-post-skeleton">
+            <article
+              class="fk-thread-post fk-thread-origin fk-post-skeleton fk-shard"
+              data-shard="0"
+            >
               <span class="fk-skeleton fk-skeleton-pill"></span>
               <span class="fk-skeleton fk-skeleton-avatar"></span>
               <div class="fk-skeleton-copy">
@@ -88,6 +91,7 @@ import Header from "../../components/Header.astro";
     followButton,
     fmtCount,
     ICONS,
+    postShard,
     renderRichText,
     setFollowButtonState,
     showToast,
@@ -114,7 +118,8 @@ import Header from "../../components/Header.astro";
   const MAX_COMMENT_CHARS = 1000;
 
   function renderPostInfo(post: Post): HTMLElement {
-    const box = el("section", "fk-post-info");
+    const box = el("section", "fk-post-info fk-shard");
+    box.dataset.shard = postShard(`${post.id}:info`);
     const title = el("h4", "fk-post-info-title");
     title.textContent = "详情";
     const author = el("div", "fk-post-info-author");
@@ -163,7 +168,8 @@ import Header from "../../components/Header.astro";
     posts: Post[] | null,
     currentId: string,
   ): HTMLElement {
-    const box = el("section", "fk-hot-posts");
+    const box = el("section", "fk-hot-posts fk-shard");
+    box.dataset.shard = postShard(`${currentId}:hot`);
     const title = el("h4", "fk-hot-title");
     title.textContent = "热门帖子";
     const hint = el("p", "fk-hot-hint");
@@ -204,7 +210,8 @@ import Header from "../../components/Header.astro";
   }
 
   function renderPostControls(post: Post): HTMLElement {
-    const box = el("section", "fk-post-controls");
+    const box = el("section", "fk-post-controls fk-shard");
+    box.dataset.shard = postShard(`${post.id}:controls`);
     const title = el("h4", "fk-post-controls-title");
     title.textContent = "互动";
 
@@ -325,7 +332,8 @@ import Header from "../../components/Header.astro";
   }
 
   function renderOriginPost(post: Post): HTMLElement {
-    const article = el("article", "fk-thread-post fk-thread-origin");
+    const article = el("article", "fk-thread-post fk-thread-origin fk-shard");
+    article.dataset.shard = postShard(post.id);
     const kind = el("span", "fk-thread-kind");
     kind.textContent = "发起";
     const avatar = authorAvatar(
@@ -365,8 +373,9 @@ import Header from "../../components/Header.astro";
     status: HTMLElement,
     nested: boolean,
   ): HTMLElement {
-    const article = el("article", "fk-thread-post fk-thread-reply");
+    const article = el("article", "fk-thread-post fk-thread-reply fk-shard");
     article.id = `comment-${comment.id}`;
+    article.dataset.shard = postShard(comment.id);
     const kind = el("span", "fk-thread-kind");
     kind.textContent = "回帖";
     const avatar = authorAvatar(
@@ -532,7 +541,8 @@ import Header from "../../components/Header.astro";
     count.textContent = `0 / ${MAX_COMMENT_CHARS}`;
     const composerActions = el("div", "fk-thread-composer-actions");
     composerActions.append(count, submit);
-    const composer = el("section", "fk-thread-composer");
+    const composer = el("section", "fk-thread-composer fk-shard");
+    composer.dataset.shard = postShard(`${post.id}:composer`);
     const composerAvatar = me
       ? authorAvatar(
           me.profile.handle,

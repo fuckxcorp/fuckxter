@@ -58,6 +58,24 @@ function handleFromEmail(email: string): string {
   return `guest${suffix}`;
 }
 
+async function uniqueHandle(env: Env, email: string): Promise<string> {
+  const preferred = handleFromEmail(email);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const suffix = attempt === 0 ? "" : randomToken().replace(/[^a-z0-9]/gi, "").slice(0, 6).toLowerCase();
+    const handle = suffix
+      ? `${preferred.slice(0, 14)}${suffix}`.slice(0, 20)
+      : preferred;
+    if (RESERVED_HANDLES.has(handle)) continue;
+    const taken = await env.DB.prepare(
+      "SELECT id FROM users WHERE id = ? LIMIT 1",
+    )
+      .bind(usernameKey(handle))
+      .first<{ id: string }>();
+    if (!taken) return handle;
+  }
+  return `guest${randomToken().replace(/[^a-z0-9]/gi, "").slice(0, 8).toLowerCase()}`;
+}
+
 async function findUserByIdentifier(
   env: Env,
   identifier: string,
@@ -134,29 +152,50 @@ export async function loginOrRegister(
   }
 
   const email = identifier;
-  const handle = handleFromEmail(email);
-  const handleKey = usernameKey(handle);
   const now = new Date().toISOString();
   const passwordValue = await createPasswordHash(password);
-  try {
-    await env.DB.prepare(
-      `INSERT INTO users (
-         id, handle, email, password_hash, password_salt, name, verified,
-         bio, region, gender, birthday, created_at, updated_at
-       ) VALUES (?, ?, ?, ?, ?, ?, 0, '', '', '', '', ?, ?)`,
-    )
-      .bind(
-        handleKey,
-        handle,
-        email,
-        passwordValue.hash,
-        passwordValue.salt,
-        handle,
-        now,
-        now,
+  let createdId: string | null = null;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const handle = await uniqueHandle(env, email);
+    const handleKey = usernameKey(handle);
+    try {
+      await env.DB.prepare(
+        `INSERT INTO users (
+           id, handle, email, password_hash, password_salt, name, verified,
+           bio, region, gender, birthday, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, 0, '', '', '', '', ?, ?)`,
       )
-      .run();
-  } catch {
+        .bind(
+          handleKey,
+          handle,
+          email,
+          passwordValue.hash,
+          passwordValue.salt,
+          handle,
+          now,
+          now,
+        )
+        .run();
+      createdId = handleKey;
+      break;
+    } catch {
+      const existing = await findUserByIdentifier(env, email);
+      if (existing) {
+        if (!(await verifyPassword(password, existing))) {
+          throw new HttpError(
+            409,
+            "IDENTIFIER_EXISTS",
+            "Email or username is already in use.",
+          );
+        }
+        return {
+          userId: existing.id,
+          account: await getAccount(env, existing.id),
+        };
+      }
+    }
+  }
+  if (!createdId) {
     throw new HttpError(
       409,
       "IDENTIFIER_EXISTS",
@@ -164,7 +203,7 @@ export async function loginOrRegister(
     );
   }
   user = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
-    .bind(handleKey)
+    .bind(createdId)
     .first<UserRow>();
   if (!user) {
     throw new HttpError(500, "USER_CREATE_FAILED", "Failed to create account.");
