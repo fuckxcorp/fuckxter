@@ -53,6 +53,20 @@ button {
   --color-accent-soft: #e9edf3;
   --shadow-card: 0 1px 2px rgba(35, 45, 60, 0.05);
   --shadow-trigger: 0 6px 24px rgba(35, 45, 60, 0.1);
+
+  /* 「墨色」：首頁選中標籤用的高對比配色。 */
+  --fk-ink: #101215;
+  --fk-ink-text: #ffffff;
+
+  /* 菜單表面自己一組，深色模式才不會變成一整塊刺眼的白。 */
+  --fk-menu-surface: #101215;
+  --fk-menu-text: #ffffff;
+  --fk-menu-muted: rgba(255, 255, 255, 0.62);
+  --fk-menu-soft: rgba(255, 255, 255, 0.14);
+  --fk-menu-line: rgba(255, 255, 255, 0.18);
+  --fk-menu-select: #ffffff;
+  --fk-menu-select-text: #101215;
+  --fk-menu-accent: #9dbbe4;
 }
 
 [data-theme="dark"] {
@@ -73,6 +87,19 @@ button {
   --color-accent-soft: rgba(127, 156, 192, 0.13);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-trigger: 0 6px 24px rgba(0, 0, 0, 0.6);
+
+  --fk-ink: #f2f4f6;
+  --fk-ink-text: #0b0c0e;
+
+  /* 深色模式：菜單改成比純黑略亮的浮起色，不再是一整塊白。 */
+  --fk-menu-surface: #1a1d22;
+  --fk-menu-text: #eef1f4;
+  --fk-menu-muted: rgba(238, 241, 244, 0.6);
+  --fk-menu-soft: rgba(238, 241, 244, 0.1);
+  --fk-menu-line: rgba(238, 241, 244, 0.14);
+  --fk-menu-select: #eef1f4;
+  --fk-menu-select-text: #1a1d22;
+  --fk-menu-accent: #93b4e0;
 }
 
 body {
@@ -141,11 +168,26 @@ body {
 
 .fk-search {
   position: relative;
+  isolation: isolate;
 
   flex: 1 1 0;
   max-width: 640px;
   margin-inline: auto;
   min-width: 0;
+}
+
+/* 平行四边形搜索框：形状放在伪元素上，颜色沿用原来的浅灰底 + 细边框。 */
+.fk-search::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+  transform: skewX(-12deg);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
 }
 
 .fk-search-icon {
@@ -163,45 +205,62 @@ body {
   box-sizing: border-box;
   width: 100%;
   padding: 0.5rem 1rem 0.5rem 2.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-bg-subtle);
+  border: 0;
+  background: none;
   color: var(--color-text-strong);
   font-size: 0.92rem;
   outline: none;
-  transition:
-    border-color 150ms ease,
-    background 150ms ease;
 }
 
 .fk-search-input::placeholder {
   color: var(--color-text-muted);
 }
 
-.fk-search-input:focus {
+.fk-search:focus-within::before {
   border-color: var(--color-accent);
   background: var(--color-bg);
 }
 
 .fk-account {
   position: relative;
+  /* 自己一層堆疊，選單才不會被下面的帖子蓋住（modal 是 80，還是壓在上面）。 */
+  z-index: 70;
   flex: none;
+  align-self: stretch;
+  display: flex;
+  /* 吃掉顶栏右侧留白，形状才能贴到窗口最右缘。 */
+  margin-right: -1rem;
 }
 
 .fk-account-btn {
   position: relative;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  /* 宽度要留在「关注」tab 右边，高度跟着顶栏。 */
+  width: 68px;
+  align-self: stretch;
+  padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: none;
+  border-radius: 0;
+  background: var(--fk-menu-surface);
   cursor: pointer;
-  color: var(--color-text);
-  transition:
-    background 150ms ease,
-    color 150ms ease;
+  color: var(--fk-menu-text);
+  /* 头像框：平行四边形，左斜边淡出，右斜边落在窗口外所以看不到。 */
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 9px 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%);
+  mask-image: linear-gradient(to right, transparent 0, #000 45%);
+  transition: color 150ms ease;
+}
+
+/* hover / 展开的反馈用叠加层，才不会遮住头像图。 */
+.fk-account-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--fk-menu-soft);
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: none;
 }
 
 .fk-account-notice-dot {
@@ -222,18 +281,24 @@ body {
 
 .fk-account-btn:hover,
 .fk-account-btn[aria-expanded="true"] {
-  background: var(--color-bg-hover);
-  color: var(--color-accent);
+  color: var(--fk-menu-text);
 }
 
-.fk-account-avatar {
+.fk-account-btn:hover::after,
+.fk-account-btn[aria-expanded="true"]::after {
+  opacity: 1;
+}
+
+/* 選擇器要壓過下面那條共用的頭像規則，才不會被改回 relative。 */
+.fk-account-btn .fk-account-avatar {
   box-sizing: border-box;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  aspect-ratio: 1;
-  border-radius: 50%;
+  /* 绝对定位填满按钮，避免百分比尺寸互相依赖把顶栏撑开。 */
+  position: absolute;
+  inset: 0;
+  aspect-ratio: auto;
+  border-radius: 0;
   color: #fff;
   font-size: 0.85rem;
   font-weight: 700;
@@ -262,10 +327,6 @@ body {
   object-fit: cover;
 }
 
-.fk-account-menu {
-  min-width: 236px;
-}
-
 .fk-menu-user {
   display: flex;
   align-items: center;
@@ -274,7 +335,7 @@ body {
   padding: 0.5rem 0.6rem 0.65rem;
   margin-bottom: 0.25rem;
   border: 0;
-  border-bottom: 1px solid var(--color-border-soft);
+  border-bottom: 1px solid var(--fk-menu-line);
   border-radius: 8px;
   background: transparent;
   color: inherit;
@@ -287,7 +348,7 @@ body {
 
 .fk-menu-user:hover,
 .fk-menu-user:focus-visible {
-  background: var(--color-bg-hover);
+  background: var(--fk-menu-soft);
   outline: none;
 }
 
@@ -316,12 +377,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-text-strong);
+  color: var(--fk-menu-text);
   font-size: 0.92rem;
 }
 
 .fk-menu-user-meta small {
-  color: var(--color-text-muted);
+  color: var(--fk-menu-muted);
   font-size: 0.78rem;
 }
 
@@ -336,30 +397,31 @@ body {
 .fk-menu-arrow {
   margin-left: auto;
   font-size: 0.72rem;
-  color: var(--color-text-muted);
+  color: var(--fk-menu-muted);
   transition: translate 150ms ease;
-}
-
-.fk-menu-expandable[aria-expanded="true"] {
-  color: var(--color-accent);
 }
 
 .fk-menu-expandable[aria-expanded="true"] .fk-menu-arrow {
   translate: 3px 0;
-  color: var(--color-accent);
 }
 
 .fk-submenu {
   position: absolute;
-  right: calc(100% + 8px);
+  /* 讓開主選單的斜邊就好，貼近一點才像同一組（斜邊在子選單深度大約內縮 40px）。 */
+  right: calc(100% + 62px);
   top: -0.4rem;
   z-index: 61;
-  min-width: 176px;
-  padding: 0.4rem;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-bg-raised);
-  box-shadow: var(--shadow-trigger);
+  isolation: isolate;
+  /* 子選單是斜度一樣的平行四邊形：兩邊平行，下緣往右推。 */
+  --fk-slab-left: 24px;
+  --fk-slab-top-right: 24px;
+  min-width: 228px;
+  padding: 0.4rem var(--fk-slab-left) 0.5rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--fk-menu-text);
 }
 
 .fk-submenu[hidden] {
@@ -369,7 +431,7 @@ body {
 .fk-menu-sep {
   margin: 0.3rem 0.4rem;
   border: 0;
-  border-top: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--fk-menu-line);
 }
 
 .fk-modal {
@@ -564,15 +626,163 @@ body {
 
 .fk-menu {
   position: absolute;
-  right: 0;
+  /* 吃掉顶栏的右侧留白，让梯形右缘贴着窗口边。 */
+  right: -1rem;
   top: calc(100% + 8px);
   z-index: 60;
-  min-width: 190px;
-  padding: 0.4rem;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-bg-raised);
-  box-shadow: var(--shadow-trigger);
+  isolation: isolate;
+
+  /* 倒梯形：上缘整条贴到窗口右边，只有左边斜进来，右缘贴着窗口。 */
+  --fk-menu-slant: 100px;
+  --fk-slab-left: var(--fk-menu-slant);
+  --fk-slab-top-right: 0px;
+
+  width: min(360px, calc(100vw - 2rem));
+  height: calc(100dvh - 3.5rem);
+  /* 左边留白不超过斜度，窄屏斜度变小时留白跟着缩，内容才不会被切。 */
+  padding: 0.6rem 1.25rem 1rem min(96px, var(--fk-menu-slant));
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--fk-menu-text);
+}
+
+.fk-menu::before,
+.fk-submenu::before,
+.fk-submenu::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--fk-menu-surface);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--fk-slab-top-right)) 0,
+    100% 100%,
+    var(--fk-slab-left) 100%
+  );
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.24));
+}
+
+/* 彈出動畫：斜板從右緣「展開」，內容再一段段滑進來。 */
+@keyframes fk-slab-unfurl {
+  from {
+    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
+  }
+}
+
+@keyframes fk-panel-in {
+  from {
+    opacity: 0;
+    translate: 140px 0;
+  }
+  55% {
+    opacity: 1;
+  }
+}
+
+@keyframes fk-row-in {
+  from {
+    opacity: 0;
+    translate: 38px 0;
+  }
+}
+
+.fk-menu:not([hidden]) {
+  animation: fk-panel-in 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* 朝左的投影＝菜单把左侧的「纸」掀起来时压出来的阴影。
+     文字自己那点投影落在黑板上看不出来，所以挂在整块面板上没副作用。 */
+  filter: drop-shadow(-28px 12px 30px rgba(10, 12, 16, 0.45));
+}
+
+.fk-menu:not([hidden])::before,
+.fk-submenu:not([hidden])::before,
+.fk-submenu:not([hidden])::after {
+  animation: fk-slab-unfurl 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fk-menu:not([hidden]) > * {
+  animation: fk-row-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fk-menu:not([hidden]) > *:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.fk-menu:not([hidden]) > *:nth-child(3) {
+  animation-delay: 130ms;
+}
+
+.fk-menu:not([hidden]) > *:nth-child(4) {
+  animation-delay: 190ms;
+}
+
+.fk-menu:not([hidden]) > *:nth-child(5) {
+  animation-delay: 250ms;
+}
+
+.fk-menu:not([hidden]) > *:nth-child(6) {
+  animation-delay: 310ms;
+}
+
+.fk-submenu:not([hidden]) {
+  animation: fk-panel-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fk-submenu:not([hidden]) > * {
+  animation: fk-row-in 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 90ms;
+}
+
+/* 收起時反向播一次，跟打開時對稱（不然會直接消失）。 */
+@keyframes fk-slab-refurl {
+  to {
+    clip-path: polygon(100% 0, 100% 0, 100% 100%, 100% 100%);
+  }
+}
+
+@keyframes fk-panel-out {
+  to {
+    opacity: 0;
+    translate: 120px 0;
+  }
+}
+
+@keyframes fk-row-out {
+  to {
+    opacity: 0;
+    translate: 30px 0;
+  }
+}
+
+.fk-menu.is-closing {
+  animation: fk-panel-out 320ms cubic-bezier(0.42, 0, 0.9, 1) both;
+}
+
+.fk-menu.is-closing::before,
+.fk-submenu.is-closing::before,
+.fk-submenu.is-closing::after {
+  animation: fk-slab-refurl 340ms cubic-bezier(0.42, 0, 0.9, 1) both;
+}
+
+.fk-menu.is-closing > * {
+  animation: fk-row-out 240ms cubic-bezier(0.42, 0, 0.9, 1) both;
+}
+
+.fk-submenu.is-closing {
+  animation: fk-panel-out 280ms cubic-bezier(0.42, 0, 0.9, 1) both;
+}
+
+.fk-submenu.is-closing > * {
+  animation: fk-row-out 220ms cubic-bezier(0.42, 0, 0.9, 1) both;
+}
+
+/* 子選單疊在主選單上，同色會糊在一起，所以它是一塊小的倒梯形，外圈還有描邊。 */
+.fk-submenu::before {
+  inset: -2px;
+  background: var(--fk-menu-select);
+  z-index: -2;
 }
 
 .fk-menu[hidden] {
@@ -585,10 +795,12 @@ body {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--color-text-muted);
+  color: var(--fk-menu-muted);
 }
 
 .fk-menu-item {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -598,14 +810,38 @@ body {
   cursor: pointer;
   padding: 0.5rem 0.6rem;
   border-radius: 8px;
-  color: var(--color-text);
+  color: inherit;
   font-size: 0.9rem;
   text-align: left;
 }
 
+/* 選中的選項長出一個和主題同色反相的平行四邊形（淺色主題是白底）。 */
+.fk-menu-item::before {
+  content: "";
+  position: absolute;
+  inset: 0.12rem 0;
+  z-index: -1;
+  background: var(--fk-menu-select);
+  transform: skewX(-12deg) scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+  transition:
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 140ms ease;
+}
+
+.fk-menu-item[aria-checked="true"]::before,
+.fk-menu-expandable[aria-expanded="true"]::before {
+  transform: skewX(-12deg) scaleX(1);
+  opacity: 1;
+  transition:
+    transform 320ms cubic-bezier(0.32, 1.42, 0.48, 1),
+    opacity 120ms ease;
+}
+
 .fk-menu-item:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-strong);
+  background: var(--fk-menu-soft);
+  color: var(--fk-menu-text);
 }
 
 .fk-menu-item .fk-menu-check {
@@ -614,8 +850,14 @@ body {
 }
 
 .fk-menu-item[aria-checked="true"] {
-  color: var(--color-accent);
+  color: var(--fk-menu-select-text);
   font-weight: 700;
+}
+
+/* 展开中的那一列（主题、列数）也算选中，一样长出白色平行四边形。 */
+.fk-menu-expandable[aria-expanded="true"],
+.fk-menu-expandable[aria-expanded="true"] .fk-menu-arrow {
+  color: var(--fk-menu-select-text);
 }
 
 .fk-menu-item[aria-checked="true"] .fk-menu-check {
@@ -627,8 +869,8 @@ body {
 }
 
 .fk-notice-menu-item.has-unread {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+  background: var(--fk-menu-soft);
+  color: var(--fk-menu-accent);
   font-weight: 700;
 }
 
@@ -1007,6 +1249,17 @@ body {
     padding: 0 0.6rem;
   }
 
+  .fk-menu {
+    /* 顶栏窄屏的左右留白是 0.6rem，这里要跟着调整才不会溢出。 */
+    right: -0.6rem;
+    /* 窄屏放不下 150px 的斜度，缩到 56px 让内容还看得清楚。 */
+    --fk-menu-slant: 56px;
+  }
+
+  .fk-account {
+    margin-right: -0.6rem;
+  }
+
   .fk-brand {
     padding: 0.25rem 0.35rem;
   }
@@ -1040,5 +1293,24 @@ body {
 
   .fk-action {
     padding: 0.3rem 0.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fk-menu:not([hidden]),
+  .fk-menu:not([hidden])::before,
+  .fk-menu:not([hidden]) > *,
+  .fk-submenu:not([hidden]),
+  .fk-submenu:not([hidden])::before,
+  .fk-submenu:not([hidden])::after,
+  .fk-submenu:not([hidden]) > *,
+  .fk-menu.is-closing,
+  .fk-menu.is-closing::before,
+  .fk-menu.is-closing > *,
+  .fk-submenu.is-closing,
+  .fk-submenu.is-closing::before,
+  .fk-submenu.is-closing::after,
+  .fk-submenu.is-closing > * {
+    animation: none;
   }
 }

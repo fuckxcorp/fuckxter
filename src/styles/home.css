@@ -1,4 +1,38 @@
+.fk-post-visibility {
+  flex: none;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* 点开帖子时卡片先缩一下，像被按下去。 */
+.fk-post.is-opening {
+  transform: scale(0.976);
+  border-color: var(--color-accent);
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fk-post.is-opening {
+    transform: none;
+  }
+}
+
+/* 可见范围选择器：跟附件存储桶那排对齐。 */
+.fk-visibility select {
+  width: 100%;
+}
+
 .fk-tabs {
+  /* 选中标签和头像菜单共用「墨色」，两边永远是同一个颜色。 */
+  --fk-tab-active-bg: var(--fk-ink);
+  --fk-tab-active-text: var(--fk-ink-text);
+
   flex: none;
   display: flex;
   align-items: stretch;
@@ -8,6 +42,7 @@
 
 .fk-tab {
   position: relative;
+  isolation: isolate;
   border: 0;
   background: none;
   cursor: pointer;
@@ -16,29 +51,72 @@
   font-weight: 600;
   color: var(--color-text-muted);
   transition:
-    color 150ms ease,
+    color 140ms ease 130ms,
     background 150ms ease;
+}
+
+/* 平行四边形底板，未选中时收在左侧。 */
+.fk-tab::before {
+  content: "";
+  position: absolute;
+  inset: 0.5rem 0.35rem 0.4rem;
+  z-index: -1;
+  background: var(--fk-tab-active-bg);
+  transform: skewX(-12deg) scaleX(0);
+  transform-origin: left center;
+  opacity: 0;
+  transition:
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 150ms ease;
 }
 
 .fk-tab:hover {
   color: var(--color-text-strong);
   background: var(--color-bg-hover);
+  transition:
+    color 150ms ease,
+    background 150ms ease;
 }
 
 .fk-tab.is-active {
-  color: var(--color-text-strong);
+  color: var(--fk-tab-active-text);
   font-weight: 700;
+  transition: color 120ms ease;
 }
 
-.fk-tab.is-active::after {
-  content: "";
-  position: absolute;
-  left: 0.5rem;
-  right: 0.5rem;
-  bottom: 0;
-  height: 3.5px;
-  border-radius: 999px;
-  background: var(--color-accent);
+.fk-tab.is-active::before {
+  transform: skewX(-12deg) scaleX(1);
+  opacity: 1;
+  /* 选中时用带回弹的曲线“甩”进来，取消时用上面的平滑曲线收回。 */
+  transition:
+    transform 320ms cubic-bezier(0.32, 1.42, 0.48, 1),
+    opacity 120ms ease;
+}
+
+.fk-tab.is-active:hover {
+  background: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fk-tab::before {
+    transition: opacity 140ms ease;
+  }
+}
+
+.fk-columns-value {
+  margin-left: auto;
+  margin-right: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--fk-menu-muted);
+}
+
+.fk-menu-item .fk-columns-value ~ .fk-menu-arrow {
+  margin-left: 0;
+}
+
+.fk-menu-expandable[aria-expanded="true"] .fk-columns-value {
+  color: var(--fk-menu-select-text);
 }
 
 .fk-main {
@@ -46,6 +124,26 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  transition:
+    transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 340ms ease;
+  transform-origin: left center;
+}
+
+/* 头像菜单展开时，把左侧页面像纸一样掀起来。 */
+html.fk-menu-open .fk-main {
+  transform: translate(-12px, -8px) rotate(-0.4deg);
+  box-shadow: 30px 14px 60px -28px rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fk-main {
+    transition: none;
+  }
+
+  html.fk-menu-open .fk-main {
+    transform: none;
+  }
 }
 
 .fk-composer {
@@ -222,6 +320,17 @@
 .fk-feed-columns.is-masonry {
   gap: 0.9rem;
   padding: 1rem 1.25rem 0.25rem;
+}
+
+/* 单列时不要把帖子拉满整个宽屏，居中成一个窄栏更好读。 */
+.fk-feed-columns.is-single {
+  justify-content: center;
+}
+
+.fk-feed-columns.is-single .fk-feed-col {
+  flex: 0 1 auto;
+  width: 100%;
+  max-width: 640px;
 }
 
 .fk-feed-columns.is-masonry .fk-post {

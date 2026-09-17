@@ -53,6 +53,7 @@ import Layout from "../layouts/Layout.astro";
         <button type="button" class="fk-tab is-active" data-tab="foryou">
           推荐
         </button>
+        <button type="button" class="fk-tab" data-tab="latest">实时</button>
         <button type="button" class="fk-tab" data-tab="following">
           关注
         </button>
@@ -138,6 +139,19 @@ import Layout from "../layouts/Layout.astro";
             </button>
             <button
               type="button"
+              class="fk-menu-item fk-notice-menu-item"
+              role="menuitem"
+              data-account-open="messages"
+              data-role="message-menu-item"
+            >
+              <span>私信</span>
+              <span
+                class="fk-notice-menu-badge"
+                data-role="message-menu-badge"
+                hidden></span>
+            </button>
+            <button
+              type="button"
               class="fk-menu-item"
               role="menuitem"
               data-account-open="saved"
@@ -196,6 +210,67 @@ import Layout from "../layouts/Layout.astro";
                 data-theme-choice="dark"
               >
                 <span class="fk-menu-check">✓</span>深色
+              </button>
+            </div>
+          </div>
+
+          <div class="fk-menu-row">
+            <button
+              type="button"
+              class="fk-menu-item fk-menu-expandable"
+              role="menuitem"
+              aria-expanded="false"
+              aria-haspopup="menu"
+              data-role="columns-trigger"
+            >
+              列数
+              <span class="fk-columns-value" data-role="columns-value"
+                >2 列</span
+              >
+              <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+            </button>
+
+            <div
+              class="fk-submenu"
+              data-role="columns-submenu"
+              role="menu"
+              hidden
+            >
+              <button
+                type="button"
+                class="fk-menu-item"
+                role="menuitemradio"
+                aria-checked="false"
+                data-columns-choice="3"
+              >
+                <span class="fk-menu-check">✓</span>3 列
+              </button>
+              <button
+                type="button"
+                class="fk-menu-item"
+                role="menuitemradio"
+                aria-checked="true"
+                data-columns-choice="2"
+              >
+                <span class="fk-menu-check">✓</span>2 列
+              </button>
+              <button
+                type="button"
+                class="fk-menu-item"
+                role="menuitemradio"
+                aria-checked="false"
+                data-columns-choice="1"
+              >
+                <span class="fk-menu-check">✓</span>1 列
+              </button>
+              <button
+                type="button"
+                class="fk-menu-item"
+                role="menuitemradio"
+                aria-checked="false"
+                data-columns-choice="auto"
+              >
+                <span class="fk-menu-check">✓</span>自动
               </button>
             </div>
           </div>
@@ -262,6 +337,13 @@ import Layout from "../layouts/Layout.astro";
             >
               <select data-role="media-storage" aria-label="选择附件存储桶">
                 <option value="">默认存储桶</option>
+              </select>
+            </label>
+            <label class="fk-media-storage fk-visibility">
+              <select data-role="post-visibility" aria-label="帖子可见范围">
+                <option value="public">公开可见</option>
+                <option value="mutual">仅互关可见</option>
+                <option value="private">私密贴</option>
               </select>
             </label>
             <span

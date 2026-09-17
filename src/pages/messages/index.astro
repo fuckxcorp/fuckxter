@@ -1,0 +1,411 @@
+---
+import "../../styles/messages.css";
+
+import Header from "../../components/Header.astro";
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="私信">
+  <div class="fk-app fk-subpage" data-fk-messages>
+    <Header label="← 返回" />
+
+    <main class="fk-messages-main">
+      <section class="fk-messages-panel" data-role="threads-panel">
+        <header class="fk-messages-head">
+          <div>
+            <h1>私信</h1>
+            <p data-role="threads-summary">正在加载…</p>
+          </div>
+        </header>
+        <div class="fk-thread-list" data-role="thread-list"></div>
+        <p class="fk-status" data-role="threads-empty" hidden>
+          还没有私信。去别人的主页点「私信」就能开始聊天。
+        </p>
+      </section>
+
+      <section class="fk-chat" data-role="chat" hidden>
+        <header class="fk-chat-head">
+          <a class="fk-chat-user" data-role="chat-user" href="#">
+            <span class="fk-avatar fk-chat-avatar" data-role="chat-avatar"
+            ></span>
+            <span class="fk-chat-meta">
+              <strong data-role="chat-name"></strong>
+              <small data-role="chat-handle"></small>
+            </span>
+          </a>
+          <a class="fk-chat-profile" data-role="chat-profile" href="#">
+            查看主页
+          </a>
+        </header>
+
+        <div class="fk-chat-messages" data-role="chat-messages"></div>
+
+        <form class="fk-chat-composer" data-role="chat-form" novalidate>
+          <textarea
+            class="fk-chat-input"
+            data-role="chat-input"
+            rows="1"
+            maxlength="1000"
+            placeholder="写点私信…"
+            aria-label="私信内容"></textarea>
+          <button
+            type="submit"
+            class="fk-primary-btn fk-chat-send"
+            data-role="chat-send"
+            disabled
+          >
+            发送
+          </button>
+        </form>
+        <p
+          class="fk-chat-status"
+          data-role="chat-status"
+          aria-live="polite"
+          hidden
+        >
+        </p>
+      </section>
+    </main>
+  </div>
+</Layout>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import {
+    getConversation,
+    getConversations,
+    markConversationRead,
+    recallDirectMessage,
+    sendDirectMessage,
+  } from "../../lib/fuckxter/api";
+  import { hydrateSession } from "../../lib/fuckxter/auth";
+  import {
+    avatarGradient,
+    el,
+    relativeTime,
+    showToast,
+    statusRow,
+  } from "../../lib/fuckxter/dom";
+  import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
+  import { onFuckxterPageReady } from "../../lib/fuckxter/page";
+  import type {
+    Conversation,
+    DirectMessage,
+    FeedUser,
+  } from "../../lib/fuckxter/types";
+  import {
+    conversationPath,
+    messagesPath,
+    parseMessagePath,
+    userPath,
+  } from "../../lib/fuckxter/urls";
+
+  const MAX_CHARS = 1000;
+  const POLL_MS = 6000;
+
+  let pollTimer: number | undefined;
+
+  function stopPolling(): void {
+    if (pollTimer !== undefined) {
+      window.clearInterval(pollTimer);
+      pollTimer = undefined;
+    }
+  }
+
+  /** 跟 feed 里的头像一样：渐变底 + 字母兜底 + 图片。 */
+  function fillAvatar(node: HTMLElement, user: FeedUser): void {
+    node.setAttribute("style", avatarGradient(user.handle));
+    const fallback = el("span", "fk-avatar-fallback");
+    fallback.textContent = [...user.name.trim()][0]?.toLocaleUpperCase() ?? "?";
+    const image = el("img", "fk-avatar-image");
+    image.src = user.avatarUrl
+      ? user.avatarUrl.startsWith("/")
+        ? apiEndpoint(user.avatarUrl)
+        : user.avatarUrl
+      : "/user.avif";
+    image.alt = user.name;
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.referrerPolicy = "no-referrer";
+    node.replaceChildren(fallback, image);
+  }
+
+  function avatarNode(user: FeedUser, className: string): HTMLElement {
+    const wrap = el("span", `fk-avatar ${className}`);
+    fillAvatar(wrap, user);
+    return wrap;
+  }
+
+  function renderThreads(
+    container: HTMLElement,
+    threads: Conversation[],
+  ): void {
+    container.replaceChildren();
+    if (threads.length === 0) return;
+    for (const thread of threads) {
+      const row = el("a", "fk-thread");
+      row.href = conversationPath(thread.other.handle);
+      row.dataset.handle = thread.other.handle;
+      if (thread.unread > 0) row.classList.add("is-unread");
+
+      row.append(avatarNode(thread.other, "fk-thread-avatar"));
+
+      const body = el("span", "fk-thread-body");
+      const top = el("span", "fk-thread-top");
+      const name = el("strong");
+      name.textContent = thread.other.name;
+      const handle = el("small");
+      handle.textContent = `@${thread.other.handle}`;
+      const time = el("time");
+      time.textContent = relativeTime(
+        thread.lastMessage?.createdAt ?? thread.lastMessageAt,
+      );
+      top.append(name, handle, time);
+
+      const preview = el("span", "fk-thread-preview");
+      preview.textContent = thread.lastMessage
+        ? `${thread.lastMessage.mine ? "我：" : ""}${thread.lastMessage.body}`
+        : "还没有消息";
+
+      body.append(top, preview);
+      row.append(body);
+
+      if (thread.unread > 0) {
+        const badge = el("span", "fk-thread-badge");
+        badge.textContent = thread.unread > 99 ? "99+" : String(thread.unread);
+        row.append(badge);
+      }
+      container.append(row);
+    }
+  }
+
+  function messageRow(message: DirectMessage): HTMLElement {
+    const row = el(
+      "div",
+      `fk-chat-row ${message.mine ? "is-mine" : "is-theirs"}`,
+    );
+    row.dataset.id = message.id;
+    const bubble = el("p", "fk-chat-bubble");
+    bubble.textContent = message.body;
+    const foot = el("div", "fk-chat-foot");
+    const time = el("time", "fk-chat-time");
+    time.textContent = relativeTime(message.createdAt);
+    foot.append(time);
+    if (message.mine) {
+      const recall = el("button", "fk-chat-recall");
+      recall.type = "button";
+      recall.dataset.recall = message.id;
+      recall.textContent = "撤回";
+      foot.append(recall);
+    }
+    // 气泡外面再包一层，用来画跟形状一致的外框。
+    const wrap = el("div", "fk-chat-bubble-wrap");
+    wrap.append(bubble);
+    row.append(wrap, foot);
+    return row;
+  }
+
+  function renderMessages(
+    container: HTMLElement,
+    messages: DirectMessage[],
+  ): void {
+    container.replaceChildren();
+    if (messages.length === 0) {
+      container.append(statusRow("还没有消息，打个招呼吧。"));
+    }
+    for (const message of messages) container.append(messageRow(message));
+    container.scrollTop = container.scrollHeight;
+  }
+
+  async function mountConversation(
+    root: HTMLElement,
+    handle: string,
+  ): Promise<void> {
+    const threadsPanel = root.querySelector<HTMLElement>(
+      "[data-role=threads-panel]",
+    )!;
+    const chat = root.querySelector<HTMLElement>("[data-role=chat]")!;
+    const list = root.querySelector<HTMLElement>("[data-role=chat-messages]")!;
+    const form = root.querySelector<HTMLFormElement>("[data-role=chat-form]")!;
+    const input = root.querySelector<HTMLTextAreaElement>(
+      "[data-role=chat-input]",
+    )!;
+    const sendBtn = root.querySelector<HTMLButtonElement>(
+      "[data-role=chat-send]",
+    )!;
+    const status = root.querySelector<HTMLElement>("[data-role=chat-status]")!;
+    const userLink = root.querySelector<HTMLAnchorElement>(
+      "[data-role=chat-user]",
+    )!;
+    const profileLink = root.querySelector<HTMLAnchorElement>(
+      "[data-role=chat-profile]",
+    )!;
+    const headAvatar = root.querySelector<HTMLElement>(
+      "[data-role=chat-avatar]",
+    )!;
+    const headName = root.querySelector<HTMLElement>("[data-role=chat-name]")!;
+    const headHandle = root.querySelector<HTMLElement>(
+      "[data-role=chat-handle]",
+    )!;
+    const backBtn = root.querySelector<HTMLButtonElement>("[data-role=back]")!;
+
+    threadsPanel.hidden = true;
+    chat.hidden = false;
+    backBtn.textContent = "← 返回私信";
+    backBtn.onclick = () => void navigate(messagesPath());
+
+    const setStatus = (message: string) => {
+      status.textContent = message;
+      status.hidden = !message;
+    };
+
+    const syncSendState = () => {
+      const length = [...input.value].length;
+      sendBtn.disabled = length === 0 || length > MAX_CHARS;
+    };
+
+    let sending = false;
+    let lastRendered: string | null = null;
+
+    const applyConversation = (user: FeedUser, messages: DirectMessage[]) => {
+      userLink.href = userPath(user.handle);
+      profileLink.href = userPath(user.handle);
+      fillAvatar(headAvatar, user);
+      headName.textContent = user.name;
+      headHandle.textContent = `@${user.handle}`;
+      const signature = messages.map((message) => message.id).join(",");
+      if (signature !== lastRendered) {
+        lastRendered = signature;
+        renderMessages(list, messages);
+      }
+    };
+
+    const load = async (silent: boolean) => {
+      try {
+        const page = await getConversation(handle);
+        applyConversation(page.user, page.messages);
+        if (page.unread > 0) {
+          await markConversationRead(handle);
+          if (!silent) setStatus("");
+        }
+      } catch (error) {
+        if (!silent) {
+          const message =
+            error instanceof ApiError && error.status === 404
+              ? "找不到这个用户。"
+              : "私信加载失败，稍后再试。";
+          list.replaceChildren(statusRow(message));
+          setStatus(message);
+        }
+      }
+    };
+
+    input.addEventListener("input", syncSendState);
+    list.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-recall]",
+      );
+      const id = button?.dataset.recall;
+      if (!button || !id) return;
+      button.disabled = true;
+      button.textContent = "撤回中…";
+      void recallDirectMessage(handle, id)
+        .then((page) => {
+          applyConversation(page.user, page.messages);
+          showToast("已撤回");
+        })
+        .catch(() => {
+          button.disabled = false;
+          button.textContent = "撤回";
+          showToast("撤回失败，请重试");
+        });
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    syncSendState();
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (sending || !text) return;
+      sending = true;
+      sendBtn.disabled = true;
+      setStatus("发送中…");
+      void sendDirectMessage(handle, text)
+        .then((page) => {
+          input.value = "";
+          setStatus("");
+          applyConversation(page.user, page.messages);
+        })
+        .catch((error: unknown) => {
+          setStatus(
+            error instanceof ApiError && error.message
+              ? error.message
+              : "发送失败，请重试。",
+          );
+          showToast("私信发送失败");
+        })
+        .finally(() => {
+          sending = false;
+          syncSendState();
+        });
+    });
+
+    await load(false);
+
+    stopPolling();
+    pollTimer = window.setInterval(() => {
+      if (document.hidden || sending) return;
+      void load(true);
+    }, POLL_MS);
+  }
+
+  async function mountThreadList(root: HTMLElement): Promise<void> {
+    const panel = root.querySelector<HTMLElement>("[data-role=threads-panel]")!;
+    const list = root.querySelector<HTMLElement>("[data-role=thread-list]")!;
+    const summary = root.querySelector<HTMLElement>(
+      "[data-role=threads-summary]",
+    )!;
+    const empty = root.querySelector<HTMLElement>("[data-role=threads-empty]")!;
+    const backBtn = root.querySelector<HTMLButtonElement>("[data-role=back]")!;
+
+    panel.hidden = false;
+    backBtn.onclick = () =>
+      history.length > 1 ? history.back() : (location.href = "/");
+
+    try {
+      const page = await getConversations();
+      renderThreads(list, page.threads);
+      empty.hidden = page.threads.length > 0;
+      summary.textContent =
+        page.unread > 0
+          ? `${page.threads.length} 个会话 · ${page.unread} 条未读`
+          : `${page.threads.length} 个会话`;
+    } catch {
+      list.replaceChildren(statusRow("私信列表加载失败，请稍后再试。"));
+      summary.textContent = "加载失败";
+    }
+  }
+
+  onFuckxterPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-fk-messages]");
+    if (!root || root.dataset.fkMessagesMounted === "true") return;
+    root.dataset.fkMessagesMounted = "true";
+
+    document.addEventListener("astro:before-swap", stopPolling, { once: true });
+
+    void hydrateSession().then((account) => {
+      if (!account) {
+        void navigate("/");
+        return;
+      }
+      const handle = parseMessagePath(location.pathname);
+      if (handle) void mountConversation(root, handle);
+      else void mountThreadList(root);
+    });
+  });
+</script>

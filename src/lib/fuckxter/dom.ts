@@ -54,6 +54,52 @@ export function fmtCount(n: number): string {
   return `${wan >= 10 ? Math.round(wan) : Math.round(wan * 10) / 10}万`;
 }
 
+/** 同一層選單裡同時只留一個子選單展開，切換時才不會兩個疊在一起。 */
+export function collapseSubmenus(
+  scope: ParentNode,
+  except?: HTMLElement | null,
+): void {
+  scope.querySelectorAll<HTMLElement>(".fk-submenu").forEach((submenu) => {
+    if (submenu === except || submenu.hidden) return;
+    hidePanel(submenu);
+    submenu.parentElement
+      ?.querySelector<HTMLElement>(".fk-menu-expandable")
+      ?.setAttribute("aria-expanded", "false");
+  });
+}
+
+/** 退場動畫長度，比 CSS 稍長一點，確保動畫播完才隱藏。 */
+const PANEL_EXIT_MS = 360;
+const closingTimers = new WeakMap<HTMLElement, number>();
+
+/** 顯示浮層；如果它還在播退場動畫就把計時取消，避免被中途收掉。 */
+export function showPanel(panel: HTMLElement): void {
+  const timer = closingTimers.get(panel);
+  if (timer !== undefined) {
+    window.clearTimeout(timer);
+    closingTimers.delete(panel);
+  }
+  panel.classList.remove("is-closing");
+  panel.hidden = false;
+}
+
+/** 真的開著才算開著；正在收合的浮層算已關閉，這樣連點才不會卡住。 */
+export function isPanelOpen(panel: HTMLElement): boolean {
+  return !panel.hidden && !panel.classList.contains("is-closing");
+}
+
+/** 收起浮層：先播和打開時對稱的退場動畫，播完才真的隱藏。 */
+export function hidePanel(panel: HTMLElement): void {
+  if (panel.hidden || closingTimers.has(panel)) return;
+  panel.classList.add("is-closing");
+  const timer = window.setTimeout(() => {
+    closingTimers.delete(panel);
+    panel.classList.remove("is-closing");
+    panel.hidden = true;
+  }, PANEL_EXIT_MS);
+  closingTimers.set(panel, timer);
+}
+
 export function renderRichText(value: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
   const pattern = /(@[a-z0-9_]{2,20}|#[\p{L}\p{N}_]{1,50})/giu;
@@ -132,6 +178,20 @@ export function setFollowButtonState(
   button.classList.toggle("is-following", following);
 }
 
+export function postMetaText(
+  post: Post,
+  timeMode: "relative" | "absolute",
+): string {
+  const stamp =
+    timeMode === "relative"
+      ? relativeTime(post.createdAt)
+      : new Date(post.createdAt).toLocaleString("zh-CN");
+  const views = post.stats.views ?? 0;
+  return `@${post.author.handle} · ${stamp}${
+    views > 0 ? ` · ${fmtCount(views)} 次浏览` : ""
+  }`;
+}
+
 export function postHead(post: Post, timeMode: "relative" | "absolute") {
   const head = el("header", "fk-post-head");
   const name = el("span", "fk-post-name");
@@ -140,12 +200,14 @@ export function postHead(post: Post, timeMode: "relative" | "absolute") {
   if (post.author.verified)
     head.insertAdjacentHTML("beforeend", ICONS.verified);
   const meta = el("span", "fk-post-meta");
-  meta.textContent = `@${post.author.handle} · ${
-    timeMode === "relative"
-      ? relativeTime(post.createdAt)
-      : new Date(post.createdAt).toLocaleString("zh-CN")
-  }`;
+  meta.textContent = postMetaText(post, timeMode);
   head.append(meta);
+  // 只有作者本人看得到非公开贴，标一下可见范围免得自己忘了。
+  if (post.visibility && post.visibility !== "public") {
+    const label = el("span", "fk-post-visibility");
+    label.textContent = post.visibility === "private" ? "私密贴" : "仅互关可见";
+    head.append(label);
+  }
   head.append(followButton(post));
   return head;
 }

@@ -2,6 +2,8 @@ import { ApiError, apiEndpoint, apiRequest } from "./http";
 import type {
   Comment,
   CommentPage,
+  ConversationListPage,
+  ConversationPage,
   FeedPage,
   FeedTab,
   LikeResult,
@@ -32,17 +34,25 @@ export function getTimeline(
   );
 }
 
-export function createPost(text: string, mediaId?: string): Promise<Post> {
+export function createPost(
+  text: string,
+  mediaId?: string,
+  visibility: Post["visibility"] = "public",
+): Promise<Post> {
   return apiRequest<Post>("/posts", {
     method: "POST",
-    body: JSON.stringify({ text, mediaId }),
+    body: JSON.stringify({ text, mediaId, visibility }),
   });
 }
 
-export function updatePost(id: string, text: string): Promise<Post> {
+export function updatePost(
+  id: string,
+  text: string,
+  visibility?: Post["visibility"],
+): Promise<Post> {
   return apiRequest<Post>(`/posts/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, visibility }),
   });
 }
 
@@ -184,6 +194,52 @@ export async function getUnreadNotificationCount(): Promise<number> {
   return page.unread;
 }
 
+export function getConversations(): Promise<ConversationListPage> {
+  return apiRequest<ConversationListPage>("/messages");
+}
+
+export function getConversation(handle: string): Promise<ConversationPage> {
+  return apiRequest<ConversationPage>(
+    `/messages/${encodeURIComponent(handle)}`,
+  );
+}
+
+export function sendDirectMessage(
+  handle: string,
+  text: string,
+): Promise<ConversationPage> {
+  return apiRequest<ConversationPage>(
+    `/messages/${encodeURIComponent(handle)}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    },
+  );
+}
+
+export async function markConversationRead(handle: string): Promise<number> {
+  const response = await apiRequest<{ unread: number }>(
+    `/messages/${encodeURIComponent(handle)}/read`,
+    { method: "POST" },
+  );
+  return response.unread;
+}
+
+export function recallDirectMessage(
+  handle: string,
+  messageId: string,
+): Promise<ConversationPage> {
+  return apiRequest<ConversationPage>(
+    `/messages/${encodeURIComponent(handle)}/${encodeURIComponent(messageId)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function getUnreadMessageCount(): Promise<number> {
+  const page = await getConversations();
+  return page.unread;
+}
+
 export async function markNotificationsRead(
   id?: string,
   keepalive = false,
@@ -209,6 +265,14 @@ export function toggleRepost(
   return apiRequest<RepostResult>(`/posts/${encodeURIComponent(id)}/repost`, {
     method: reposted ? "PUT" : "DELETE",
   });
+}
+
+/** 记一次浏览；同一访客同一帖子只会算一次。 */
+export function recordPostView(id: string): Promise<{ views: number }> {
+  return apiRequest<{ views: number }>(
+    `/posts/${encodeURIComponent(id)}/view`,
+    { method: "POST" },
+  );
 }
 
 export async function getSavedPosts(): Promise<Post[]> {
@@ -270,12 +334,13 @@ export function getComments(postId: string): Promise<CommentPage> {
 export async function createComment(
   postId: string,
   text: string,
+  parentId?: string,
 ): Promise<Comment> {
   const response = await apiRequest<{ comment: Comment }>(
     `/posts/${encodeURIComponent(postId)}/comments`,
     {
       method: "POST",
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, parentId }),
     },
   );
   return response.comment;
@@ -306,6 +371,15 @@ export function setFollow(
 ): Promise<{ handle: string; following: boolean; followers: number }> {
   return apiRequest(`/users/${encodeURIComponent(handle)}/follow`, {
     method: following ? "PUT" : "DELETE",
+  });
+}
+
+export function setBlock(
+  handle: string,
+  blocked: boolean,
+): Promise<{ handle: string; blocked: boolean }> {
+  return apiRequest(`/users/${encodeURIComponent(handle)}/block`, {
+    method: blocked ? "PUT" : "DELETE",
   });
 }
 

@@ -26,6 +26,14 @@ import {
   uploadMedia,
 } from "./media";
 import {
+  countUnreadMessages,
+  getConversation,
+  listConversations,
+  markConversationRead,
+  recallMessage,
+  sendMessage,
+} from "./messages";
+import {
   getNotifications,
   getUnreadNotificationCount,
   markNotificationsRead,
@@ -42,6 +50,8 @@ import {
   getPostsByUser,
   getSavedPosts,
   getTimeline,
+  normalizeVisibility,
+  recordPostView,
   searchPosts,
   setCommentInteraction,
   setLike,
@@ -70,6 +80,7 @@ import {
   getFollowUsers,
   getUserProfile,
   searchUsers,
+  setBlock,
   setFollow,
 } from "./users";
 
@@ -92,6 +103,7 @@ function routeSegments(pathname: string): string[] {
 
 const POST_ASSET_PATH = /^\/post\/([^/]+)\/([^/]+)\/?$/i;
 const USER_ASSET_PATH = /^\/user\/([^/]+)\/?$/i;
+const MESSAGE_ASSET_PATH = /^\/messages\/([^/]+)\/?$/i;
 const CONNECTIONS_ASSET_PATH = /^\/user\/([^/]+)\/(followers|following)\/?$/i;
 const PRETTY_ASSET_PATHS = new Set([
   "/connections",
@@ -105,6 +117,8 @@ const PRETTY_ASSET_PATHS = new Set([
 
 function assetPagePath(pathname: string): string | null {
   if (POST_ASSET_PATH.test(pathname) || pathname === "/post") return "/post/";
+  if (MESSAGE_ASSET_PATH.test(pathname) || pathname === "/messages")
+    return "/messages/";
   if (CONNECTIONS_ASSET_PATH.test(pathname)) return "/connections/";
   if (USER_ASSET_PATH.test(pathname) || pathname === "/user") return "/user/";
   if (PRETTY_ASSET_PATHS.has(pathname)) return `${pathname}/`;
@@ -268,6 +282,67 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       await markNotificationsRead(env, user.id, body.id);
       return json(
         { unread: await getUnreadNotificationCount(env, user.id) },
+        request,
+        env,
+      );
+    }
+  }
+
+  if (parts[1] === "messages") {
+    const user = await requireUser(request, env);
+
+    if (parts.length === 2 && method === "GET") {
+      const [threads, unread] = await Promise.all([
+        listConversations(env, user.id),
+        countUnreadMessages(env, user.id),
+      ]);
+      return json({ threads, unread }, request, env);
+    }
+
+    if (parts.length === 3) {
+      const handle = segment(parts, 2);
+      if (method === "GET") {
+        const conversation = await getConversation(env, user.id, handle);
+        return json(
+          { ...conversation, unread: await countUnreadMessages(env, user.id) },
+          request,
+          env,
+        );
+      }
+      if (method === "POST") {
+        const body = await readJson<{ text?: unknown }>(request);
+        if (typeof body.text !== "string") {
+          throw new HttpError(
+            400,
+            "INVALID_MESSAGE",
+            "Message text is required.",
+          );
+        }
+        const conversation = await sendMessage(env, user.id, handle, body.text);
+        return json(
+          { ...conversation, unread: await countUnreadMessages(env, user.id) },
+          request,
+          env,
+          { status: 201 },
+        );
+      }
+    }
+
+    if (parts.length === 4 && parts[3] === "read" && method === "POST") {
+      await markConversationRead(env, user.id, segment(parts, 2));
+      return json(
+        { unread: await countUnreadMessages(env, user.id) },
+        request,
+        env,
+      );
+    }
+
+    if (parts.length === 4 && method === "DELETE") {
+      const handle = segment(parts, 2);
+      await recallMessage(env, user.id, handle, segment(parts, 3));
+      const conversation = await getConversation(env, user.id, handle);
+      return json(
+        { ...conversation, unread: await countUnreadMessages(env, user.id) },
         request,
         env,
       );
@@ -622,8 +697,15 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       if (body.mediaId !== undefined && typeof body.mediaId !== "string") {
         throw new HttpError(400, "INVALID_MEDIA", "Invalid media reference.");
       }
+      const payload = body as { visibility?: unknown };
       return json(
-        await createPost(env, user.id, body.text, body.mediaId),
+        await createPost(
+          env,
+          user.id,
+          body.text,
+          body.mediaId,
+          normalizeVisibility(payload.visibility),
+        ),
         request,
         env,
         { status: 201 },
@@ -647,9 +729,20 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
           await deletePost(env, actor.id, postId);
           return json({ ok: true }, request, env);
         }
-        const body = await readJson<{ text?: string }>(request);
+        const body = await readJson<{
+          text?: string;
+          visibility?: unknown;
+        }>(request);
         return json(
-          await updatePost(env, actor.id, postId, body.text ?? ""),
+          await updatePost(
+            env,
+            actor.id,
+            postId,
+            body.text ?? "",
+            typeof body.visibility === "string"
+              ? normalizeVisibility(body.visibility)
+              : undefined,
+          ),
           request,
           env,
         );
@@ -659,6 +752,15 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     if (parts.length === 4) {
       const postId = segment(parts, 2);
       const action = parts[3];
+
+      if (action === "view" && method === "POST") {
+        const user = await getOptionalUser(request, env);
+        return json(
+          await recordPostView(env, request, user?.id ?? null, postId),
+          request,
+          env,
+        );
+      }
 
       if (action === "comments" && method === "GET") {
         const user = await getOptionalUser(request, env);
@@ -671,10 +773,25 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
 
       if (action === "comments" && method === "POST") {
         const user = await requireUser(request, env);
-        const body = await readJson<{ text?: string }>(request);
+        const body = await readJson<{ text?: string; parentId?: unknown }>(
+          request,
+        );
+        if (body.parentId !== undefined && typeof body.parentId !== "string") {
+          throw new HttpError(
+            400,
+            "INVALID_COMMENT",
+            "Invalid parent comment.",
+          );
+        }
         return json(
           {
-            comment: await createComment(env, user.id, postId, body.text ?? ""),
+            comment: await createComment(
+              env,
+              user.id,
+              postId,
+              body.text ?? "",
+              body.parentId,
+            ),
           },
           request,
           env,
@@ -789,6 +906,20 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     const user = await requireUser(request, env);
     return json(
       await setFollow(env, user.id, segment(parts, 2), method === "PUT"),
+      request,
+      env,
+    );
+  }
+
+  if (
+    parts[1] === "users" &&
+    parts[3] === "block" &&
+    parts.length === 4 &&
+    (method === "PUT" || method === "DELETE")
+  ) {
+    const user = await requireUser(request, env);
+    return json(
+      await setBlock(env, user.id, segment(parts, 2), method === "PUT"),
       request,
       env,
     );

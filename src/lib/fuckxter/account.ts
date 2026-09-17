@@ -6,8 +6,14 @@ import {
   signOut,
   type Account,
 } from "./auth";
-import { getUnreadNotificationCount } from "./api";
-import { avatarGradient } from "./dom";
+import { getUnreadMessageCount, getUnreadNotificationCount } from "./api";
+import {
+  avatarGradient,
+  collapseSubmenus,
+  hidePanel,
+  isPanelOpen,
+  showPanel,
+} from "./dom";
 import { ApiError, apiEndpoint } from "./http";
 import { userPath } from "./urls";
 import { isValidEmail } from "./validation";
@@ -65,6 +71,12 @@ export function mountAccountControls(
   const accountNoticeDot = container.querySelector<HTMLElement>(
     "[data-role=account-notice-dot]",
   )!;
+  const messageMenuItem = accountMenu.querySelector<HTMLElement>(
+    "[data-role=message-menu-item]",
+  )!;
+  const messageMenuBadge = accountMenu.querySelector<HTMLElement>(
+    "[data-role=message-menu-badge]",
+  )!;
   const themeTrigger = accountMenu.querySelector<HTMLButtonElement>(
     "[data-account-open=theme]",
   )!;
@@ -78,11 +90,20 @@ export function mountAccountControls(
 
   let account: Account | null = getAccount();
   let unreadRequestId = 0;
+  let messageRequestId = 0;
+  let unreadNotices = 0;
+  let unreadMessages = 0;
+
+  /** 头像上的小红点：通知或私信有未读都会亮。 */
+  const syncUnreadDot = () => {
+    accountNoticeDot.hidden = unreadNotices === 0 && unreadMessages === 0;
+  };
 
   const setUnreadNotifications = (count: number) => {
     const unread = Math.max(0, Math.floor(count));
     const hasUnread = unread > 0;
-    accountNoticeDot.hidden = !hasUnread;
+    unreadNotices = unread;
+    syncUnreadDot();
     noticeMenuBadge.hidden = !hasUnread;
     noticeMenuBadge.textContent = unread > 99 ? "99+" : String(unread);
     noticeMenuItem.classList.toggle("has-unread", hasUnread);
@@ -101,6 +122,32 @@ export function mountAccountControls(
       setUnreadNotifications(unread);
     } catch {
       // Notification status must not block the account menu.
+    }
+  };
+
+  const setUnreadMessages = (count: number) => {
+    const unread = Math.max(0, Math.floor(count));
+    const hasUnread = unread > 0;
+    unreadMessages = unread;
+    syncUnreadDot();
+    messageMenuBadge.hidden = !hasUnread;
+    messageMenuBadge.textContent = unread > 99 ? "99+" : String(unread);
+    messageMenuItem.classList.toggle("has-unread", hasUnread);
+    messageMenuItem.setAttribute(
+      "aria-label",
+      hasUnread ? `私信，${unread} 条未读` : "私信",
+    );
+  };
+
+  const refreshUnreadMessages = async (owner: string) => {
+    const requestId = ++messageRequestId;
+    try {
+      const unread = await getUnreadMessageCount();
+      if (requestId !== unreadRequestId) return;
+      if (!account || account.profile.handle !== owner) return;
+      setUnreadMessages(unread);
+    } catch {
+      // 私信计数失败不能影响菜单其他部分。
     }
   };
 
@@ -154,9 +201,12 @@ export function mountAccountControls(
       accountBtn.setAttribute("aria-label", "账号菜单");
       accountBtn.title = "账号菜单";
       void refreshUnreadNotifications(account.profile.handle);
+      void refreshUnreadMessages(account.profile.handle);
     } else {
       unreadRequestId += 1;
+      messageRequestId += 1;
       setUnreadNotifications(0);
+      setUnreadMessages(0);
       accountAvatar.hidden = true;
       accountIcon.removeAttribute("style");
       authItems.hidden = false;
@@ -170,12 +220,18 @@ export function mountAccountControls(
   };
 
   const closeSubmenu = () => {
-    themeSubmenu.hidden = true;
+    hidePanel(themeSubmenu);
     themeTrigger.setAttribute("aria-expanded", "false");
   };
 
+  /** 菜单展开时，让左侧的页面像纸被掀起来一样。 */
+  const setPeeled = (open: boolean) => {
+    document.documentElement.classList.toggle("fk-menu-open", open);
+  };
+
   const closeAccountMenu = () => {
-    accountMenu.hidden = true;
+    hidePanel(accountMenu);
+    setPeeled(false);
     accountBtn.setAttribute("aria-expanded", "false");
     closeSubmenu();
     document.removeEventListener("click", onDocClick, true);
@@ -189,9 +245,10 @@ export function mountAccountControls(
   };
 
   accountBtn.addEventListener("click", () => {
-    if (accountMenu.hidden) {
+    if (!isPanelOpen(accountMenu)) {
       renderAccountUI();
-      accountMenu.hidden = false;
+      showPanel(accountMenu);
+      setPeeled(true);
       accountBtn.setAttribute("aria-expanded", "true");
       document.addEventListener("click", onDocClick, true);
       document.addEventListener("keydown", onMenuKeydown, true);
@@ -201,8 +258,11 @@ export function mountAccountControls(
   });
 
   themeTrigger.addEventListener("click", () => {
-    const willOpen = themeSubmenu.hidden;
-    themeSubmenu.hidden = !willOpen;
+    const willOpen = !isPanelOpen(themeSubmenu);
+    // 展開主題時把列數那類子選單收起來，兩塊面板才不會疊在一起。
+    if (willOpen) collapseSubmenus(accountMenu, themeSubmenu);
+    if (willOpen) showPanel(themeSubmenu);
+    else hidePanel(themeSubmenu);
     themeTrigger.setAttribute("aria-expanded", String(willOpen));
   });
 
@@ -213,7 +273,7 @@ export function mountAccountControls(
     if (!item) return;
     applyThemeChoice(item.dataset.themeChoice!);
     syncThemeMenu();
-    closeAccountMenu();
+    // 保留選單開著，讓勾選的白色平行四邊形動畫看得見。
   });
 
   const onModalKeydown = (event: KeyboardEvent) => {
@@ -259,6 +319,9 @@ export function mountAccountControls(
       } else if (open.dataset.accountOpen === "notice" && account) {
         closeAccountMenu();
         navigate("/notice");
+      } else if (open.dataset.accountOpen === "messages" && account) {
+        closeAccountMenu();
+        navigate("/messages");
       } else if (open.dataset.accountOpen === "saved" && account) {
         closeAccountMenu();
         navigate("/saved");
@@ -358,11 +421,13 @@ export function mountAccountControls(
   const onVisibilityChange = () => {
     if (document.visibilityState === "visible" && account) {
       void refreshUnreadNotifications(account.profile.handle);
+      void refreshUnreadMessages(account.profile.handle);
     }
   };
   const unreadInterval = window.setInterval(() => {
     if (document.visibilityState === "visible" && account) {
       void refreshUnreadNotifications(account.profile.handle);
+      void refreshUnreadMessages(account.profile.handle);
     }
   }, 30_000);
   document.addEventListener("visibilitychange", onVisibilityChange);
@@ -373,6 +438,7 @@ export function mountAccountControls(
       renderAccountUI();
     },
     dispose: () => {
+      setPeeled(false);
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("keydown", onMenuKeydown, true);
       document.removeEventListener("keydown", onModalKeydown, true);
