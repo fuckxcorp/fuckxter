@@ -237,6 +237,10 @@ html.fk-menu-open .fk-main {
   display: none;
 }
 
+.fk-media-storage:not([hidden]) + .fk-visibility {
+  margin-left: -0.5rem;
+}
+
 .fk-media-storage select {
   box-sizing: border-box;
   min-width: 0;
@@ -484,6 +488,10 @@ html.fk-menu-open .fk-main {
   .fk-media-storage select {
     width: 100%;
     max-width: none;
+  }
+
+  .fk-media-storage:not([hidden]) + .fk-visibility {
+    margin-left: -0.1rem;
   }
 
   .fk-char-count {

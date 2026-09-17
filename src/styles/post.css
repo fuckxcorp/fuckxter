@@ -366,6 +366,12 @@
   background: var(--color-bg-raised);
 }
 
+.fk-thread-composer .fk-composer-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
 .fk-thread-status {
   min-height: 1.15em;
   margin: 0.25rem 0 0;

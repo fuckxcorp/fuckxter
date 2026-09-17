@@ -212,7 +212,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         const placeholder = document.createElement("option");
         placeholder.value = "";
         placeholder.textContent = options.length
-          ? "默认（自动选择）"
+          ? "默认存储桶"
           : "尚未配置对象存储";
         mediaStorage.replaceChildren(
           placeholder,
