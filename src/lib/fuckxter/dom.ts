@@ -3,11 +3,11 @@ import { apiEndpoint } from "./http";
 
 export const ICONS = {
   reply:
-    '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
+    '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="2.2" aria-hidden="true"><path d="M3.5 3.5h16v11H10.5L5.5 20.5v-6h-2z"></path></svg>',
   repost:
-    '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>',
+    '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="2.2" aria-hidden="true"><path d="M16 2.5 21 7.5 16 12.5"></path><path d="M3.5 10.5V6.5h17.5"></path><path d="M8 21.5 3 16.5 8 11.5"></path><path d="M20.5 13.5v4H3"></path></svg>',
   heart:
-    '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>',
+    '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="2.2" aria-hidden="true"><path d="M12 20.5 3.5 12 3.5 7.2 8 3.5 12 7.2 16 3.5 20.5 7.2 20.5 12Z"></path></svg>',
   share:
     '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M16 6l-4-4-4 4"></path><path d="M12 2v13"></path></svg>',
   copy: '<svg class="fk-action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>',
@@ -247,6 +247,15 @@ export function authorAvatar(
   return avatar;
 }
 
+export function postShard(id: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < id.length; index += 1) {
+    hash ^= id.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return String(Math.abs(hash) % 8);
+}
+
 export function renderPost(post: Post): HTMLElement {
   const article = el("article", "fk-post");
   article.dataset.postId = post.id;
@@ -304,8 +313,9 @@ export function renderPost(post: Post): HTMLElement {
 }
 
 export function renderPostDetail(post: Post): HTMLElement {
-  const article = el("article", "fk-post-detail fk-post-content-only");
+  const article = el("article", "fk-post-detail fk-post-content-only fk-shard");
   article.dataset.postId = post.id;
+  article.dataset.shard = postShard(`${post.id}:detail`);
 
   const body = el("div", "fk-post-body");
 

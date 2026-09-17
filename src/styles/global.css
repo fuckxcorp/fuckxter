@@ -287,13 +287,14 @@ body {
 
 .fk-account-btn .fk-account-avatar {
   box-sizing: border-box;
-  display: grid;
-  place-items: center;
-
+  display: block;
   position: absolute;
   inset: 0;
   aspect-ratio: auto;
   border-radius: 0;
+  background: var(--fk-menu-surface);
+  background-size: auto;
+  animation: none;
   color: #fff;
   font-size: 0.85rem;
   font-weight: 700;
@@ -317,9 +318,23 @@ body {
 }
 
 .fk-account-image {
+  display: block;
   width: 100%;
   height: 100%;
+  max-width: none;
   object-fit: cover;
+}
+
+.fk-account-btn .fk-account-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center 18%;
+  transform: scale(1.28);
+  transform-origin: center 18%;
 }
 
 .fk-menu-user {
@@ -935,6 +950,13 @@ body {
 
 .fk-verified .fk-verified-check {
   fill: var(--color-bg);
+}
+
+.fk-shard {
+  background: transparent;
+  border: 3px solid var(--fk-ink);
+  overflow: visible;
+  contain: none;
 }
 
 .fk-post {

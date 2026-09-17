@@ -9,30 +9,72 @@
   background: var(--color-bg-subtle);
 }
 
-.fk-settings-nav-btn {
+.fk-settings-nav-btn,
+.fk-settings-menu-item,
+.fk-settings-body .fk-ghost-btn,
+.fk-settings-body .fk-primary-btn {
+  position: relative;
+  isolation: isolate;
   border: 0;
   background: none;
   cursor: pointer;
-  padding: 0.55rem 0.75rem;
-  border-radius: 10px;
-  color: var(--color-text);
+  padding: 0.55rem 0.95rem;
+  border-radius: 0;
+  color: var(--fk-ink-text);
   font-size: 0.9rem;
+  font-weight: 650;
   text-align: left;
   text-decoration: none;
-  transition:
-    background 150ms ease,
-    color 150ms ease;
 }
 
-.fk-settings-nav-btn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-strong);
+.fk-settings-nav-btn::before,
+.fk-settings-menu-item::before,
+.fk-settings-body .fk-ghost-btn::before,
+.fk-settings-body .fk-primary-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0.08rem 0.04rem;
+  z-index: -1;
+  background: var(--fk-ink);
+  transform: skewX(-12deg);
 }
 
-.fk-settings-nav-btn.is-active {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+.fk-settings-nav-btn:not(.is-active)::before,
+.fk-settings-menu-item:not(.is-active)::before {
+  opacity: 0.78;
+}
+
+.fk-settings-nav-btn:hover,
+.fk-settings-menu-item:hover,
+.fk-settings-body .fk-ghost-btn:hover:not(:disabled),
+.fk-settings-body .fk-primary-btn:hover:not(:disabled) {
+  background: none;
+  color: var(--fk-ink-text);
+}
+
+.fk-settings-nav-btn:hover::before,
+.fk-settings-menu-item:hover::before,
+.fk-settings-body .fk-ghost-btn:hover:not(:disabled)::before,
+.fk-settings-body .fk-primary-btn:hover:not(:disabled)::before {
+  opacity: 1;
+  filter: brightness(1.18);
+}
+
+.fk-settings-nav-btn.is-active,
+.fk-settings-menu-item.is-active {
+  background: none;
+  color: var(--fk-ink-text);
+  font-weight: 800;
+}
+
+.fk-settings-body .fk-primary-btn {
   font-weight: 700;
+}
+
+.fk-settings-body .fk-ghost-btn:disabled,
+.fk-settings-body .fk-primary-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .fk-settings-body {
@@ -423,7 +465,7 @@
 }
 
 .fk-security-state-row .fk-ghost-btn {
-  padding: 0.3rem 0.75rem;
+  padding: 0.3rem 0.85rem;
   font-size: 0.8rem;
 }
 
@@ -602,16 +644,7 @@
   }
 
   .fk-settings-menu-item {
-    padding: 0.65rem 0.75rem;
-    border-radius: 9px;
-    color: var(--color-text);
-    text-decoration: none;
-  }
-
-  .fk-settings-menu-item:hover,
-  .fk-settings-menu-item.is-active {
-    background: var(--color-accent-soft);
-    color: var(--color-accent);
+    padding: 0.65rem 0.95rem;
   }
 
   .fk-settings-layout {

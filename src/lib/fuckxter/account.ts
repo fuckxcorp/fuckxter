@@ -326,6 +326,13 @@ export function mountAccountControls(
     const action = target.closest<HTMLButtonElement>("[data-account-action]")
       ?.dataset.accountAction;
     if (action === "signout") {
+      const name = account?.profile.handle;
+      const ok = confirm(
+        name
+          ? `确定要注销 @${name} 吗？注销后需要重新登录。`
+          : "确定要注销吗？注销后需要重新登录。",
+      );
+      if (!ok) return;
       void signOut().then(() => {
         account = null;
         closeAccountMenu();

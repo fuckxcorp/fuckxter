@@ -947,11 +947,39 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
     const hostname = url.hostname.toLowerCase();
-    const isApiHost =
-      hostname === "api.fuckxter.site" ||
+    const isLocalDev =
       hostname === "localhost" ||
       hostname === "127.0.0.1" ||
-      hostname === "::1";
+      hostname === "::1" ||
+      hostname.endsWith(".localhost") ||
+      hostname.endsWith(".local") ||
+      url.port === "8787";
+    const pathname = url.pathname.toLowerCase();
+    const isDedicatedApiPath =
+      pathname === "/health" ||
+      pathname === "/timeline" ||
+      pathname === "/search" ||
+      pathname === "/me" ||
+      pathname.startsWith("/me/") ||
+      pathname.startsWith("/auth/") ||
+      pathname.startsWith("/posts") ||
+      pathname.startsWith("/media/") ||
+      pathname.startsWith("/avatars/") ||
+      pathname.startsWith("/headers/") ||
+      pathname.startsWith("/users/");
+    const accept = request.headers.get("Accept") ?? "";
+    const wantsJson =
+      accept.includes("application/json") && !accept.includes("text/html");
+    const isOverlappingApiPath =
+      (pathname === "/notice" ||
+        pathname === "/messages" ||
+        pathname.startsWith("/messages/")) &&
+      (wantsJson || (request.method !== "GET" && request.method !== "HEAD"));
+    const isApiHost =
+      hostname === "api.fuckxter.site" ||
+      isLocalDev ||
+      isDedicatedApiPath ||
+      isOverlappingApiPath;
     if (!isApiHost) {
       const assetPath = assetPagePath(url.pathname);
       const fileName = url.pathname.split("/").at(-1) ?? "";

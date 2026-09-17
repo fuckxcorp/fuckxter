@@ -216,16 +216,37 @@
   padding: 0 1.25rem 1.25rem;
 }
 
+/* 个人主页的按钮：统一成墨色平行四边形（编辑资料 / 关注 / 私信 / 拉黑）。 */
 .fk-user-actions .fk-primary-btn,
 .fk-user-actions .fk-ghost-btn {
   flex: 1 1 0;
   min-width: 0;
   white-space: nowrap;
+  border: 0;
+  border-radius: 0;
+  padding: 0.55rem 1rem;
+  background: var(--fk-ink);
+  color: var(--fk-ink-text);
+  font-weight: 700;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  transition: opacity 150ms ease;
 }
 
-.fk-block-btn.is-danger {
-  border-color: color-mix(in srgb, var(--fk-like) 55%, transparent);
-  color: var(--fk-like);
+.fk-user-actions .fk-primary-btn:hover:not(:disabled),
+.fk-user-actions .fk-ghost-btn:hover:not(:disabled) {
+  background: var(--fk-ink);
+  color: var(--fk-ink-text);
+  opacity: 0.86;
+}
+
+.fk-user-actions .fk-primary-btn:disabled,
+.fk-user-actions .fk-ghost-btn:disabled {
+  opacity: 0.45;
+}
+
+/* 已拉黑是「可以按回解除」的狀態，用偏紅的深色底跟其他按鈕區隔。 */
+.fk-user-actions .fk-block-btn.is-danger {
+  background: color-mix(in srgb, var(--fk-like) 55%, var(--fk-ink));
 }
 
 .fk-user-list-dialog {

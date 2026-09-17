@@ -5,6 +5,35 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="FuckXter">
+  <div class="fk-splash" data-role="splash" aria-hidden="true">
+    <script is:inline>
+      (() => {
+        const splash = document.currentScript.parentElement;
+        splash.dataset.shownAt = String(performance.now());
+        // 保險：app 的腳本若沒載成功（dev server 重啟、chunk 404），
+        // 模組裡的收尾就不會執行，遮罩會一直蓋著整頁，所以在這裡也放一個保險。
+        window.setTimeout(() => {
+          if (splash.isConnected) splash.remove();
+        }, 4000);
+      })();
+    </script>
+    <img
+      class="fk-splash-logo fk-logo-light"
+      src="/fuckxter_bk.avif"
+      alt=""
+      width="515"
+      height="128"
+      decoding="sync"
+    />
+    <img
+      class="fk-splash-logo fk-logo-dark"
+      src="/fuckxter_wh.avif"
+      alt=""
+      width="514"
+      height="514"
+      decoding="sync"
+    />
+  </div>
   <div class="fk-app" data-fuckxter>
     <header class="fk-topbar">
       <a class="fk-brand" href="/" aria-label="FuckXter 首页">
@@ -330,22 +359,86 @@ import Layout from "../layouts/Layout.astro";
               accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
               hidden
             />
-            <label
-              class="fk-media-storage"
+            <div
+              class="fk-composer-picker fk-menu-row"
               data-role="media-storage-wrap"
               hidden
             >
-              <select data-role="media-storage" aria-label="选择附件存储桶">
-                <option value="">默认存储桶</option>
-              </select>
-            </label>
-            <label class="fk-media-storage fk-visibility">
-              <select data-role="post-visibility" aria-label="帖子可见范围">
-                <option value="public">公开可见</option>
-                <option value="mutual">仅互关可见</option>
-                <option value="private">私密贴</option>
-              </select>
-            </label>
+              <button
+                type="button"
+                class="fk-menu-item fk-menu-expandable fk-composer-picker-btn"
+                data-role="media-storage-trigger"
+                aria-label="选择附件存储桶"
+                aria-expanded="false"
+                aria-haspopup="menu"
+              >
+                <span
+                  class="fk-composer-picker-value"
+                  data-role="media-storage-value">默认存储桶</span
+                >
+                <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+              </button>
+              <div
+                class="fk-submenu fk-composer-submenu"
+                data-role="media-storage-menu"
+                role="menu"
+                hidden
+              >
+              </div>
+            </div>
+            <div
+              class="fk-composer-picker fk-menu-row"
+              data-role="visibility-wrap"
+            >
+              <button
+                type="button"
+                class="fk-menu-item fk-menu-expandable fk-composer-picker-btn"
+                data-role="visibility-trigger"
+                aria-label="帖子可见范围"
+                aria-expanded="false"
+                aria-haspopup="menu"
+              >
+                <span
+                  class="fk-composer-picker-value"
+                  data-role="visibility-value">公开可见</span
+                >
+                <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+              </button>
+              <div
+                class="fk-submenu fk-composer-submenu"
+                data-role="visibility-menu"
+                role="menu"
+                hidden
+              >
+                <button
+                  type="button"
+                  class="fk-menu-item"
+                  role="menuitemradio"
+                  aria-checked="true"
+                  data-visibility-choice="public"
+                >
+                  <span class="fk-menu-check">✓</span>公开可见
+                </button>
+                <button
+                  type="button"
+                  class="fk-menu-item"
+                  role="menuitemradio"
+                  aria-checked="false"
+                  data-visibility-choice="mutual"
+                >
+                  <span class="fk-menu-check">✓</span>仅互关可见
+                </button>
+                <button
+                  type="button"
+                  class="fk-menu-item"
+                  role="menuitemradio"
+                  aria-checked="false"
+                  data-visibility-choice="private"
+                >
+                  <span class="fk-menu-check">✓</span>私密贴
+                </button>
+              </div>
+            </div>
             <span
               class="fk-media-status"
               data-role="media-status"

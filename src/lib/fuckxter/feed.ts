@@ -38,6 +38,7 @@ import type {
   SearchResult,
   StorageOption,
 } from "./types";
+import { dismissHomeSplash } from "./splash";
 import { postPath, userPath } from "./urls";
 
 const MAX_CHARS = 1000;
@@ -181,12 +182,32 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStorageWrap = container.querySelector<HTMLElement>(
     "[data-role=media-storage-wrap]",
   )!;
-  const mediaStorage = container.querySelector<HTMLSelectElement>(
-    "[data-role=media-storage]",
+  const mediaStorageTrigger = container.querySelector<HTMLButtonElement>(
+    "[data-role=media-storage-trigger]",
   )!;
-  const visibilitySelect = container.querySelector<HTMLSelectElement>(
-    "[data-role=post-visibility]",
+  const mediaStorageValue = container.querySelector<HTMLElement>(
+    "[data-role=media-storage-value]",
+  )!;
+  const mediaStorageMenu = container.querySelector<HTMLElement>(
+    "[data-role=media-storage-menu]",
+  )!;
+  const visibilityTrigger = container.querySelector<HTMLButtonElement>(
+    "[data-role=visibility-trigger]",
   );
+  const visibilityValue = container.querySelector<HTMLElement>(
+    "[data-role=visibility-value]",
+  );
+  const visibilityMenu = container.querySelector<HTMLElement>(
+    "[data-role=visibility-menu]",
+  );
+  // visibility 在型別上是 optional，這裡只需要實際的三個值。
+  const VISIBILITY_LABELS: Record<NonNullable<Post["visibility"]>, string> = {
+    public: "公开可见",
+    mutual: "仅互关可见",
+    private: "私密贴",
+  };
+  let selectedStorageId = "";
+  let selectedVisibility: Post["visibility"] = "public";
   const searchInput =
     container.querySelector<HTMLInputElement>(".fk-search-input")!;
   const composerAvatar = container.querySelector<HTMLElement>(
@@ -200,6 +221,129 @@ export function mountFeed(container: HTMLElement): FeedControls {
   let storageOwner: string | null = null;
   let storageRequestId = 0;
 
+  const menuChoice = (
+    value: string,
+    label: string,
+    attr: string,
+    checked: boolean,
+  ): HTMLButtonElement => {
+    const button = el("button", "fk-menu-item");
+    button.type = "button";
+    button.setAttribute("role", "menuitemradio");
+    button.setAttribute("aria-checked", checked ? "true" : "false");
+    button.dataset[attr] = value;
+    const check = el("span", "fk-menu-check");
+    check.textContent = "✓";
+    button.append(check, document.createTextNode(label));
+    return button;
+  };
+
+  const setVisibility = (value: Post["visibility"]) => {
+    selectedVisibility = value;
+    if (visibilityValue)
+      visibilityValue.textContent = VISIBILITY_LABELS[value ?? "public"];
+    visibilityMenu
+      ?.querySelectorAll<HTMLButtonElement>("[data-visibility-choice]")
+      .forEach((item) => {
+        item.setAttribute(
+          "aria-checked",
+          item.dataset.visibilityChoice === value ? "true" : "false",
+        );
+      });
+  };
+
+  const storageLabel = (
+    options: StorageOption[],
+    emptyLabel = "默认存储桶",
+  ): string => {
+    const current = options.find((config) => config.id === selectedStorageId);
+    if (!current) return emptyLabel;
+    return `${current.name} · ${current.bucket}${
+      current.isDefault ? "（默认）" : ""
+    }`;
+  };
+
+  const renderStorageMenu = (
+    options: StorageOption[],
+    emptyLabel = options.length ? "默认存储桶" : "尚未配置对象存储",
+  ) => {
+    mediaStorageValue.textContent = storageLabel(options, emptyLabel);
+    mediaStorageMenu.replaceChildren(
+      menuChoice("", emptyLabel, "storageChoice", selectedStorageId === ""),
+      ...options.map((config) =>
+        menuChoice(
+          config.id,
+          `${config.name} · ${config.bucket}${
+            config.isDefault ? "（默认）" : ""
+          }`,
+          "storageChoice",
+          config.id === selectedStorageId,
+        ),
+      ),
+    );
+  };
+
+  const placeComposerSubmenu = (trigger: HTMLElement, submenu: HTMLElement) => {
+    const rect = trigger.getBoundingClientRect();
+    const gap = 10;
+    const width = Math.max(228, submenu.offsetWidth || 228);
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - width - 8);
+    }
+    submenu.style.position = "fixed";
+    submenu.style.right = "auto";
+    submenu.style.left = `${left}px`;
+    const below = rect.bottom + gap;
+    const estimated = submenu.offsetHeight || 160;
+    if (
+      below + estimated > window.innerHeight - 8 &&
+      rect.top > estimated + gap
+    ) {
+      submenu.style.top = "auto";
+      submenu.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+    } else {
+      submenu.style.bottom = "auto";
+      submenu.style.top = `${below}px`;
+    }
+  };
+
+  const pickerWraps = [mediaStorageWrap, visibilityMenu?.parentElement].filter(
+    (node): node is HTMLElement => Boolean(node),
+  );
+
+  const closeComposerPickers = () => {
+    for (const wrap of pickerWraps) {
+      const submenu = wrap.querySelector<HTMLElement>(".fk-submenu");
+      const trigger = wrap.querySelector<HTMLButtonElement>(
+        ".fk-composer-picker-btn",
+      );
+      if (submenu) hidePanel(submenu);
+      trigger?.setAttribute("aria-expanded", "false");
+    }
+    document.removeEventListener("click", onPickerDocClick, true);
+  };
+
+  const onPickerDocClick = (event: MouseEvent) => {
+    const target = event.target as Node;
+    if (pickerWraps.some((wrap) => wrap.contains(target))) return;
+    closeComposerPickers();
+  };
+
+  const toggleComposerPicker = (
+    trigger: HTMLButtonElement,
+    submenu: HTMLElement,
+  ) => {
+    const willOpen = !isPanelOpen(submenu);
+    if (willOpen) collapseSubmenus(container, submenu);
+    closeComposerPickers();
+    if (!willOpen) return;
+    showPanel(submenu);
+    trigger.setAttribute("aria-expanded", "true");
+    placeComposerSubmenu(trigger, submenu);
+    document.addEventListener("click", onPickerDocClick, true);
+  };
+
   const loadStorageOptions = (owner: string): Promise<void> => {
     if (storageOptions) return Promise.resolve();
     if (storageOptionsPromise) return storageOptionsPromise;
@@ -208,34 +352,16 @@ export function mountFeed(container: HTMLElement): FeedControls {
       .then((options) => {
         if (storageOwner !== owner) return;
         storageOptions = options;
-        const current = mediaStorage.value;
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = options.length
-          ? "默认存储桶"
-          : "尚未配置对象存储";
-        mediaStorage.replaceChildren(
-          placeholder,
-          ...options.map((config) => {
-            const option = document.createElement("option");
-            option.value = config.id;
-            option.textContent = `${config.name} · ${config.bucket}${
-              config.isDefault ? "（默认）" : ""
-            }`;
-            return option;
-          }),
-        );
-        if (options.some((config) => config.id === current)) {
-          mediaStorage.value = current;
+        if (!options.some((config) => config.id === selectedStorageId)) {
+          selectedStorageId = "";
         }
+        renderStorageMenu(options);
       })
       .catch((error: unknown) => {
         if (storageOwner !== owner) return;
         storageOptions = [];
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "存储桶加载失败，将使用默认配置";
-        mediaStorage.replaceChildren(option);
+        selectedStorageId = "";
+        renderStorageMenu([], "存储桶加载失败，将使用默认配置");
         console.error("Failed to load storage options", error);
       })
       .finally(() => {
@@ -270,18 +396,15 @@ export function mountFeed(container: HTMLElement): FeedControls {
       uploadingMedia;
     composerInput.placeholder = account ? "有什么新鲜事？" : "注册后才能发帖";
     mediaStorageWrap.hidden = !account;
-    mediaStorage.disabled = !account;
+    mediaStorageTrigger.disabled = !account;
     const owner = account?.profile.handle ?? null;
     if (owner !== storageOwner) {
       storageOwner = owner;
       storageRequestId += 1;
       storageOptions = null;
       storageOptionsPromise = null;
-      mediaStorage.replaceChildren();
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = "默认存储桶";
-      mediaStorage.append(placeholder);
+      selectedStorageId = "";
+      renderStorageMenu([]);
     }
     if (!account) {
       editingPostId = null;
@@ -481,6 +604,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       if (seq === state.seq) {
         state.loading = false;
         setSentinelBusy(false);
+        if (replace) dismissHomeSplash();
       }
     }
   };
@@ -531,6 +655,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       if (seq === state.seq) {
         state.loading = false;
         setSentinelBusy(false);
+        dismissHomeSplash();
       }
     }
   };
@@ -566,9 +691,52 @@ export function mountFeed(container: HTMLElement): FeedControls {
     applyColumnChoice(choice);
   });
 
+  mediaStorageTrigger.addEventListener("click", () => {
+    const account = getAccount();
+    if (!account) {
+      requestAuthentication();
+      return;
+    }
+    toggleComposerPicker(mediaStorageTrigger, mediaStorageMenu);
+    void loadStorageOptions(account.profile.handle).then(() => {
+      if (isPanelOpen(mediaStorageMenu)) {
+        placeComposerSubmenu(mediaStorageTrigger, mediaStorageMenu);
+      }
+    });
+  });
+
+  mediaStorageMenu.addEventListener("click", (event) => {
+    const item = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      "[data-storage-choice]",
+    );
+    if (!item || item.dataset.storageChoice === undefined) return;
+    selectedStorageId = item.dataset.storageChoice;
+    renderStorageMenu(storageOptions ?? []);
+    closeComposerPickers();
+  });
+
+  visibilityTrigger?.addEventListener("click", () => {
+    if (!visibilityMenu) return;
+    toggleComposerPicker(visibilityTrigger, visibilityMenu);
+  });
+
+  visibilityMenu?.addEventListener("click", (event) => {
+    const item = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      "[data-visibility-choice]",
+    );
+    const choice = item?.dataset.visibilityChoice;
+    if (choice !== "public" && choice !== "mutual" && choice !== "private")
+      return;
+    setVisibility(choice);
+    closeComposerPickers();
+  });
+
+  scroller.addEventListener("scroll", closeComposerPickers, { passive: true });
+
   const accountMenuObserver = accountMenu
     ? new MutationObserver(() => {
         if (accountMenu.hidden) collapseColumnsSubmenu();
+        else closeComposerPickers();
       })
     : null;
   accountMenuObserver?.observe(accountMenu!, {
@@ -736,8 +904,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       editingPostId = post.id;
       composer.hidden = false;
       composerInput.value = post.text;
-      if (visibilitySelect)
-        visibilitySelect.value = post.visibility ?? "public";
+      setVisibility(post.visibility ?? "public");
       composerInput.style.height = "auto";
       composerInput.style.height = `${composerInput.scrollHeight}px`;
       composerBtn.textContent = "保存";
@@ -803,9 +970,12 @@ export function mountFeed(container: HTMLElement): FeedControls {
     composerInput.style.height = `${composerInput.scrollHeight}px`;
   });
   composerInput.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && editingPostId) {
-      event.preventDefault();
-      resetComposer();
+    if (event.key === "Escape") {
+      closeComposerPickers();
+      if (editingPostId) {
+        event.preventDefault();
+        resetComposer();
+      }
       return;
     }
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -836,7 +1006,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     try {
       selectedMedia = await uploadMedia(
         file,
-        mediaStorage.value || undefined,
+        selectedStorageId || undefined,
         (percent) => {
           mediaStatus.textContent = `上传中 ${percent}%`;
         },
@@ -879,17 +1049,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
     mediaStatus.hidden = true;
     try {
       if (editingPostId) {
-        await updatePost(
-          editingPostId,
-          text,
-          (visibilitySelect?.value as Post["visibility"]) ?? "public",
-        );
+        await updatePost(editingPostId, text, selectedVisibility);
       } else {
-        await createPost(
-          text,
-          selectedMedia?.id,
-          (visibilitySelect?.value as Post["visibility"]) ?? "public",
-        );
+        await createPost(text, selectedMedia?.id, selectedVisibility);
       }
       if (state.search !== null) {
         searchInput.value = "";
@@ -936,6 +1098,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
       observer.disconnect();
       viewObserver.disconnect();
       accountMenuObserver?.disconnect();
+      closeComposerPickers();
+      scroller.removeEventListener("scroll", closeComposerPickers);
       for (const [query] of COLUMN_QUERIES) {
         matchMedia(query).removeEventListener("change", onMediaChange);
       }

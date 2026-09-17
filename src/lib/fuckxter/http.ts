@@ -30,6 +30,33 @@ async function performRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  // 只对 GET 做一次自动重试：dev server 重启后第一次请求经常掉连接，
+  // 或后端偶发 5xx，重试一次就能自己恢复，不用用户手动刷新。
+  try {
+    return await requestOnce<T>(path, options);
+  } catch (error) {
+    const method = (options.method ?? "GET").toUpperCase();
+    if (method !== "GET" || !isRetryable(error)) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return requestOnce<T>(path, options);
+  }
+}
+
+function isRetryable(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  return (
+    error.code === "NETWORK" ||
+    error.code === "TIMEOUT" ||
+    error.status === 502 ||
+    error.status === 503 ||
+    error.status === 504
+  );
+}
+
+async function requestOnce<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
   if (typeof options.body === "string" && !headers.has("Content-Type")) {
