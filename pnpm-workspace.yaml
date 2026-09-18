@@ -3,8 +3,8 @@ allowBuilds:
   sharp: true
   workerd: false
 minimumReleaseAgeExclude:
-  - miniflare@5.20260916.0-alpha
-  - wrangler@4.133.0
+  - miniflare@5.20260917.0-alpha
+  - wrangler@4.134.0
   - astro@7.3.3
   - "@astrojs/internal-helpers@0.11.0"
   - "@astrojs/markdown-satteri@0.4.1"
@@ -24,4 +24,4 @@ minimumReleaseAgeExclude:
   - "@cloudflare/workerd-linux-arm64@1.20260915.1"
   - "@cloudflare/workerd-windows-64@1.20260915.1"
   - workerd@1.20260915.1
-  - prettier@3.9.7
+  - prettier@3.9.8

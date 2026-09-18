@@ -14,8 +14,6 @@
   will-change: transform, opacity;
 }
 
-
-
 .fk-splash.is-exit {
   pointer-events: none;
   animation: fk-splash-veil 520ms cubic-bezier(0.22, 0.08, 0.25, 1) both;

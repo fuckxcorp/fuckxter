@@ -61,7 +61,13 @@ function handleFromEmail(email: string): string {
 async function uniqueHandle(env: Env, email: string): Promise<string> {
   const preferred = handleFromEmail(email);
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const suffix = attempt === 0 ? "" : randomToken().replace(/[^a-z0-9]/gi, "").slice(0, 6).toLowerCase();
+    const suffix =
+      attempt === 0
+        ? ""
+        : randomToken()
+            .replace(/[^a-z0-9]/gi, "")
+            .slice(0, 6)
+            .toLowerCase();
     const handle = suffix
       ? `${preferred.slice(0, 14)}${suffix}`.slice(0, 20)
       : preferred;
@@ -73,7 +79,10 @@ async function uniqueHandle(env: Env, email: string): Promise<string> {
       .first<{ id: string }>();
     if (!taken) return handle;
   }
-  return `guest${randomToken().replace(/[^a-z0-9]/gi, "").slice(0, 8).toLowerCase()}`;
+  return `guest${randomToken()
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 8)
+    .toLowerCase()}`;
 }
 
 async function findUserByIdentifier(
