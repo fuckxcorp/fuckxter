@@ -83,6 +83,17 @@ import Layout from "../../layouts/Layout.astro";
           </button>
         </div>
       </div>
+
+      <div data-role="restored-notice" hidden>
+        <p class="login-note">
+          你之前申请过删除账号，本次登录已经自动取消删除，账号和内容都还在。
+        </p>
+        <div class="login-links">
+          <button type="button" data-role="restored-continue">
+            继续
+          </button>
+        </div>
+      </div>
     </section>
   </div>
 </Layout>
@@ -140,6 +151,12 @@ import Layout from "../../layouts/Layout.astro";
     const recoveryNoticeContinue = root.querySelector<HTMLButtonElement>(
       "[data-role=recovery-notice-continue]",
     )!;
+    const restoredNotice = root.querySelector<HTMLElement>(
+      "[data-role=restored-notice]",
+    )!;
+    const restoredContinue = root.querySelector<HTMLButtonElement>(
+      "[data-role=restored-continue]",
+    )!;
 
     /** totp：密码 + 动态验证码；recovery：密码 + 恢复码。 */
     let secondFactor: "totp" | "recovery" = "totp";
@@ -175,6 +192,10 @@ import Layout from "../../layouts/Layout.astro";
     };
 
     recoveryNoticeContinue.addEventListener("click", () => {
+      location.href = nextPath();
+    });
+
+    restoredContinue.addEventListener("click", () => {
       location.href = nextPath();
     });
 
@@ -219,15 +240,21 @@ import Layout from "../../layouts/Layout.astro";
       submit.disabled = true;
       setStatus("登录中…");
       try {
-        const account = await signIn({
+        const result = await signIn({
           identifier: email,
           password: password.value,
           code: secondFactor === "totp" ? code : undefined,
           recoveryCode: secondFactor === "recovery" ? recoveryCode : undefined,
         });
+        // 之前申请过删除，登录即取消
+        if (result.restored) {
+          loginBody.hidden = true;
+          restoredNotice.hidden = false;
+          return;
+        }
         // 只有确实开了 2FA、真的消费掉一个恢复码时才提醒
-        if (secondFactor === "recovery" && account.twoFactorEnabled) {
-          showRecoveryNotice(account.recoveryCodeCount);
+        if (secondFactor === "recovery" && result.account.twoFactorEnabled) {
+          showRecoveryNotice(result.account.recoveryCodeCount);
           return;
         }
         location.href = nextPath();

@@ -129,6 +129,7 @@ export interface UserRow {
   avatar_key: string | null;
   totp_secret: string | null;
   two_factor_enabled: number;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }

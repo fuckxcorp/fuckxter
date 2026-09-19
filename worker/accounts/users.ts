@@ -128,7 +128,7 @@ export async function getUserProfile(
          WHERE vb.blocker_id = ? AND vb.blocked_id = u.id
        ) AS blocked
      FROM users u
-     WHERE u.id = ?
+     WHERE u.id = ? AND u.deleted_at IS NULL
      LIMIT 1`,
   )
     .bind(viewerId ?? "", viewerId ?? "", usernameKey(handle))
@@ -159,7 +159,7 @@ export async function searchUsers(env: Env, query: string, limit = 10) {
             (SELECT COUNT(*) FROM follows f
               WHERE f.follower_id = u.id) AS following_count
      FROM users u
-     WHERE u.handle LIKE ? OR u.name LIKE ?
+     WHERE (u.handle LIKE ? OR u.name LIKE ?) AND u.deleted_at IS NULL
      ORDER BY CASE WHEN u.handle = ? THEN 0 ELSE 1 END, u.handle ASC
      LIMIT ?`,
   )
@@ -192,6 +192,7 @@ export async function getFollowUsers(
      FROM follows f
      JOIN users u ON ${relation}
      WHERE ${kind === "followers" ? "f.followee_id" : "f.follower_id"} = ?
+       AND u.deleted_at IS NULL
      ORDER BY f.created_at DESC
      LIMIT 100`,
   )

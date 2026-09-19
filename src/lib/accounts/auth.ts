@@ -33,6 +33,13 @@ export interface S3Config {
 
 interface AccountResponse {
   account: Account | null;
+  restored?: boolean;
+}
+
+export interface SignInResult {
+  account: Account;
+  /** 之前申请过删除，这次登录把删除取消了 */
+  restored: boolean;
 }
 
 const ACCOUNT_CACHE_KEY = "fk-account-cache";
@@ -130,7 +137,7 @@ export async function signIn(input: {
   password: string;
   code?: string;
   recoveryCode?: string;
-}): Promise<Account> {
+}): Promise<SignInResult> {
   const response = await apiRequest<AccountResponse>("/auth/login", {
     method: "POST",
     body: JSON.stringify(input),
@@ -139,7 +146,17 @@ export async function signIn(input: {
   const next = normalizeAccount(response.account);
   setAccount(next);
   sessionPromise = Promise.resolve(next);
-  return next;
+  return { account: next, restored: Boolean(response.restored) };
+}
+
+/** 申请删除账号：3 天内登录回来会自动取消。 */
+export async function deleteAccount(): Promise<void> {
+  try {
+    await apiRequest<void>("/me", { method: "DELETE" });
+  } finally {
+    setAccount(null);
+    sessionPromise = Promise.resolve(null);
+  }
 }
 
 export async function signOut(): Promise<void> {

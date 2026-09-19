@@ -4,7 +4,9 @@ import {
   changePassword,
   confirmTwoFactor,
   loginOrRegister,
+  purgeDeletedAccounts,
   replaceRecoveryCodes,
+  requestAccountDeletion,
   updateProfile,
 } from "./accounts/accounts";
 import {
@@ -253,7 +255,11 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         body.code,
         body.recoveryCode,
       );
-      const response = json({ account: result.account }, request, env);
+      const response = json(
+        { account: result.account, restored: Boolean(result.restored) },
+        request,
+        env,
+      );
       return withCookie(
         response,
         await createSession(env, result.userId, request),
@@ -513,6 +519,12 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         request,
         env,
       );
+    }
+
+    if (parts.length === 2 && method === "DELETE") {
+      await requestAccountDeletion(env, user.id);
+      const response = json({ ok: true }, request, env);
+      return withCookie(response, clearSessionCookie(request));
     }
 
     if (parts[2] === "email" && parts.length === 3 && method === "PUT") {
@@ -1018,5 +1030,10 @@ export default {
 
   async queue(batch: QueueBatch<Job>, env: Env): Promise<void> {
     await handleQueue(batch, env);
+  },
+
+  async scheduled(_event: unknown, env: Env): Promise<void> {
+    const purged = await purgeDeletedAccounts(env);
+    if (purged > 0) console.log("Purged deleted accounts", purged);
   },
 };

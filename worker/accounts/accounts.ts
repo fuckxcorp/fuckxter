@@ -9,6 +9,7 @@ import {
 } from "../shared/crypto";
 import type { Env, UserRow } from "../shared/platform";
 import { moveAvatar, moveHeader } from "../posts/media";
+import { headerObjectKey } from "./avatar";
 import { accountFromRow } from "./security";
 import {
   consumeRecoveryCode,
@@ -23,6 +24,8 @@ import { enqueueJob } from "../shared/jobs";
 const RESERVED_HANDLES = new Set(["user", "post", "settings", "api", "assets"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_BIRTHDAY = "1700-01-01";
+/** 申请删除后的宽限期：这之内登录回来就自动取消删除。 */
+const DELETION_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 function validateBirthday(value: string): string {
   const birthday = value.trim();
@@ -134,30 +137,56 @@ export async function loginOrRegister(
     if (!(await verifyPassword(password, user))) {
       throw new HttpError(401, "INVALID_CREDENTIALS", "邮箱或密码错误。");
     }
-    if (user.two_factor_enabled) {
-      if (recoveryCode?.trim()) {
-        if (!(await consumeRecoveryCode(env, user.id, recoveryCode))) {
-          throw new HttpError(
-            401,
-            "INVALID_RECOVERY_CODE",
-            "恢复码无效或已被使用。",
-          );
-        }
+    let restored = false;
+    if (user.deleted_at) {
+      if (Date.now() - Date.parse(user.deleted_at) > DELETION_GRACE_MS) {
+        // 宽限期已过（定时清理还没跑到）：直接清掉，按新账号走注册
+        await purgeUser(env, user);
+        user = null;
       } else {
-        if (!code?.trim()) {
-          throw new HttpError(428, "TWO_FACTOR_REQUIRED", "请输入动态验证码。");
-        }
-        const secret = await decryptSecret(
-          user.totp_secret ?? "",
-          env,
-          `user:${user.id}:totp`,
-        );
-        if (!(await verifyTotp(secret, code.trim()))) {
-          throw new HttpError(401, "INVALID_TOTP", "动态验证码不正确。");
-        }
+        await env.DB.prepare(
+          "UPDATE users SET deleted_at = NULL, updated_at = ? WHERE id = ?",
+        )
+          .bind(new Date().toISOString(), user.id)
+          .run();
+        user = { ...user, deleted_at: null };
+        restored = true;
       }
     }
-    return { userId: user.id, account: await getAccount(env, user.id) };
+    if (user) {
+      if (user.two_factor_enabled) {
+        if (recoveryCode?.trim()) {
+          if (!(await consumeRecoveryCode(env, user.id, recoveryCode))) {
+            throw new HttpError(
+              401,
+              "INVALID_RECOVERY_CODE",
+              "恢复码无效或已被使用。",
+            );
+          }
+        } else {
+          if (!code?.trim()) {
+            throw new HttpError(
+              428,
+              "TWO_FACTOR_REQUIRED",
+              "请输入动态验证码。",
+            );
+          }
+          const secret = await decryptSecret(
+            user.totp_secret ?? "",
+            env,
+            `user:${user.id}:totp`,
+          );
+          if (!(await verifyTotp(secret, code.trim()))) {
+            throw new HttpError(401, "INVALID_TOTP", "动态验证码不正确。");
+          }
+        }
+      }
+      return {
+        userId: user.id,
+        account: await getAccount(env, user.id),
+        restored,
+      };
+    }
   }
 
   if (!isEmail) {
@@ -410,4 +439,46 @@ export async function replaceRecoveryCodes(env: Env, userId: string) {
     ),
   ]);
   return { codes, recoveryCodeCount: codes.length };
+}
+
+/**
+ * 申请删除账号：只做标记并踢掉所有会话，外发内容立刻对外不可见。
+ * 宽限期内登录会自动取消（见 loginOrRegister）。
+ */
+export async function requestAccountDeletion(
+  env: Env,
+  userId: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE users SET deleted_at = ?, updated_at = ? WHERE id = ?",
+    ).bind(now, now, userId),
+    env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId),
+  ]);
+}
+
+/** 真正删掉一个账号，顺带清掉它在 R2 里的头像和头图。 */
+async function purgeUser(
+  env: Env,
+  user: Pick<UserRow, "id" | "handle">,
+): Promise<void> {
+  await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(user.id).run();
+  await Promise.all([
+    env.MEDIA_CACHE.delete(`avatars/${user.handle}.avif`),
+    env.MEDIA_CACHE.delete(headerObjectKey(user.handle)),
+  ]);
+}
+
+/** 定时任务：清理已经超过宽限期的账号。 */
+export async function purgeDeletedAccounts(env: Env): Promise<number> {
+  const cutoff = new Date(Date.now() - DELETION_GRACE_MS).toISOString();
+  const rows = await env.DB.prepare(
+    "SELECT id, handle FROM users WHERE deleted_at IS NOT NULL AND deleted_at < ?",
+  )
+    .bind(cutoff)
+    .all<{ id: string; handle: string }>();
+  const pending = rows.results ?? [];
+  for (const user of pending) await purgeUser(env, user);
+  return pending.length;
 }

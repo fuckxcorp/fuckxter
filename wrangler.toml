@@ -58,3 +58,7 @@ queue = "fuckxchat"
 max_batch_size = 10
 max_batch_timeout = 5
 max_retries = 3
+
+# 每天清理一次超过宽限期的待删除账号
+[triggers]
+crons = ["23 4 * * *"]

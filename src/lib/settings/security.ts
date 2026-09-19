@@ -3,6 +3,7 @@ import {
   changeEmail,
   changePassword,
   confirmTwoFactor,
+  deleteAccount,
   generateRecoveryCodes,
 } from "../accounts/auth";
 import {
@@ -310,6 +311,34 @@ export function mountSecuritySettings(
       ].map((item) => item.textContent ?? "");
       if (codes.length > 0) downloadRecoveryCodes(codes);
     });
+
+  const deleteButton = root.querySelector<HTMLButtonElement>(
+    "[data-role=account-delete]",
+  );
+  const deleteStatus = root.querySelector<HTMLElement>(
+    "[data-role=account-delete-status]",
+  );
+  deleteButton?.addEventListener("click", async () => {
+    if (
+      !confirm(
+        "确定要删除账号吗？3 天内登录回来可以取消，超过 3 天账号和数据会被永久删除。",
+      )
+    ) {
+      return;
+    }
+    deleteButton.disabled = true;
+    setStatus(deleteStatus, "处理中…");
+    try {
+      await deleteAccount();
+      location.href = "/";
+    } catch (error) {
+      deleteButton.disabled = false;
+      setStatus(
+        deleteStatus,
+        error instanceof Error ? error.message : "删除失败，请稍后重试。",
+      );
+    }
+  });
 
   fillEmailHint();
   renderTfa();

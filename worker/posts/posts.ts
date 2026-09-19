@@ -45,7 +45,7 @@ const POST_SELECT = `
       WHERE vf.follower_id = ? AND vf.followee_id = p.author_id
     ) AS author_following
   FROM posts p
-  JOIN users u ON u.id = p.author_id
+  JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
 `;
 
 async function createPostId(env: Env): Promise<string> {
@@ -202,7 +202,10 @@ export async function getTimeline(
   const params: unknown[] = [viewer, viewer, viewer, viewer, ...filter.params];
   const conditions = ["p.deleted_at IS NULL", filter.condition];
   const resolved = timelineTab(tab);
-  const byHeat = resolved === "foryou";
+  // 推荐流没有算法：按点赞量排序，点赞数相同就按时间。
+  // 每个赞的分量一样，新帖在 0 赞档里也能靠时间拿到曝光。
+  const byLikes = resolved === "foryou";
+  const likeCount = "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)";
 
   if (resolved === "following") {
     if (!viewerId) {
@@ -216,14 +219,14 @@ export async function getTimeline(
 
   if (cursor) {
     const parts = decodeCursor(cursor);
-    if (byHeat && parts.length === 3) {
-      const [views, createdAt, id] = parts;
+    if (byLikes && parts.length === 3) {
+      const [likes, createdAt, id] = parts;
       conditions.push(
-        `(p.view_count < ?
-          OR (p.view_count = ?
+        `(${likeCount} < ?
+          OR (${likeCount} = ?
             AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?))))`,
       );
-      params.push(Number(views), Number(views), createdAt, createdAt, id);
+      params.push(Number(likes), Number(likes), createdAt, createdAt, id);
     } else {
       const [createdAt, id] = parts;
       conditions.push("(p.created_at < ? OR (p.created_at = ? AND p.id < ?))");
@@ -237,8 +240,8 @@ export async function getTimeline(
       `${POST_SELECT}
        WHERE ${conditions.join(" AND ")}
        ORDER BY ${
-         byHeat
-           ? "p.view_count DESC, p.created_at DESC, p.id DESC"
+         byLikes
+           ? "like_count DESC, p.created_at DESC, p.id DESC"
            : "p.created_at DESC, p.id DESC"
        }
        LIMIT ?`,
@@ -253,8 +256,8 @@ export async function getTimeline(
     posts: pageRows.map((row) => publicPost(row, viewerId)),
     nextCursor:
       hasMore && last
-        ? byHeat
-          ? encodeCursor(String(last.view_count ?? 0), last.created_at, last.id)
+        ? byLikes
+          ? encodeCursor(String(last.like_count ?? 0), last.created_at, last.id)
           : encodeCursor(last.created_at, last.id)
         : null,
   };

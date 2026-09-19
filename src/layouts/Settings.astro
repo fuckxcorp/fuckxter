@@ -536,6 +536,26 @@ const sectionTitles: Record<SettingsSection, string> = {
                   生成恢复密钥
                 </button>
               </div>
+
+              <div class="fieldset" data-role="delete-account">
+                <p class="fieldset-title">删除账号</p>
+                <p class="form-hint">
+                  提交后账号会立即下线，内容也不再对外显示。3
+                  天内登录回来会自动取消；超过 3 天，账号和数据会被永久删除。
+                </p>
+                <button
+                  type="button"
+                  class="ghost-btn"
+                  data-role="account-delete"
+                >
+                  删除账号
+                </button>
+                <p
+                  class="form-status"
+                  data-role="account-delete-status"
+                  aria-live="polite"
+                />
+              </div>
             </div>
           </section>
         )}
