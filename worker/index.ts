@@ -41,6 +41,7 @@ import {
   markNotificationsRead,
 } from "./notifications/notifications";
 import { handleQueue } from "./jobs";
+import { enqueueJob } from "./shared/jobs";
 import type { Job, QueueBatch } from "./shared/jobs";
 import type { Env } from "./shared/platform";
 import {
@@ -136,6 +137,14 @@ interface WorkerExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
 }
 
+/**
+ * 只有 Astro 构建产物能长期缓存：文件名里带内容哈希，改了就是新 URL。
+ * public/ 下的文件（logo、默认头像）名字固定，换图后必须能及时刷出来。
+ */
+function isHashedAsset(pathname: string): boolean {
+  return pathname.startsWith("/_astro/");
+}
+
 function cacheableAssetResponse(
   response: Response,
   immutable: boolean,
@@ -147,6 +156,10 @@ function cacheableAssetResponse(
       "public, max-age=31536000, s-maxage=31536000, immutable",
     );
     headers.set("CDN-Cache-Control", "public, max-age=31536000, immutable");
+  } else {
+    // 名字固定的静态文件：短 TTL + 必须重新校验，换图后一分钟内生效
+    headers.set("Cache-Control", "public, max-age=60, must-revalidate");
+    headers.set("CDN-Cache-Control", "public, max-age=60, must-revalidate");
   }
   return new Response(response.body, {
     status: response.status,
@@ -161,11 +174,12 @@ async function fetchAsset(
   assetUrl: URL,
   cacheUrl: URL,
   context: WorkerExecutionContext,
-  cacheable: boolean,
+  mode: "immutable" | "revalidate",
 ): Promise<Response> {
+  const useWorkerCache = mode === "immutable";
   const cache = (caches as CacheStorage & { default: Cache }).default;
   const cacheKey = new Request(cacheUrl, { method: request.method });
-  const cached = cacheable ? await cache.match(cacheKey) : undefined;
+  const cached = useWorkerCache ? await cache.match(cacheKey) : undefined;
   if (cached) {
     const headers = new Headers(cached.headers);
     headers.set("X-Fuckxter-Cache", "HIT");
@@ -181,11 +195,7 @@ async function fetchAsset(
     await new Promise((resolve) => setTimeout(resolve, 50));
     response = await env.ASSETS.fetch(new Request(assetUrl, request));
   }
-  if (
-    !cacheable ||
-    !response.ok ||
-    (request.method !== "GET" && request.method !== "HEAD")
-  ) {
+  if (!response.ok || (request.method !== "GET" && request.method !== "HEAD")) {
     if ((response.headers.get("Content-Type") ?? "").includes("text/html")) {
       const headers = new Headers(response.headers);
       headers.set("Cache-Control", "no-store, max-age=0");
@@ -200,7 +210,9 @@ async function fetchAsset(
     return response;
   }
 
-  const stored = cacheableAssetResponse(response, true);
+  const stored = cacheableAssetResponse(response, useWorkerCache);
+  if (!useWorkerCache) return stored;
+
   const headers = new Headers(stored.headers);
   headers.set("X-Fuckxter-Cache", "MISS");
   const result = new Response(stored.body, {
@@ -212,7 +224,12 @@ async function fetchAsset(
   return result;
 }
 
-async function route(request: Request, env: Env, url: URL): Promise<Response> {
+async function route(
+  request: Request,
+  env: Env,
+  url: URL,
+  context: WorkerExecutionContext,
+): Promise<Response> {
   const parts = routeSegments(url.pathname);
   const method = request.method;
 
@@ -260,6 +277,15 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         request,
         env,
       );
+      // 新注册：欢迎通知丢后台，不占注册响应的时间
+      if (result.created) {
+        context.waitUntil(
+          enqueueJob(env, {
+            type: "notification.welcome",
+            userId: result.userId,
+          }),
+        );
+      }
       return withCookie(
         response,
         await createSession(env, result.userId, request),
@@ -990,8 +1016,7 @@ export default {
       isOverlappingApiPath;
     if (!isApiHost) {
       const assetPath = assetPagePath(url.pathname);
-      const fileName = url.pathname.split("/").at(-1) ?? "";
-      const cacheable = !assetPath && fileName.includes(".");
+      const mode = isHashedAsset(url.pathname) ? "immutable" : "revalidate";
       if (
         assetPath &&
         (request.method === "GET" || request.method === "HEAD")
@@ -1006,14 +1031,14 @@ export default {
           assetUrl,
           cacheUrl,
           context,
-          cacheable,
+          mode,
         );
         // 帖子页补上 og:*，Telegram 之类的爬虫才抓得到内容
         return assetPath === "/post/"
           ? await withPostPageHtml(request, env, url, response)
           : response;
       }
-      return fetchAsset(request, env, url, url, context, cacheable);
+      return fetchAsset(request, env, url, url, context, mode);
     }
 
     const headers = corsHeaders(request, env);
@@ -1022,7 +1047,7 @@ export default {
     }
     try {
       assertTrustedOrigin(request, env);
-      return await route(request, env, url);
+      return await route(request, env, url, context);
     } catch (error) {
       return errorResponse(error, request, env);
     }

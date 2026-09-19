@@ -4,7 +4,7 @@ import {
   decryptSecret,
   encryptSecret,
   randomId,
-  randomToken,
+  randomBytes,
   verifyPassword,
 } from "../shared/crypto";
 import type { Env, UserRow } from "../shared/platform";
@@ -19,7 +19,6 @@ import {
   verifyTotp,
 } from "./two-factor";
 import { usernameKey, validateUsername } from "./usernames";
-import { enqueueJob } from "../shared/jobs";
 
 const RESERVED_HANDLES = new Set(["user", "post", "settings", "api", "assets"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -48,47 +47,33 @@ function validateBirthday(value: string): string {
   return birthday;
 }
 
-function handleFromEmail(email: string): string {
-  const base = email
-    .split("@")[0]
-    .replace(/[^a-z0-9_]/gi, "")
-    .toLowerCase()
-    .slice(0, 20);
-  if (/^[a-z0-9_]{2,20}$/.test(base) && !RESERVED_HANDLES.has(base)) {
-    return base;
-  }
-  const suffix = randomToken()
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(0, 8)
-    .toLowerCase();
-  return `guest${suffix}`;
+/** 用户名用的字母表：去掉 l / o 这类易混字符，刚好 32 个，取模无偏差。 */
+const HANDLE_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
+const HANDLE_LENGTH = 10;
+
+/**
+ * 注册时分配的用户名完全随机，不从邮箱推导：
+ * 免得两个同名前缀的邮箱互相挤占，也不至于把邮箱暴露在用户名里。
+ * 10 位 32 进制 = 50 bit，撞名基本不可能，下面仍然会查一次库兜底。
+ */
+function randomHandle(): string {
+  return [...randomBytes(HANDLE_LENGTH)]
+    .map((byte) => HANDLE_ALPHABET[byte % HANDLE_ALPHABET.length])
+    .join("");
 }
 
-async function uniqueHandle(env: Env, email: string): Promise<string> {
-  const preferred = handleFromEmail(email);
+async function uniqueHandle(env: Env): Promise<string> {
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const suffix =
-      attempt === 0
-        ? ""
-        : randomToken()
-            .replace(/[^a-z0-9]/gi, "")
-            .slice(0, 6)
-            .toLowerCase();
-    const handle = suffix
-      ? `${preferred.slice(0, 14)}${suffix}`.slice(0, 20)
-      : preferred;
+    const handle = randomHandle();
     if (RESERVED_HANDLES.has(handle)) continue;
     const taken = await env.DB.prepare(
       "SELECT id FROM users WHERE id = ? LIMIT 1",
     )
-      .bind(usernameKey(handle))
+      .bind(handle)
       .first<{ id: string }>();
     if (!taken) return handle;
   }
-  return `guest${randomToken()
-    .replace(/[^a-z0-9]/gi, "")
-    .slice(0, 8)
-    .toLowerCase()}`;
+  return randomHandle();
 }
 
 async function findUserByIdentifier(
@@ -198,8 +183,10 @@ export async function loginOrRegister(
   const passwordValue = await createPasswordHash(password);
   let createdId: string | null = null;
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const handle = await uniqueHandle(env, email);
+    const handle = await uniqueHandle(env);
     const handleKey = usernameKey(handle);
+    // 昵称先给一个占位，用户随时可以在设置里改
+    const name = `user-${handle}`;
     try {
       await env.DB.prepare(
         `INSERT INTO users (
@@ -213,7 +200,7 @@ export async function loginOrRegister(
           email,
           passwordValue.hash,
           passwordValue.salt,
-          handle,
+          name,
           now,
           now,
         )
@@ -246,8 +233,12 @@ export async function loginOrRegister(
   if (!user) {
     throw new HttpError(500, "USER_CREATE_FAILED", "创建账号失败。");
   }
-  await enqueueJob(env, { type: "notification.welcome", userId: user.id });
-  return { userId: user.id, account: await getAccount(env, user.id) };
+  // 欢迎通知交给调用方用 waitUntil 丢进队列：注册响应不必等队列确认
+  return {
+    userId: user.id,
+    account: await getAccount(env, user.id),
+    created: true,
+  };
 }
 
 export async function updateProfile(

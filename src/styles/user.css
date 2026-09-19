@@ -176,8 +176,6 @@
 }
 
 .user-chip-action {
-  box-sizing: border-box;
-  width: 100%;
   color: inherit;
   cursor: pointer;
   font: inherit;
