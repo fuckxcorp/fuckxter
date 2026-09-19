@@ -6,51 +6,51 @@ import Layout from "../../layouts/Layout.astro";
 ---
 
 <Layout title="私信">
-  <div class="fk-app fk-subpage" data-fk-messages>
+  <div class="app subpage" data-messages>
     <Header label="← 返回" />
 
-    <main class="fk-messages-main">
-      <section class="fk-messages-panel" data-role="threads-panel">
-        <header class="fk-messages-head">
+    <main class="messages-main">
+      <section class="messages-panel" data-role="threads-panel">
+        <header class="messages-head">
           <div>
             <h1>私信</h1>
             <p data-role="threads-summary">正在加载…</p>
           </div>
         </header>
-        <div class="fk-thread-list" data-role="thread-list"></div>
-        <p class="fk-status" data-role="threads-empty" hidden>
+        <div class="thread-list" data-role="thread-list"></div>
+        <p class="status" data-role="threads-empty" hidden>
           还没有私信。去别人的主页点「私信」就能开始聊天。
         </p>
       </section>
 
-      <section class="fk-chat" data-role="chat" hidden>
-        <header class="fk-chat-head">
-          <a class="fk-chat-user" data-role="chat-user" href="#">
-            <span class="fk-avatar fk-chat-avatar" data-role="chat-avatar"
-            ></span>
-            <span class="fk-chat-meta">
+      <section class="chat" data-role="chat" hidden>
+        <header class="chat-head">
+          <a class="chat-user" data-role="chat-user" href="#">
+            <span class="avatar chat-avatar" data-role="chat-avatar"></span>
+            <span class="chat-meta">
               <strong data-role="chat-name"></strong>
               <small data-role="chat-handle"></small>
             </span>
           </a>
-          <a class="fk-chat-profile" data-role="chat-profile" href="#">
+          <a class="chat-profile" data-role="chat-profile" href="#">
             查看主页
           </a>
         </header>
 
-        <div class="fk-chat-messages" data-role="chat-messages"></div>
+        <div class="chat-messages" data-role="chat-messages"></div>
 
-        <form class="fk-chat-composer" data-role="chat-form" novalidate>
+        <form class="chat-composer" data-role="chat-form" novalidate>
           <textarea
-            class="fk-chat-input"
+            class="chat-input"
             data-role="chat-input"
             rows="1"
             maxlength="1000"
             placeholder="写点私信…"
-            aria-label="私信内容"></textarea>
+            aria-label="私信内容"
+          ></textarea>
           <button
             type="submit"
-            class="fk-primary-btn fk-chat-send"
+            class="primary-btn chat-send"
             data-role="chat-send"
             disabled
           >
@@ -58,12 +58,11 @@ import Layout from "../../layouts/Layout.astro";
           </button>
         </form>
         <p
-          class="fk-chat-status"
+          class="chat-status"
           data-role="chat-status"
           aria-live="polite"
           hidden
-        >
-        </p>
+        ></p>
       </section>
     </main>
   </div>
@@ -77,28 +76,28 @@ import Layout from "../../layouts/Layout.astro";
     markConversationRead,
     recallDirectMessage,
     sendDirectMessage,
-  } from "../../lib/fuckxter/api";
-  import { hydrateSession } from "../../lib/fuckxter/auth";
+  } from "../../lib/accounts/api";
+  import { hydrateSession } from "../../lib/accounts/auth";
   import {
     avatarGradient,
     el,
     relativeTime,
     showToast,
     statusRow,
-  } from "../../lib/fuckxter/dom";
-  import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
-  import { onFuckxterPageReady } from "../../lib/fuckxter/page";
+  } from "../../lib/ui/dom";
+  import { ApiError, apiEndpoint } from "../../lib/core/http";
+  import { onPageReady } from "../../lib/core/page";
   import type {
     Conversation,
     DirectMessage,
     FeedUser,
-  } from "../../lib/fuckxter/types";
+  } from "../../lib/core/types";
   import {
     conversationPath,
     messagesPath,
     parseMessagePath,
     userPath,
-  } from "../../lib/fuckxter/urls";
+  } from "../../lib/core/urls";
 
   const MAX_CHARS = 1000;
   const POLL_MS = 6000;
@@ -114,9 +113,9 @@ import Layout from "../../layouts/Layout.astro";
 
   function fillAvatar(node: HTMLElement, user: FeedUser): void {
     node.setAttribute("style", avatarGradient(user.handle));
-    const fallback = el("span", "fk-avatar-fallback");
+    const fallback = el("span", "avatar-fallback");
     fallback.textContent = [...user.name.trim()][0]?.toLocaleUpperCase() ?? "?";
-    const image = el("img", "fk-avatar-image");
+    const image = el("img", "avatar-image");
     image.src = user.avatarUrl
       ? user.avatarUrl.startsWith("/")
         ? apiEndpoint(user.avatarUrl)
@@ -130,7 +129,7 @@ import Layout from "../../layouts/Layout.astro";
   }
 
   function avatarNode(user: FeedUser, className: string): HTMLElement {
-    const wrap = el("span", `fk-avatar ${className}`);
+    const wrap = el("span", `avatar ${className}`);
     fillAvatar(wrap, user);
     return wrap;
   }
@@ -142,15 +141,15 @@ import Layout from "../../layouts/Layout.astro";
     container.replaceChildren();
     if (threads.length === 0) return;
     for (const thread of threads) {
-      const row = el("a", "fk-thread");
+      const row = el("a", "thread");
       row.href = conversationPath(thread.other.handle);
       row.dataset.handle = thread.other.handle;
       if (thread.unread > 0) row.classList.add("is-unread");
 
-      row.append(avatarNode(thread.other, "fk-thread-avatar"));
+      row.append(avatarNode(thread.other, "thread-avatar"));
 
-      const body = el("span", "fk-thread-body");
-      const top = el("span", "fk-thread-top");
+      const body = el("span", "thread-body");
+      const top = el("span", "thread-top");
       const name = el("strong");
       name.textContent = thread.other.name;
       const handle = el("small");
@@ -161,7 +160,7 @@ import Layout from "../../layouts/Layout.astro";
       );
       top.append(name, handle, time);
 
-      const preview = el("span", "fk-thread-preview");
+      const preview = el("span", "thread-preview");
       preview.textContent = thread.lastMessage
         ? `${thread.lastMessage.mine ? "我：" : ""}${thread.lastMessage.body}`
         : "还没有消息";
@@ -170,7 +169,7 @@ import Layout from "../../layouts/Layout.astro";
       row.append(body);
 
       if (thread.unread > 0) {
-        const badge = el("span", "fk-thread-badge");
+        const badge = el("span", "thread-badge");
         badge.textContent = thread.unread > 99 ? "99+" : String(thread.unread);
         row.append(badge);
       }
@@ -179,25 +178,22 @@ import Layout from "../../layouts/Layout.astro";
   }
 
   function messageRow(message: DirectMessage): HTMLElement {
-    const row = el(
-      "div",
-      `fk-chat-row ${message.mine ? "is-mine" : "is-theirs"}`,
-    );
+    const row = el("div", `chat-row ${message.mine ? "is-mine" : "is-theirs"}`);
     row.dataset.id = message.id;
-    const bubble = el("p", "fk-chat-bubble");
+    const bubble = el("p", "chat-bubble");
     bubble.textContent = message.body;
-    const foot = el("div", "fk-chat-foot");
-    const time = el("time", "fk-chat-time");
+    const foot = el("div", "chat-foot");
+    const time = el("time", "chat-time");
     time.textContent = relativeTime(message.createdAt);
     foot.append(time);
     if (message.mine) {
-      const recall = el("button", "fk-chat-recall");
+      const recall = el("button", "chat-recall");
       recall.type = "button";
       recall.dataset.recall = message.id;
       recall.textContent = "撤回";
       foot.append(recall);
     }
-    const wrap = el("div", "fk-chat-bubble-wrap");
+    const wrap = el("div", "chat-bubble-wrap");
     wrap.append(bubble);
     row.append(wrap, foot);
     return row;
@@ -389,10 +385,10 @@ import Layout from "../../layouts/Layout.astro";
     }
   }
 
-  onFuckxterPageReady(() => {
-    const root = document.querySelector<HTMLElement>("[data-fk-messages]");
-    if (!root || root.dataset.fkMessagesMounted === "true") return;
-    root.dataset.fkMessagesMounted = "true";
+  onPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-messages]");
+    if (!root || root.dataset.messagesMounted === "true") return;
+    root.dataset.messagesMounted = "true";
 
     document.addEventListener("astro:before-swap", stopPolling, { once: true });
 

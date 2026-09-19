@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import ThemeScript from "../components/ThemeScript.astro";
+import ThemeScript from "../components/Theme.astro";
 import { ClientRouter } from "astro:transitions";
 
 interface Props {
@@ -27,18 +27,6 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
   <body>
     <slot />
     <script is:inline>
-      (() => {
-        console.log(
-          "%c你既然這麼喜歡開 F12，那來加入我們吧",
-          "color:#f2f4f6;background:#101215;padding:8px 14px;border-radius:4px;font-size:14px;font-weight:700;",
-        );
-        console.log(
-          "%cFuckXter%c · 原始碼裡也留了一句給你，慢慢找。",
-          "color:#5b7aa8;font-size:15px;font-weight:800;",
-          "color:#6c7480;font-size:12px;",
-        );
-      })();
-
       document.addEventListener(
         "error",
         (event) => {
@@ -46,17 +34,17 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
           if (target instanceof HTMLImageElement) {
             target.classList.add("is-image-error");
             const container = target.closest(
-              ".fk-avatar, .fk-account-avatar, .fk-menu-user-avatar, .fk-user-avatar, .fk-notice-avatar, .fk-user-banner, .fk-media",
+              ".avatar, .account-avatar, .menu-user-avatar, .user-avatar, .notice-avatar, .user-banner, .media",
             );
             if (container) {
               container.classList.add("is-image-error");
               container.removeAttribute("style");
               container
-                .querySelector(".fk-avatar-fallback")
+                .querySelector(".avatar-fallback")
                 ?.setAttribute("hidden", "");
             }
-            if (target.closest(".fk-user-banner-host")) {
-              target.closest(".fk-user-banner-host").hidden = true;
+            if (target.closest(".user-banner-host")) {
+              target.closest(".user-banner-host").hidden = true;
             }
             target.removeAttribute("src");
           } else if (target instanceof HTMLVideoElement) {

@@ -5,7 +5,7 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="FuckXter">
-  <div class="fk-splash" data-role="splash" aria-hidden="true">
+  <div class="splash" data-role="splash" aria-hidden="true">
     <script is:inline>
       (() => {
         const splash = document.currentScript.parentElement;
@@ -18,7 +18,7 @@ import Layout from "../layouts/Layout.astro";
       })();
     </script>
     <img
-      class="fk-splash-logo fk-logo-light"
+      class="splash-logo logo-light"
       src="/fuckxter_bk.avif"
       alt=""
       width="515"
@@ -26,7 +26,7 @@ import Layout from "../layouts/Layout.astro";
       decoding="sync"
     />
     <img
-      class="fk-splash-logo fk-logo-dark"
+      class="splash-logo logo-dark"
       src="/fuckxter_wh.avif"
       alt=""
       width="514"
@@ -34,11 +34,11 @@ import Layout from "../layouts/Layout.astro";
       decoding="sync"
     />
   </div>
-  <div class="fk-app" data-fuckxter>
-    <header class="fk-topbar">
-      <a class="fk-brand" href="/" aria-label="FuckXter 首页">
+  <div class="app" data-app>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="FuckXter 首页">
         <img
-          class="fk-logo-img fk-logo-light"
+          class="logo-img logo-light"
           src="/fuckxter_bk.avif"
           alt="FuckXter"
           width="515"
@@ -46,7 +46,7 @@ import Layout from "../layouts/Layout.astro";
           decoding="async"
         />
         <img
-          class="fk-logo-img fk-logo-dark"
+          class="logo-img logo-dark"
           src="/fuckxter_wh.avif"
           alt="FuckXter"
           width="514"
@@ -55,9 +55,9 @@ import Layout from "../layouts/Layout.astro";
         />
       </a>
 
-      <div class="fk-search">
+      <div class="search">
         <svg
-          class="fk-search-icon"
+          class="search-icon"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -70,7 +70,7 @@ import Layout from "../layouts/Layout.astro";
           <path d="m21 21-4.35-4.35"></path>
         </svg>
         <input
-          class="fk-search-input"
+          class="search-input"
           type="search"
           placeholder="搜索 FuckXter"
           aria-label="搜索 FuckXter"
@@ -78,29 +78,30 @@ import Layout from "../layouts/Layout.astro";
         />
       </div>
 
-      <nav class="fk-tabs" aria-label="时间线">
-        <button type="button" class="fk-tab is-active" data-tab="foryou">
+      <nav class="tabs" aria-label="时间线">
+        <button type="button" class="tab is-active" data-tab="foryou">
           推荐
         </button>
-        <button type="button" class="fk-tab" data-tab="latest">实时</button>
-        <button type="button" class="fk-tab" data-tab="following">
+        <button type="button" class="tab" data-tab="latest">
+          实时
+        </button>
+        <button type="button" class="tab" data-tab="following">
           关注
         </button>
       </nav>
 
-      <div class="fk-account">
+      <div class="account">
         <button
           type="button"
-          class="fk-account-btn"
+          class="account-btn"
           data-role="account-btn"
           aria-label="账号"
           aria-expanded="false"
           aria-haspopup="menu"
         >
-          <span class="fk-account-avatar" data-role="account-avatar" hidden
-          ></span>
+          <span class="account-avatar" data-role="account-avatar" hidden></span>
           <svg
-            class="fk-account-icon"
+            class="account-icon"
             data-role="account-icon"
             viewBox="0 0 24 24"
             width="21"
@@ -116,22 +117,23 @@ import Layout from "../layouts/Layout.astro";
             <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"></path>
           </svg>
           <span
-            class="fk-account-notice-dot"
+            class="account-notice-dot"
             data-role="account-notice-dot"
-            hidden></span>
+            hidden
+          ></span>
         </button>
 
         <div
-          class="fk-menu fk-account-menu"
+          class="menu account-menu"
           data-role="account-menu"
           role="menu"
           hidden
         >
           <div data-role="auth-items">
-            <p class="fk-menu-title">登录 FuckXter</p>
+            <p class="menu-title">登录 FuckXter</p>
             <button
               type="button"
-              class="fk-menu-item"
+              class="menu-item"
               role="menuitem"
               data-auth-open="signin"
             >
@@ -142,46 +144,48 @@ import Layout from "../layouts/Layout.astro";
           <div data-role="user-items" hidden>
             <button
               type="button"
-              class="fk-menu-user"
+              class="menu-user"
               role="menuitem"
               data-account-open="profile"
               aria-label="进入我的主页"
             >
-              <span class="fk-menu-user-avatar" data-role="menu-avatar"></span>
-              <span class="fk-menu-user-meta">
+              <span class="menu-user-avatar" data-role="menu-avatar"></span>
+              <span class="menu-user-meta">
                 <strong data-role="menu-name"></strong>
                 <small data-role="menu-handle"></small>
               </span>
             </button>
             <button
               type="button"
-              class="fk-menu-item fk-notice-menu-item"
+              class="menu-item notice-menu-item"
               role="menuitem"
               data-account-open="notice"
               data-role="notice-menu-item"
             >
               <span>通知</span>
               <span
-                class="fk-notice-menu-badge"
+                class="notice-menu-badge"
                 data-role="notice-menu-badge"
-                hidden></span>
+                hidden
+              ></span>
             </button>
             <button
               type="button"
-              class="fk-menu-item fk-notice-menu-item"
+              class="menu-item notice-menu-item"
               role="menuitem"
               data-account-open="messages"
               data-role="message-menu-item"
             >
               <span>私信</span>
               <span
-                class="fk-notice-menu-badge"
+                class="notice-menu-badge"
                 data-role="message-menu-badge"
-                hidden></span>
+                hidden
+              ></span>
             </button>
             <button
               type="button"
-              class="fk-menu-item"
+              class="menu-item"
               role="menuitem"
               data-account-open="saved"
             >
@@ -189,7 +193,7 @@ import Layout from "../layouts/Layout.astro";
             </button>
             <button
               type="button"
-              class="fk-menu-item"
+              class="menu-item"
               role="menuitem"
               data-account-open="settings"
             >
@@ -197,118 +201,112 @@ import Layout from "../layouts/Layout.astro";
             </button>
           </div>
 
-          <div class="fk-menu-row">
+          <div class="menu-row">
             <button
               type="button"
-              class="fk-menu-item fk-menu-expandable"
+              class="menu-item menu-expandable"
               role="menuitem"
               aria-expanded="false"
               aria-haspopup="menu"
               data-account-open="theme"
             >
               主题
-              <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+              <span class="menu-arrow" aria-hidden="true">
+                ▸
+              </span>
             </button>
 
-            <div
-              class="fk-submenu"
-              data-role="theme-submenu"
-              role="menu"
-              hidden
-            >
+            <div class="submenu" data-role="theme-submenu" role="menu" hidden>
               <button
                 type="button"
-                class="fk-menu-item"
+                class="menu-item"
                 role="menuitemradio"
                 data-theme-choice="auto"
               >
-                <span class="fk-menu-check">✓</span>跟随系统
+                <span class="menu-check">✓</span>跟随系统
               </button>
               <button
                 type="button"
-                class="fk-menu-item"
+                class="menu-item"
                 role="menuitemradio"
                 data-theme-choice="light"
               >
-                <span class="fk-menu-check">✓</span>浅色
+                <span class="menu-check">✓</span>浅色
               </button>
               <button
                 type="button"
-                class="fk-menu-item"
+                class="menu-item"
                 role="menuitemradio"
                 data-theme-choice="dark"
               >
-                <span class="fk-menu-check">✓</span>深色
+                <span class="menu-check">✓</span>深色
               </button>
             </div>
           </div>
 
-          <div class="fk-menu-row">
+          <div class="menu-row">
             <button
               type="button"
-              class="fk-menu-item fk-menu-expandable"
+              class="menu-item menu-expandable"
               role="menuitem"
               aria-expanded="false"
               aria-haspopup="menu"
               data-role="columns-trigger"
             >
               列数
-              <span class="fk-columns-value" data-role="columns-value"
-                >2 列</span
-              >
-              <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+              <span class="columns-value" data-role="columns-value">
+                2 列
+              </span>
+              <span class="menu-arrow" aria-hidden="true">
+                ▸
+              </span>
             </button>
 
-            <div
-              class="fk-submenu"
-              data-role="columns-submenu"
-              role="menu"
-              hidden
-            >
+            <div class="submenu" data-role="columns-submenu" role="menu" hidden>
               <button
                 type="button"
-                class="fk-menu-item"
+                class="menu-item"
                 role="menuitemradio"
                 aria-checked="false"
                 data-columns-choice="3"
               >
-                <span class="fk-menu-check">✓</span>3 列
+                <span class="menu-check">✓</span>3 列
               </button>
               <button
                 type="button"
-                class="fk-menu-item"
+                class="menu-item"
                 role="menuitemradio"
                 aria-checked="true"
                 data-columns-choice="2"
               >
-                <span class="fk-menu-check">✓</span>2 列
+                <span class="menu-check">✓</span>2 列
               </button>
               <button
                 type="button"
-                class="fk-menu-item"
+                class="menu-item"
                 role="menuitemradio"
                 aria-checked="false"
                 data-columns-choice="1"
               >
-                <span class="fk-menu-check">✓</span>1 列
+                <span class="menu-check">✓</span>1 列
               </button>
               <button
                 type="button"
-                class="fk-menu-item"
+                class="menu-item"
                 role="menuitemradio"
                 aria-checked="false"
                 data-columns-choice="auto"
               >
-                <span class="fk-menu-check">✓</span>自动
+                <span class="menu-check">✓</span>自动
               </button>
             </div>
           </div>
 
           <div data-role="signout-items" hidden>
-            <hr class="fk-menu-sep" />
+            <hr class="menu-sep" />
             <button
               type="button"
-              class="fk-menu-item"
+              class="menu-item"
               role="menuitem"
               data-account-action="signout"
             >
@@ -319,19 +317,20 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </header>
 
-    <div class="fk-main">
-      <section class="fk-composer" aria-label="发帖">
-        <div class="fk-avatar"></div>
-        <div class="fk-composer-body">
+    <div class="main">
+      <section class="composer" aria-label="发帖">
+        <div class="avatar"></div>
+        <div class="composer-body">
           <textarea
-            class="fk-composer-input"
+            class="composer-input"
             rows="2"
             placeholder="有什么新鲜事？"
-            aria-label="发帖内容"></textarea>
-          <div class="fk-composer-foot">
+            aria-label="发帖内容"
+          ></textarea>
+          <div class="composer-foot">
             <button
               type="button"
-              class="fk-composer-attach"
+              class="composer-attach"
               data-role="attach-media"
               aria-label="添加图片"
               title="添加图片"
@@ -347,139 +346,139 @@ import Layout from "../layouts/Layout.astro";
                 stroke-linejoin="round"
                 aria-hidden="true"
               >
-                <path
-                  d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
-                ></path>
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
               </svg>
             </button>
             <input
-              class="fk-media-input"
+              class="media-input"
               data-role="media-input"
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
               hidden
             />
             <div
-              class="fk-composer-picker fk-menu-row"
+              class="composer-picker menu-row"
               data-role="media-storage-wrap"
               hidden
             >
               <button
                 type="button"
-                class="fk-menu-item fk-menu-expandable fk-composer-picker-btn"
+                class="menu-item menu-expandable composer-picker-btn"
                 data-role="media-storage-trigger"
                 aria-label="选择附件存储桶"
                 aria-expanded="false"
                 aria-haspopup="menu"
               >
                 <span
-                  class="fk-composer-picker-value"
-                  data-role="media-storage-value">默认存储桶</span
+                  class="composer-picker-value"
+                  data-role="media-storage-value"
                 >
-                <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+                  默认存储桶
+                </span>
+                <span class="menu-arrow" aria-hidden="true">
+                  ▸
+                </span>
               </button>
               <div
-                class="fk-submenu fk-composer-submenu"
+                class="submenu composer-submenu"
                 data-role="media-storage-menu"
                 role="menu"
                 hidden
-              >
-              </div>
+              ></div>
             </div>
-            <div
-              class="fk-composer-picker fk-menu-row"
-              data-role="visibility-wrap"
-            >
+            <div class="composer-picker menu-row" data-role="visibility-wrap">
               <button
                 type="button"
-                class="fk-menu-item fk-menu-expandable fk-composer-picker-btn"
+                class="menu-item menu-expandable composer-picker-btn"
                 data-role="visibility-trigger"
                 aria-label="帖子可见范围"
                 aria-expanded="false"
                 aria-haspopup="menu"
               >
                 <span
-                  class="fk-composer-picker-value"
-                  data-role="visibility-value">公开可见</span
+                  class="composer-picker-value"
+                  data-role="visibility-value"
                 >
-                <span class="fk-menu-arrow" aria-hidden="true">▸</span>
+                  公开可见
+                </span>
+                <span class="menu-arrow" aria-hidden="true">
+                  ▸
+                </span>
               </button>
               <div
-                class="fk-submenu fk-composer-submenu"
+                class="submenu composer-submenu"
                 data-role="visibility-menu"
                 role="menu"
                 hidden
               >
                 <button
                   type="button"
-                  class="fk-menu-item"
+                  class="menu-item"
                   role="menuitemradio"
                   aria-checked="true"
                   data-visibility-choice="public"
                 >
-                  <span class="fk-menu-check">✓</span>公开可见
+                  <span class="menu-check">✓</span>公开可见
                 </button>
                 <button
                   type="button"
-                  class="fk-menu-item"
+                  class="menu-item"
                   role="menuitemradio"
                   aria-checked="false"
                   data-visibility-choice="mutual"
                 >
-                  <span class="fk-menu-check">✓</span>仅互关可见
+                  <span class="menu-check">✓</span>仅互关可见
                 </button>
                 <button
                   type="button"
-                  class="fk-menu-item"
+                  class="menu-item"
                   role="menuitemradio"
                   aria-checked="false"
                   data-visibility-choice="private"
                 >
-                  <span class="fk-menu-check">✓</span>私密贴
+                  <span class="menu-check">✓</span>私密贴
                 </button>
               </div>
             </div>
             <span
-              class="fk-media-status"
+              class="media-status"
               data-role="media-status"
               aria-live="polite"
-              hidden></span>
+              hidden
+            ></span>
             <span
-              class="fk-composer-auth-hint"
+              class="composer-auth-hint"
               data-role="composer-auth-hint"
               hidden
             >
               注册后才能发帖
             </span>
-            <span class="fk-char-count">0 / 1000</span>
-            <button type="button" class="fk-post-btn" disabled>发帖</button>
+            <span class="char-count">0 / 1000</span>
+            <button type="button" class="post-btn" disabled>
+              发帖
+            </button>
           </div>
         </div>
       </section>
 
-      <section class="fk-feed" aria-label="信息流"></section>
+      <section class="feed" aria-label="信息流"></section>
 
-      <div class="fk-sentinel">
-        <span class="fk-spinner" aria-hidden="true"></span>
+      <div class="sentinel">
+        <span class="spinner" aria-hidden="true"></span>
       </div>
     </div>
   </div>
 
-  <div class="fk-modal" data-role="auth-modal" hidden>
-    <div class="fk-modal-backdrop" data-role="auth-backdrop"></div>
-    <div
-      class="fk-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-label="登录或注册"
-    >
-      <div class="fk-dialog-brand">
+  <div class="modal" data-role="auth-modal" hidden>
+    <div class="modal-backdrop" data-role="auth-backdrop"></div>
+    <div class="dialog" role="dialog" aria-modal="true" aria-label="登录或注册">
+      <div class="dialog-brand">
         <h2>FuckXter</h2>
       </div>
 
       <form data-role="signin-form" novalidate>
-        <label class="fk-field">
-          <span class="fk-field-label">邮箱</span>
+        <label class="field">
+          <span class="field-label">邮箱</span>
           <input
             name="identifier"
             type="email"
@@ -488,8 +487,8 @@ import Layout from "../layouts/Layout.astro";
             required
           />
         </label>
-        <label class="fk-field">
-          <span class="fk-field-label">密码</span>
+        <label class="field">
+          <span class="field-label">密码</span>
           <input
             name="password"
             type="password"
@@ -498,12 +497,8 @@ import Layout from "../layouts/Layout.astro";
             required
           />
         </label>
-        <label
-          class="fk-field fk-login-tfa-field"
-          data-role="login-tfa-field"
-          hidden
-        >
-          <span class="fk-field-label">动态验证码</span>
+        <label class="field login-tfa-field" data-role="login-tfa-field" hidden>
+          <span class="field-label">动态验证码</span>
           <input
             name="code"
             type="text"
@@ -513,17 +508,18 @@ import Layout from "../layouts/Layout.astro";
             placeholder="6 位验证码"
           />
         </label>
-        <p class="fk-form-status" data-role="signin-status" aria-live="polite">
-        </p>
-        <button class="fk-primary-btn" type="submit">登录</button>
-        <p class="fk-form-hint">
+        <p class="form-status" data-role="signin-status" aria-live="polite"></p>
+        <button class="primary-btn" type="submit">
+          登录
+        </button>
+        <p class="form-hint">
           未注册的用户将会自动注册，注册表示你同意我们的用户协议。
         </p>
       </form>
 
       <button
         type="button"
-        class="fk-dialog-close"
+        class="dialog-close"
         data-role="auth-close"
         aria-label="关闭"
       >
@@ -534,10 +530,10 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-  import { mountFuckxterBySelector } from "../lib/fuckxter/client";
-  import { onFuckxterPageReady } from "../lib/fuckxter/page";
+  import { mount } from "../lib/accounts/client";
+  import { onPageReady } from "../lib/core/page";
 
-  onFuckxterPageReady(() => {
-    mountFuckxterBySelector("[data-fuckxter]");
+  onPageReady(() => {
+    mount("[data-app]");
   });
 </script>

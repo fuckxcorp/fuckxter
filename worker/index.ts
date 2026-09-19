@@ -6,7 +6,7 @@ import {
   loginOrRegister,
   replaceRecoveryCodes,
   updateProfile,
-} from "./accounts";
+} from "./accounts/accounts";
 import {
   assertTrustedOrigin,
   corsHeaders,
@@ -14,7 +14,7 @@ import {
   HttpError,
   json,
   readJson,
-} from "./http";
+} from "./shared/http";
 import {
   getAvatar,
   getHeader,
@@ -24,7 +24,7 @@ import {
   uploadAvatar,
   uploadHeader,
   uploadMedia,
-} from "./media";
+} from "./posts/media";
 import {
   countUnreadMessages,
   getConversation,
@@ -32,13 +32,13 @@ import {
   markConversationRead,
   recallMessage,
   sendMessage,
-} from "./messages";
+} from "./messages/messages";
 import {
   getNotifications,
   getUnreadNotificationCount,
   markNotificationsRead,
-} from "./notifications";
-import type { Env } from "./platform";
+} from "./notifications/notifications";
+import type { Env } from "./shared/platform";
 import {
   createComment,
   createPost,
@@ -58,8 +58,8 @@ import {
   setRepost,
   setSaved,
   updatePost,
-} from "./posts";
-import { testStorageConnection } from "./s3";
+} from "./posts/posts";
+import { testStorageConnection } from "./accounts/s3";
 import {
   accountFromRow,
   clearSessionCookie,
@@ -67,13 +67,13 @@ import {
   deleteSession,
   getOptionalUser,
   requireUser,
-} from "./security";
+} from "./accounts/security";
 import {
   deleteStorageConfig,
   getStorageConfigs,
   getStorageOptions,
   saveStorageConfig,
-} from "./storage";
+} from "./posts/storage";
 import {
   clearAvatar,
   clearHeader,
@@ -82,7 +82,7 @@ import {
   searchUsers,
   setBlock,
   setFollow,
-} from "./users";
+} from "./accounts/users";
 
 function withCookie(response: Response, cookie: string): Response {
   response.headers.append("Set-Cookie", cookie);
@@ -93,7 +93,7 @@ function segment(values: string[], index: number): string {
   try {
     return decodeURIComponent(values[index] ?? "");
   } catch {
-    throw new HttpError(400, "INVALID_PATH", "Invalid request path.");
+    throw new HttpError(400, "INVALID_PATH", "请求路径无效。");
   }
 }
 
@@ -277,7 +277,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     if (method === "POST") {
       const body = await readJson<{ id?: unknown }>(request);
       if (body.id !== undefined && typeof body.id !== "string") {
-        throw new HttpError(400, "INVALID_NOTICE", "Invalid notice id.");
+        throw new HttpError(400, "INVALID_NOTICE", "通知 ID 无效。");
       }
       await markNotificationsRead(env, user.id, body.id);
       return json(
@@ -312,11 +312,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       if (method === "POST") {
         const body = await readJson<{ text?: unknown }>(request);
         if (typeof body.text !== "string") {
-          throw new HttpError(
-            400,
-            "INVALID_MESSAGE",
-            "Message text is required.",
-          );
+          throw new HttpError(400, "INVALID_MESSAGE", "私信内容无效。");
         }
         const conversation = await sendMessage(env, user.id, handle, body.text);
         return json(
@@ -692,10 +688,10 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         request,
       );
       if (typeof body.text !== "string") {
-        throw new HttpError(400, "INVALID_POST", "Post text is required.");
+        throw new HttpError(400, "INVALID_POST", "帖子内容不能为空。");
       }
       if (body.mediaId !== undefined && typeof body.mediaId !== "string") {
-        throw new HttpError(400, "INVALID_MEDIA", "Invalid media reference.");
+        throw new HttpError(400, "INVALID_MEDIA", "图片引用无效。");
       }
       const payload = body as { visibility?: unknown };
       return json(
@@ -718,8 +714,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
 
       if (method === "GET") {
         const post = await getPostById(env, user?.id ?? null, postId);
-        if (!post)
-          throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
+        if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
         return json(post, request, env);
       }
 
@@ -777,11 +772,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
           request,
         );
         if (body.parentId !== undefined && typeof body.parentId !== "string") {
-          throw new HttpError(
-            400,
-            "INVALID_COMMENT",
-            "Invalid parent comment.",
-          );
+          throw new HttpError(400, "INVALID_COMMENT", "回覆的目标无效。");
         }
         return json(
           {
@@ -862,7 +853,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         segment(parts, 2),
         segment(parts, 3),
       );
-      if (!post) throw new HttpError(404, "POST_NOT_FOUND", "Post not found.");
+      if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
       return json(post, request, env);
     }
   }
@@ -893,7 +884,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
       user?.id ?? null,
       segment(parts, 2),
     );
-    if (!profile) throw new HttpError(404, "USER_NOT_FOUND", "User not found.");
+    if (!profile) throw new HttpError(404, "USER_NOT_FOUND", "用户不存在。");
     return json({ user: profile }, request, env);
   }
 
@@ -936,7 +927,7 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
     );
   }
 
-  throw new HttpError(404, "NOT_FOUND", "Endpoint not found.");
+  throw new HttpError(404, "NOT_FOUND", "接口不存在。");
 }
 
 export default {

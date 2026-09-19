@@ -1,4 +1,4 @@
-.fk-messages-main {
+.messages-main {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -7,24 +7,24 @@
   padding: 1.25rem 1.25rem 1.5rem;
 }
 
-.fk-messages-panel,
-.fk-chat {
+.messages-panel,
+.chat {
   width: min(760px, 100%);
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.fk-messages-panel {
+.messages-panel {
   overflow-y: auto;
 }
 
-.fk-chat[hidden],
-.fk-messages-panel[hidden] {
+.chat[hidden],
+.messages-panel[hidden] {
   display: none;
 }
 
-.fk-messages-head {
+.messages-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -32,24 +32,24 @@
   margin-bottom: 1rem;
 }
 
-.fk-messages-head h1 {
+.messages-head h1 {
   margin: 0;
   color: var(--color-text-strong);
   font-size: 1.35rem;
 }
 
-.fk-messages-head p {
+.messages-head p {
   margin: 0.25rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
-.fk-thread-list {
+.thread-list {
   display: grid;
   gap: 0.6rem;
 }
 
-.fk-thread {
+.thread {
   display: flex;
   align-items: center;
   gap: 0.85rem;
@@ -65,13 +65,13 @@
     background 150ms ease;
 }
 
-.fk-thread:hover,
-.fk-thread:focus-visible {
+.thread:hover,
+.thread:focus-visible {
   border-color: var(--color-border-strong);
   outline: none;
 }
 
-.fk-thread.is-unread {
+.thread.is-unread {
   border-color: color-mix(
     in srgb,
     var(--color-accent) 45%,
@@ -80,27 +80,27 @@
   background: var(--color-accent-soft);
 }
 
-.fk-thread .fk-thread-avatar {
+.thread .thread-avatar {
   width: 46px;
   height: 46px;
   font-size: 0.95rem;
 }
 
-.fk-thread-body {
+.thread-body {
   display: grid;
   gap: 0.15rem;
   min-width: 0;
   flex: 1 1 auto;
 }
 
-.fk-thread-top {
+.thread-top {
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
   min-width: 0;
 }
 
-.fk-thread-top strong {
+.thread-top strong {
   color: var(--color-text-strong);
   font-size: 0.98rem;
   overflow: hidden;
@@ -108,7 +108,7 @@
   white-space: nowrap;
 }
 
-.fk-thread-top small {
+.thread-top small {
   color: var(--color-text-muted);
   font-size: 0.82rem;
   overflow: hidden;
@@ -116,14 +116,14 @@
   white-space: nowrap;
 }
 
-.fk-thread-top time {
+.thread-top time {
   margin-left: auto;
   flex: none;
   color: var(--color-text-muted);
   font-size: 0.78rem;
 }
 
-.fk-thread-preview {
+.thread-preview {
   color: var(--color-text-muted);
   font-size: 0.88rem;
   overflow: hidden;
@@ -131,7 +131,7 @@
   white-space: nowrap;
 }
 
-.fk-thread-badge {
+.thread-badge {
   flex: none;
   display: inline-grid;
   place-items: center;
@@ -139,8 +139,8 @@
   height: 1.45rem;
   padding: 0 0.55rem;
   border-radius: 0;
-  background: var(--fk-ink);
-  color: var(--fk-ink-text);
+  background: var(--ink);
+  color: var(--ink-text);
 
   clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
   font-size: 0.7rem;
@@ -148,7 +148,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.fk-chat {
+.chat {
   flex: 1 1 auto;
   border: 1px solid var(--color-border);
   border-radius: 18px;
@@ -157,7 +157,7 @@
   overflow: hidden;
 }
 
-.fk-chat-head {
+.chat-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -167,7 +167,7 @@
   background: var(--color-bg-raised);
 }
 
-.fk-chat-user {
+.chat-user {
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -176,22 +176,22 @@
   text-decoration: none;
 }
 
-.fk-chat-user .fk-chat-avatar {
+.chat-user .chat-avatar {
   width: 44px;
   height: 44px;
   border-radius: 0;
-  background: var(--fk-ink);
+  background: var(--ink);
   clip-path: polygon(0 0, 100% 0, 100% 100%, 9px 100%);
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%);
   mask-image: linear-gradient(to right, transparent 0, #000 45%);
 }
 
-.fk-chat-meta {
+.chat-meta {
   display: grid;
   min-width: 0;
 }
 
-.fk-chat-meta strong {
+.chat-meta strong {
   color: var(--color-text-strong);
   font-size: 0.98rem;
   overflow: hidden;
@@ -199,18 +199,18 @@
   white-space: nowrap;
 }
 
-.fk-chat-meta small {
+.chat-meta small {
   color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
-.fk-chat-profile {
+.chat-profile {
   flex: none;
   border: 0;
   border-radius: 0;
   padding: 0.38rem 1.05rem;
-  background: var(--fk-ink);
-  color: var(--fk-ink-text);
+  background: var(--ink);
+  color: var(--ink-text);
 
   clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
   font-size: 0.82rem;
@@ -221,11 +221,11 @@
     translate 150ms ease;
 }
 
-.fk-chat-profile:hover {
+.chat-profile:hover {
   opacity: 0.86;
 }
 
-.fk-chat-messages {
+.chat-messages {
   flex: 1 1 auto;
   min-height: 12rem;
   overflow-y: auto;
@@ -236,24 +236,24 @@
   background: var(--color-bg-subtle);
 }
 
-.fk-chat-row {
+.chat-row {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   max-width: 76%;
 }
 
-.fk-chat-row.is-mine {
+.chat-row.is-mine {
   align-self: flex-end;
   align-items: flex-end;
 }
 
-.fk-chat-row.is-theirs {
+.chat-row.is-theirs {
   align-self: flex-start;
   align-items: flex-start;
 }
 
-.fk-chat-bubble {
+.chat-bubble {
   margin: 0;
   max-width: 100%;
   padding: 0.6rem 1.15rem 0.65rem;
@@ -261,50 +261,50 @@
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: var(--fk-bubble-fill);
-  color: var(--fk-bubble-text);
+  background: var(--bubble-fill);
+  color: var(--bubble-text);
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
 }
 
-.fk-chat-bubble-wrap {
+.chat-bubble-wrap {
   position: relative;
   isolation: isolate;
   max-width: 100%;
 }
 
-.fk-chat-bubble-wrap::before {
+.chat-bubble-wrap::before {
   content: "";
   position: absolute;
   inset: -2px;
   z-index: -1;
-  background: var(--fk-bubble-ring);
+  background: var(--bubble-ring);
   clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
 }
 
-.fk-chat-row.is-mine {
-  --fk-bubble-fill: var(--fk-ink);
-  --fk-bubble-text: var(--fk-ink-text);
-  --fk-bubble-ring: transparent;
+.chat-row.is-mine {
+  --bubble-fill: var(--ink);
+  --bubble-text: var(--ink-text);
+  --bubble-ring: transparent;
 }
 
-.fk-chat-row.is-theirs {
-  --fk-bubble-fill: var(--fk-ink-text);
-  --fk-bubble-text: var(--fk-ink);
-  --fk-bubble-ring: var(--fk-ink);
+.chat-row.is-theirs {
+  --bubble-fill: var(--ink-text);
+  --bubble-text: var(--ink);
+  --bubble-ring: var(--ink);
 }
 
-.fk-chat-foot {
+.chat-foot {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.fk-chat-time {
+.chat-time {
   color: var(--color-text-muted);
   font-size: 0.72rem;
 }
 
-.fk-chat-recall {
+.chat-recall {
   border: 0;
   background: none;
   cursor: pointer;
@@ -315,21 +315,21 @@
   transition: opacity 150ms ease;
 }
 
-.fk-chat-row:hover .fk-chat-recall,
-.fk-chat-recall:focus-visible {
+.chat-row:hover .chat-recall,
+.chat-recall:focus-visible {
   opacity: 1;
 }
 
-.fk-chat-recall:hover {
-  color: var(--fk-like);
+.chat-recall:hover {
+  color: var(--like);
 }
 
-.fk-chat-recall:disabled {
+.chat-recall:disabled {
   opacity: 1;
   cursor: default;
 }
 
-.fk-chat-composer {
+.chat-composer {
   display: flex;
   align-items: flex-end;
   gap: 0.6rem;
@@ -338,7 +338,7 @@
   background: var(--color-bg);
 }
 
-.fk-chat-input {
+.chat-input {
   flex: 1 1 auto;
   min-height: 2.6rem;
   max-height: 8rem;
@@ -353,47 +353,47 @@
   outline: none;
 }
 
-.fk-chat-input:focus {
+.chat-input:focus {
   border-color: var(--color-accent);
   background: var(--color-bg);
 }
 
-.fk-chat-composer .fk-chat-send {
+.chat-composer .chat-send {
   flex: none;
   border-radius: 0;
   padding: 0.5rem 1.2rem;
-  background: var(--fk-ink);
-  color: var(--fk-ink-text);
+  background: var(--ink);
+  color: var(--ink-text);
 
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
 }
 
-.fk-chat-send:hover:not(:disabled) {
-  background: var(--fk-ink);
+.chat-send:hover:not(:disabled) {
+  background: var(--ink);
   opacity: 0.86;
 }
 
-.fk-chat-send:disabled {
+.chat-send:disabled {
   opacity: 0.4;
 }
 
-.fk-chat-status {
+.chat-status {
   margin: 0;
   padding: 0 1rem 0.75rem;
   color: var(--color-text-muted);
   font-size: 0.82rem;
 }
 
-.fk-chat-status[hidden] {
+.chat-status[hidden] {
   display: none;
 }
 
 @media (max-width: 640px) {
-  .fk-messages-main {
+  .messages-main {
     padding: 1rem 0.75rem 1rem;
   }
 
-  .fk-chat-row {
+  .chat-row {
     max-width: 88%;
   }
 }

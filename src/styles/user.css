@@ -1,22 +1,22 @@
-.fk-avatar-link {
+.avatar-link {
   cursor: pointer;
   color: inherit;
   text-decoration: none;
   transition: filter 150ms ease;
 }
 
-.fk-avatar-link:hover {
+.avatar-link:hover {
   filter: brightness(1.1);
 }
 
-.fk-user-main {
+.user-main {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   padding: 1rem 1.5rem 1.5rem;
 }
 
-.fk-user-inner {
+.user-inner {
   display: grid;
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   gap: 1.5rem;
@@ -25,12 +25,12 @@
   margin: 0 auto;
 }
 
-.fk-user-head {
+.user-head {
   min-width: 0;
   min-height: 0;
 }
 
-.fk-user-head-card {
+.user-head-card {
   height: 100%;
   min-height: 0;
   overflow-y: auto;
@@ -39,11 +39,11 @@
   background: var(--color-bg-raised);
 }
 
-.fk-user-head > .fk-status {
+.user-head > .status {
   margin: 0;
 }
 
-.fk-user-stream {
+.user-stream {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -51,11 +51,11 @@
   min-height: 0;
 }
 
-.fk-user-banner-host[hidden] {
+.user-banner-host[hidden] {
   display: none;
 }
 
-.fk-user-banner {
+.user-banner {
   width: 100%;
   aspect-ratio: 5 / 1;
   border: 1px solid var(--color-border);
@@ -66,7 +66,7 @@
   overflow: hidden;
 }
 
-.fk-user-banner.is-media-loading {
+.user-banner.is-media-loading {
   background-image: linear-gradient(
     105deg,
     var(--color-bg-subtle) 18%,
@@ -74,21 +74,21 @@
     var(--color-bg-subtle) 66%
   );
   background-size: 220% 100%;
-  animation: fk-placeholder-shimmer 1.6s ease-in-out infinite;
+  animation: placeholder-shimmer 1.6s ease-in-out infinite;
 }
 
-.fk-user-banner.is-media-ready {
+.user-banner.is-media-ready {
   animation: none;
 }
 
-.fk-user-banner-image {
+.user-banner-image {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-.fk-user-posts {
+.user-posts {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -99,7 +99,7 @@
   overflow-y: auto;
 }
 
-.fk-user-row {
+.user-row {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -109,7 +109,7 @@
   text-align: left;
 }
 
-.fk-user-avatar {
+.user-avatar {
   box-sizing: border-box;
   flex: none;
   width: 88px;
@@ -126,18 +126,12 @@
   user-select: none;
 }
 
-.fk-user-avatar-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.fk-user-who {
+.user-who {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.fk-user-name-line {
+.user-name-line {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -146,26 +140,26 @@
   font-size: 1.2rem;
 }
 
-.fk-user-handle {
+.user-handle {
   color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
-.fk-user-bio {
+.user-bio {
   margin: 0.6rem 0 0;
   color: var(--color-text);
   font-size: 0.92rem;
   line-height: 1.55;
 }
 
-.fk-user-meta {
+.user-meta {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.45rem;
   padding: 1rem 1.25rem 1.25rem;
 }
 
-.fk-user-chip {
+.user-chip {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -177,11 +171,11 @@
   font-size: 0.8rem;
 }
 
-.fk-user-chip[hidden] {
+.user-chip[hidden] {
   display: none;
 }
 
-.fk-user-chip-action {
+.user-chip-action {
   box-sizing: border-box;
   width: 100%;
   color: inherit;
@@ -191,25 +185,25 @@
   text-decoration: none;
 }
 
-.fk-user-chip-action:hover,
-.fk-user-chip-action:focus-visible {
+.user-chip-action:hover,
+.user-chip-action:focus-visible {
   border-color: var(--color-accent);
   outline: none;
 }
 
-.fk-user-chip-label {
+.user-chip-label {
   flex: none;
   color: var(--color-text-muted);
 }
 
-.fk-user-chip-value {
+.user-chip-value {
   min-width: 0;
   color: var(--color-text-strong);
   text-align: right;
   overflow-wrap: anywhere;
 }
 
-.fk-user-actions {
+.user-actions {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -217,96 +211,67 @@
 }
 
 /* 个人主页的按钮：统一成墨色平行四边形（编辑资料 / 关注 / 私信 / 拉黑）。 */
-.fk-user-actions .fk-primary-btn,
-.fk-user-actions .fk-ghost-btn {
+.user-actions .primary-btn,
+.user-actions .ghost-btn {
   flex: 1 1 0;
   min-width: 0;
   white-space: nowrap;
   border: 0;
   border-radius: 0;
   padding: 0.55rem 1rem;
-  background: var(--fk-ink);
-  color: var(--fk-ink-text);
+  background: var(--ink);
+  color: var(--ink-text);
   font-weight: 700;
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   transition: opacity 150ms ease;
 }
 
-.fk-user-actions .fk-primary-btn:hover:not(:disabled),
-.fk-user-actions .fk-ghost-btn:hover:not(:disabled) {
-  background: var(--fk-ink);
-  color: var(--fk-ink-text);
+.user-actions .primary-btn:hover:not(:disabled),
+.user-actions .ghost-btn:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--ink-text);
   opacity: 0.86;
 }
 
-.fk-user-actions .fk-primary-btn:disabled,
-.fk-user-actions .fk-ghost-btn:disabled {
+.user-actions .primary-btn:disabled,
+.user-actions .ghost-btn:disabled {
   opacity: 0.45;
 }
 
 /* 已拉黑是「可以按回解除」的狀態，用偏紅的深色底跟其他按鈕區隔。 */
-.fk-user-actions .fk-block-btn.is-danger {
-  background: color-mix(in srgb, var(--fk-like) 55%, var(--fk-ink));
+.user-actions .block-btn.is-danger {
+  background: color-mix(in srgb, var(--like) 55%, var(--ink));
 }
 
-.fk-user-list-dialog {
-  width: min(520px, calc(100% - 2rem));
-  max-height: min(72dvh, 640px);
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-bg-raised);
-  color: var(--color-text);
-}
-
-.fk-connections-main {
+.connections-main {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding: 1.5rem 1.25rem 3rem;
 }
 
-.fk-connections-panel {
+.connections-panel {
   width: min(760px, 100%);
   margin: 0 auto;
 }
 
-.fk-connections-head {
+.connections-head {
   margin-bottom: 1rem;
 }
 
-.fk-connections-head h1 {
+.connections-head h1 {
   margin: 0;
   color: var(--color-text-strong);
   font-size: 1.35rem;
 }
 
-.fk-connections-head p {
+.connections-head p {
   margin: 0.25rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 
-.fk-user-list-dialog::backdrop {
-  background: color-mix(in srgb, #000 48%, transparent);
-}
-
-.fk-user-list-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.1rem;
-  border-bottom: 1px solid var(--color-border-soft);
-}
-
-.fk-user-list-head h4 {
-  margin: 0;
-  color: var(--color-text-strong);
-}
-
-.fk-user-list {
+.user-list {
   display: grid;
   gap: 0.65rem;
   max-height: calc(72dvh - 4rem);
@@ -314,7 +279,7 @@
   padding: 1rem;
 }
 
-.fk-user-list-item {
+.user-list-item {
   display: grid;
   grid-template-columns: 42px minmax(130px, 0.75fr) minmax(0, 1.25fr);
   align-items: flex-start;
@@ -325,7 +290,7 @@
   background: var(--color-bg);
 }
 
-.fk-user-list-identity {
+.user-list-identity {
   display: grid;
   gap: 0.1rem;
   min-width: 0;
@@ -333,35 +298,35 @@
   text-decoration: none;
 }
 
-.fk-user-list-identity strong {
+.user-list-identity strong {
   color: var(--color-text-strong);
 }
 
-.fk-user-list-identity span {
+.user-list-identity span {
   color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
-.fk-user-list-details {
+.user-list-details {
   display: grid;
   gap: 0.45rem;
   min-width: 0;
 }
 
-.fk-user-list-details p {
+.user-list-details p {
   margin: 0;
   color: var(--color-text);
   font-size: 0.85rem;
   line-height: 1.45;
 }
 
-.fk-user-list-stats {
+.user-list-stats {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.fk-user-list-stats span {
+.user-list-stats span {
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
   background: var(--color-bg-subtle);
@@ -369,28 +334,28 @@
   font-size: 0.75rem;
 }
 
-.fk-user-list-joined {
+.user-list-joined {
   color: var(--color-text-muted);
   font-size: 0.72rem;
 }
 
-.fk-user-posts .fk-post {
+.user-posts .post {
   border: 1px solid var(--color-border);
   border-radius: 14px;
   background: var(--color-bg-raised);
 }
 
-.fk-user-post-skeleton {
+.user-post-skeleton {
   pointer-events: none;
 }
 
 @media (max-width: 900px) {
-  .fk-user-main {
+  .user-main {
     padding: 1rem 1rem 3rem;
     overflow-y: auto;
   }
 
-  .fk-user-inner {
+  .user-inner {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "banner"
@@ -402,24 +367,24 @@
     height: auto;
   }
 
-  .fk-user-stream {
+  .user-stream {
     display: contents;
   }
 
-  .fk-user-banner-host {
+  .user-banner-host {
     grid-area: banner;
   }
 
-  .fk-user-head {
+  .user-head {
     grid-area: profile;
   }
 
-  .fk-user-head-card {
+  .user-head-card {
     max-height: none;
     overflow: visible;
   }
 
-  .fk-user-posts {
+  .user-posts {
     grid-area: posts;
     flex: none;
     padding: 0 0 0;
@@ -428,11 +393,11 @@
 }
 
 @media (max-width: 640px) {
-  .fk-user-list-item {
+  .user-list-item {
     grid-template-columns: 42px minmax(0, 1fr);
   }
 
-  .fk-user-list-details {
+  .user-list-details {
     grid-column: 2;
   }
 }

@@ -6,30 +6,25 @@ import Header from "../../components/Header.astro";
 ---
 
 <Layout title="个人主页">
-  <div class="fk-app fk-subpage" data-fk-user>
+  <div class="app subpage" data-user>
     <Header />
 
-    <div class="fk-user-main">
-      <div class="fk-user-inner">
-        <section
-          class="fk-user-head"
-          data-role="user-head"
-          aria-label="用户资料"
-        >
-          <section class="fk-user-head-card" data-role="user-card">
-            <div class="fk-user-row">
+    <div class="user-main">
+      <div class="user-inner">
+        <section class="user-head" data-role="user-head" aria-label="用户资料">
+          <section class="user-head-card" data-role="user-card">
+            <div class="user-row">
               <a
-                class="fk-user-avatar fk-avatar-link"
+                class="user-avatar avatar-link"
                 data-role="user-avatar"
                 href="#"
                 aria-label="用户主页"
               >
-                <span
-                  class="fk-avatar-fallback"
-                  data-role="user-avatar-fallback">?</span
-                >
+                <span class="avatar-fallback" data-role="user-avatar-fallback">
+                  ?
+                </span>
                 <img
-                  class="fk-avatar-image"
+                  class="avatar-image"
                   data-role="user-avatar-image"
                   alt=""
                   loading="eager"
@@ -37,12 +32,12 @@ import Header from "../../components/Header.astro";
                 />
               </a>
 
-              <div class="fk-user-who">
-                <div class="fk-user-name-line">
+              <div class="user-who">
+                <div class="user-name-line">
                   <strong data-role="user-name">加载中…</strong>
                   <span data-role="user-verified" hidden>
                     <svg
-                      class="fk-verified"
+                      class="verified"
                       viewBox="0 0 24 24"
                       aria-label="认证账号"
                       role="img"
@@ -52,71 +47,65 @@ import Header from "../../components/Header.astro";
                         d="M12 1.5l2.6 2 3.2-.4 1.2 3 3 1.2-.4 3.2 2 2.5-2 2.5.4 3.2-3 1.2-1.2 3-3.2-.4-2.6 2-2.6-2-3.2.4-1.2-3-3-1.2.4-3.2-2-2.5 2-2.5-.4-3.2 3-1.2 1.2-3 3.2.4z"
                       ></path>
                       <path
-                        class="fk-verified-check"
+                        class="verified-check"
                         d="M10.7 15.9l-3-3 1.3-1.3 1.7 1.7 4.3-4.3 1.3 1.3z"
                       ></path>
                     </svg>
                   </span>
                 </div>
-                <div class="fk-user-handle" data-role="user-handle"></div>
-                <p class="fk-user-bio" data-role="user-bio"></p>
+                <div class="user-handle" data-role="user-handle"></div>
+                <p class="user-bio" data-role="user-bio"></p>
               </div>
             </div>
 
-            <div class="fk-user-meta">
-              <span class="fk-user-chip" data-role="user-chip-gender" hidden>
-                <span class="fk-user-chip-label">性别</span>
-                <span class="fk-user-chip-value" data-role="user-gender"></span>
+            <div class="user-meta">
+              <span class="user-chip" data-role="user-chip-gender" hidden>
+                <span class="user-chip-label">性别</span>
+                <span class="user-chip-value" data-role="user-gender"></span>
               </span>
-              <span class="fk-user-chip" data-role="user-chip-region" hidden>
-                <span class="fk-user-chip-label">地区</span>
-                <span class="fk-user-chip-value" data-role="user-region"></span>
+              <span class="user-chip" data-role="user-chip-region" hidden>
+                <span class="user-chip-label">地区</span>
+                <span class="user-chip-value" data-role="user-region"></span>
               </span>
-              <span class="fk-user-chip" data-role="user-chip-birthday" hidden>
-                <span class="fk-user-chip-label">生日</span>
-                <span class="fk-user-chip-value" data-role="user-birthday"
-                ></span>
+              <span class="user-chip" data-role="user-chip-birthday" hidden>
+                <span class="user-chip-label">生日</span>
+                <span class="user-chip-value" data-role="user-birthday"></span>
               </span>
-              <span class="fk-user-chip" data-role="user-chip-created" hidden>
-                <span class="fk-user-chip-label">加入时间</span>
-                <span class="fk-user-chip-value" data-role="user-created"
-                ></span>
+              <span class="user-chip" data-role="user-chip-created" hidden>
+                <span class="user-chip-label">加入时间</span>
+                <span class="user-chip-value" data-role="user-created"></span>
               </span>
-              <span
-                class="fk-user-chip"
-                data-role="user-chip-posts-count"
-                hidden
-              >
-                <span class="fk-user-chip-label">帖子</span>
-                <span class="fk-user-chip-value" data-role="user-posts-count"
+              <span class="user-chip" data-role="user-chip-posts-count" hidden>
+                <span class="user-chip-label">帖子</span>
+                <span
+                  class="user-chip-value"
+                  data-role="user-posts-count"
                 ></span>
               </span>
               <a
-                class="fk-user-chip fk-user-chip-action"
+                class="user-chip user-chip-action"
                 data-role="user-chip-followers"
                 href="#"
                 hidden
               >
-                <span class="fk-user-chip-label">粉丝</span>
-                <span class="fk-user-chip-value" data-role="user-followers"
-                ></span>
+                <span class="user-chip-label">粉丝</span>
+                <span class="user-chip-value" data-role="user-followers"></span>
               </a>
               <a
-                class="fk-user-chip fk-user-chip-action"
+                class="user-chip user-chip-action"
                 data-role="user-chip-following"
                 href="#"
                 hidden
               >
-                <span class="fk-user-chip-label">关注</span>
-                <span class="fk-user-chip-value" data-role="user-following"
-                ></span>
+                <span class="user-chip-label">关注</span>
+                <span class="user-chip-value" data-role="user-following"></span>
               </a>
             </div>
 
-            <div class="fk-user-actions">
+            <div class="user-actions">
               <button
                 type="button"
-                class="fk-primary-btn"
+                class="primary-btn"
                 data-role="user-edit"
                 hidden
               >
@@ -124,7 +113,7 @@ import Header from "../../components/Header.astro";
               </button>
               <button
                 type="button"
-                class="fk-primary-btn"
+                class="primary-btn"
                 data-role="user-follow"
                 hidden
               >
@@ -132,7 +121,7 @@ import Header from "../../components/Header.astro";
               </button>
               <button
                 type="button"
-                class="fk-ghost-btn"
+                class="ghost-btn"
                 data-role="user-message"
                 hidden
               >
@@ -140,7 +129,7 @@ import Header from "../../components/Header.astro";
               </button>
               <button
                 type="button"
-                class="fk-ghost-btn fk-block-btn"
+                class="ghost-btn block-btn"
                 data-role="user-block"
                 hidden
               >
@@ -148,16 +137,16 @@ import Header from "../../components/Header.astro";
               </button>
             </div>
           </section>
-          <p class="fk-status" data-role="user-status" hidden></p>
+          <p class="status" data-role="user-status" hidden></p>
         </section>
-        <div class="fk-user-stream">
-          <div class="fk-user-banner-host" data-role="user-banner" hidden>
+        <div class="user-stream">
+          <div class="user-banner-host" data-role="user-banner" hidden>
             <div
-              class="fk-user-banner is-media-loading"
+              class="user-banner is-media-loading"
               data-role="user-banner-card"
             >
               <img
-                class="fk-user-banner-image"
+                class="user-banner-image"
                 data-role="user-banner-image"
                 alt=""
                 loading="eager"
@@ -166,16 +155,16 @@ import Header from "../../components/Header.astro";
             </div>
           </div>
           <section
-            class="fk-user-posts"
+            class="user-posts"
             data-role="user-posts"
             aria-label="该用户的帖子"
           >
-            <article class="fk-post fk-user-post-skeleton" aria-hidden="true">
-              <span class="fk-skeleton fk-skeleton-avatar"></span>
-              <div class="fk-skeleton-copy">
-                <span class="fk-skeleton fk-skeleton-line is-short"></span>
-                <span class="fk-skeleton fk-skeleton-line"></span>
-                <span class="fk-skeleton fk-skeleton-line is-medium"></span>
+            <article class="post user-post-skeleton" aria-hidden="true">
+              <span class="skeleton skeleton-avatar"></span>
+              <div class="skeleton-copy">
+                <span class="skeleton skeleton-line is-short"></span>
+                <span class="skeleton skeleton-line"></span>
+                <span class="skeleton skeleton-line is-medium"></span>
               </div>
             </article>
           </section>
@@ -196,12 +185,12 @@ import Header from "../../components/Header.astro";
     toggleLike,
     toggleRepost,
     toggleSave,
-  } from "../../lib/fuckxter/api";
+  } from "../../lib/accounts/api";
   import {
     getAccount,
     hydrateSession,
     requestAuthentication,
-  } from "../../lib/fuckxter/auth";
+  } from "../../lib/accounts/auth";
   import {
     avatarGradient,
     fmtCount,
@@ -209,17 +198,17 @@ import Header from "../../components/Header.astro";
     setFollowButtonState,
     showToast,
     statusRow,
-  } from "../../lib/fuckxter/dom";
-  import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
-  import { onFuckxterPageReady } from "../../lib/fuckxter/page";
-  import { openPostShareMenu } from "../../lib/fuckxter/share";
-  import type { Post, UserProfile } from "../../lib/fuckxter/types";
+  } from "../../lib/ui/dom";
+  import { ApiError, apiEndpoint } from "../../lib/core/http";
+  import { onPageReady } from "../../lib/core/page";
+  import { openPostShareMenu } from "../../lib/ui/share";
+  import type { Post, UserProfile } from "../../lib/core/types";
   import {
     conversationPath,
     parseUserPath,
     postPath,
     userPath,
-  } from "../../lib/fuckxter/urls";
+  } from "../../lib/core/urls";
 
   const fullTime = (iso: string) =>
     new Date(iso).toLocaleString("zh-CN", { dateStyle: "long" });
@@ -297,7 +286,7 @@ import Header from "../../components/Header.astro";
       follow.dataset.handle = profile.handle;
       follow.dataset.following = String(profile.viewer.following);
       follow.textContent = profile.viewer.following ? "已关注" : "关注";
-      follow.classList.toggle("fk-ghost-btn", profile.viewer.following);
+      follow.classList.toggle("ghost-btn", profile.viewer.following);
     }
   }
 
@@ -315,14 +304,14 @@ import Header from "../../components/Header.astro";
     root.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
 
-      const avatarLink = target.closest<HTMLElement>(".fk-avatar-link");
+      const avatarLink = target.closest<HTMLElement>(".avatar-link");
       if (avatarLink?.dataset.handle) {
         event.preventDefault();
         navigate(userPath(avatarLink.dataset.handle));
         return;
       }
 
-      const followButton = target.closest<HTMLButtonElement>(".fk-follow-btn");
+      const followButton = target.closest<HTMLButtonElement>(".follow-btn");
       if (followButton?.dataset.handle) {
         if (!getAccount()) {
           requestAuthentication();
@@ -346,8 +335,8 @@ import Header from "../../components/Header.astro";
         return;
       }
 
-      const btn = target.closest<HTMLButtonElement>(".fk-action");
-      const article = (btn ?? target).closest<HTMLElement>(".fk-post");
+      const btn = target.closest<HTMLButtonElement>(".action");
+      const article = (btn ?? target).closest<HTMLElement>(".post");
       const id = article?.dataset.postId;
       const post = posts.find((p) => p.id === id);
       if (!post) return;
@@ -414,7 +403,7 @@ import Header from "../../components/Header.astro";
           } else {
             ({ reposts: count } = await toggleRepost(post.id, willActive));
           }
-          btn.querySelector<HTMLElement>(".fk-action-count")!.textContent =
+          btn.querySelector<HTMLElement>(".action-count")!.textContent =
             count > 0 ? fmtCount(count) : "";
           btn.classList.toggle(cls, willActive);
           onChange();
@@ -434,10 +423,10 @@ import Header from "../../components/Header.astro";
   }
 
   const mount = async () => {
-    const container = document.querySelector<HTMLElement>("[data-fk-user]");
+    const container = document.querySelector<HTMLElement>("[data-user]");
     if (!container) return;
-    if (container.dataset.fkUserMounted === "true") return;
-    container.dataset.fkUserMounted = "true";
+    if (container.dataset.userMounted === "true") return;
+    container.dataset.userMounted = "true";
     const sessionPromise = hydrateSession().then(() => getAccount());
 
     container
@@ -516,7 +505,7 @@ import Header from "../../components/Header.astro";
         const result = await setFollow(follow.dataset.handle, next);
         follow.dataset.following = String(result.following);
         follow.textContent = result.following ? "已关注" : "关注";
-        follow.classList.toggle("fk-ghost-btn", result.following);
+        follow.classList.toggle("ghost-btn", result.following);
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
           requestAuthentication();
@@ -611,7 +600,7 @@ import Header from "../../components/Header.astro";
     });
   };
 
-  onFuckxterPageReady(() => {
+  onPageReady(() => {
     void mount();
   });
 </script>

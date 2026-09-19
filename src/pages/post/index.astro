@@ -6,33 +6,33 @@ import Header from "../../components/Header.astro";
 ---
 
 <Layout title="详情">
-  <div class="fk-app fk-subpage" data-fk-post>
+  <div class="app subpage" data-post>
     <Header />
 
-    <div class="fk-post-layout">
-      <div class="fk-post-main">
-        <div class="fk-post-main-inner" data-role="post-detail">
-          <section class="fk-thread" aria-label="正在加载帖子">
-            <header class="fk-thread-head">
+    <div class="post-layout">
+      <div class="post-main">
+        <div class="post-main-inner" data-role="post-detail">
+          <section class="thread" aria-label="正在加载帖子">
+            <header class="thread-head">
               <h1>帖子线程</h1>
               <p>发起与回帖按时间排列</p>
             </header>
 
             <article
-              class="fk-thread-post fk-thread-origin fk-post-skeleton fk-shard"
+              class="thread-post thread-origin post-skeleton shard"
               data-shard="0"
             >
-              <span class="fk-skeleton fk-skeleton-pill"></span>
-              <span class="fk-skeleton fk-skeleton-avatar"></span>
-              <div class="fk-skeleton-copy">
-                <span class="fk-skeleton fk-skeleton-line is-short"></span>
-                <span class="fk-skeleton fk-skeleton-line"></span>
-                <span class="fk-skeleton fk-skeleton-line is-medium"></span>
+              <span class="skeleton skeleton-pill"></span>
+              <span class="skeleton skeleton-avatar"></span>
+              <div class="skeleton-copy">
+                <span class="skeleton skeleton-line is-short"></span>
+                <span class="skeleton skeleton-line"></span>
+                <span class="skeleton skeleton-line is-medium"></span>
               </div>
             </article>
 
-            <section class="fk-thread-replies">
-              <header class="fk-replies-head">
+            <section class="thread-replies">
+              <header class="replies-head">
                 <h2>回帖</h2>
                 <span>加载中</span>
               </header>
@@ -40,21 +40,21 @@ import Header from "../../components/Header.astro";
           </section>
         </div>
       </div>
-      <aside class="fk-post-side" data-role="post-side" aria-label="帖子信息">
-        <section class="fk-post-info">
-          <h4 class="fk-post-info-title">详情</h4>
-          <div class="fk-detail-skeleton">
-            <span class="fk-skeleton fk-skeleton-avatar is-small"></span>
-            <span class="fk-skeleton fk-skeleton-line is-medium"></span>
-            <span class="fk-skeleton fk-skeleton-line"></span>
+      <aside class="post-side" data-role="post-side" aria-label="帖子信息">
+        <section class="post-info">
+          <h4 class="post-info-title">详情</h4>
+          <div class="detail-skeleton">
+            <span class="skeleton skeleton-avatar is-small"></span>
+            <span class="skeleton skeleton-line is-medium"></span>
+            <span class="skeleton skeleton-line"></span>
           </div>
         </section>
-        <section class="fk-post-controls">
-          <h4 class="fk-post-controls-title">互动</h4>
-          <div class="fk-control-skeleton">
-            <span class="fk-skeleton fk-skeleton-button"></span>
-            <span class="fk-skeleton fk-skeleton-button"></span>
-            <span class="fk-skeleton fk-skeleton-button"></span>
+        <section class="post-controls">
+          <h4 class="post-controls-title">互动</h4>
+          <div class="control-skeleton">
+            <span class="skeleton skeleton-button"></span>
+            <span class="skeleton skeleton-button"></span>
+            <span class="skeleton skeleton-button"></span>
           </div>
         </section>
       </aside>
@@ -78,12 +78,12 @@ import Header from "../../components/Header.astro";
     toggleCommentLike,
     toggleCommentRepost,
     toggleRepost,
-  } from "../../lib/fuckxter/api";
+  } from "../../lib/accounts/api";
   import {
     getAccount,
     hydrateSession,
     requestAuthentication,
-  } from "../../lib/fuckxter/auth";
+  } from "../../lib/accounts/auth";
   import {
     actionButton,
     authorAvatar,
@@ -96,12 +96,12 @@ import Header from "../../components/Header.astro";
     setFollowButtonState,
     showToast,
     statusRow,
-  } from "../../lib/fuckxter/dom";
-  import { ApiError, apiEndpoint } from "../../lib/fuckxter/http";
-  import { onFuckxterPageReady } from "../../lib/fuckxter/page";
-  import { openPostShareMenu } from "../../lib/fuckxter/share";
-  import type { Comment, Post } from "../../lib/fuckxter/types";
-  import { parsePostPath, postPath, userPath } from "../../lib/fuckxter/urls";
+  } from "../../lib/ui/dom";
+  import { ApiError, apiEndpoint } from "../../lib/core/http";
+  import { onPageReady } from "../../lib/core/page";
+  import { openPostShareMenu } from "../../lib/ui/share";
+  import type { Comment, Post } from "../../lib/core/types";
+  import { parsePostPath, postPath, userPath } from "../../lib/core/urls";
 
   const fullTime = (iso: string) =>
     new Date(iso).toLocaleString("zh-CN", {
@@ -118,15 +118,15 @@ import Header from "../../components/Header.astro";
   const MAX_COMMENT_CHARS = 1000;
 
   function renderPostInfo(post: Post): HTMLElement {
-    const box = el("section", "fk-post-info fk-shard");
+    const box = el("section", "post-info shard");
     box.dataset.shard = postShard(`${post.id}:info`);
-    const title = el("h4", "fk-post-info-title");
+    const title = el("h4", "post-info-title");
     title.textContent = "详情";
-    const author = el("div", "fk-post-info-author");
+    const author = el("div", "post-info-author");
     const avatar = authorAvatar(
       post.author.handle,
       post.author.name,
-      "fk-avatar",
+      "avatar",
       post.author.avatarUrl,
     );
     const who = el("div");
@@ -137,7 +137,7 @@ import Header from "../../components/Header.astro";
     who.append(name, handle);
     author.append(avatar, who, followButton(post));
 
-    const rows = el("dl", "fk-post-info-rows");
+    const rows = el("dl", "post-info-rows");
     const row = (label: string, value: string) => {
       const dt = el("dt");
       dt.textContent = label;
@@ -168,13 +168,13 @@ import Header from "../../components/Header.astro";
     posts: Post[] | null,
     currentId: string,
   ): HTMLElement {
-    const box = el("section", "fk-hot-posts fk-shard");
+    const box = el("section", "hot-posts shard");
     box.dataset.shard = postShard(`${currentId}:hot`);
-    const title = el("h4", "fk-hot-title");
+    const title = el("h4", "hot-title");
     title.textContent = "热门帖子";
-    const hint = el("p", "fk-hot-hint");
+    const hint = el("p", "hot-hint");
     hint.textContent = "按浏览热度排序";
-    const list = el("div", "fk-hot-list");
+    const list = el("div", "hot-list");
 
     if (posts === null) {
       list.append(statusRow("正在加载…"));
@@ -184,19 +184,19 @@ import Header from "../../components/Header.astro";
         list.append(statusRow("暂时没有其他热门帖子。"));
       }
       items.forEach((item, index) => {
-        const row = el("a", "fk-hot-item");
+        const row = el("a", "hot-item");
         row.href = postPath(item);
         row.dataset.postId = item.id;
 
-        const rank = el("span", "fk-hot-rank");
+        const rank = el("span", "hot-rank");
         rank.textContent = String(index + 1);
 
-        const body = el("span", "fk-hot-body");
-        const meta = el("span", "fk-hot-meta");
+        const body = el("span", "hot-body");
+        const meta = el("span", "hot-meta");
         meta.textContent = `${item.author.name} · @${item.author.handle}`;
-        const text = el("span", "fk-hot-text");
+        const text = el("span", "hot-text");
         text.textContent = item.text;
-        const views = el("span", "fk-hot-views");
+        const views = el("span", "hot-views");
         views.textContent = `${fmtCount(item.stats.views ?? 0)} 次浏览`;
         body.append(meta, text, views);
 
@@ -210,12 +210,12 @@ import Header from "../../components/Header.astro";
   }
 
   function renderPostControls(post: Post): HTMLElement {
-    const box = el("section", "fk-post-controls fk-shard");
+    const box = el("section", "post-controls shard");
     box.dataset.shard = postShard(`${post.id}:controls`);
-    const title = el("h4", "fk-post-controls-title");
+    const title = el("h4", "post-controls-title");
     title.textContent = "互动";
 
-    const actions = el("div", "fk-post-control-actions");
+    const actions = el("div", "post-control-actions");
     actions.append(
       actionButton("reply", ICONS.reply, "回帖", post.stats.replies),
       actionButton("repost", ICONS.repost, "转发", post.stats.reposts),
@@ -240,13 +240,13 @@ import Header from "../../components/Header.astro";
 
     const setCount = (btn: HTMLButtonElement, count: number) => {
       btn.dataset.count = String(count);
-      btn.querySelector<HTMLElement>(".fk-action-count")!.textContent =
+      btn.querySelector<HTMLElement>(".action-count")!.textContent =
         count > 0 ? fmtCount(count) : "";
     };
 
     actions.addEventListener("click", async (event) => {
       const btn = (event.target as HTMLElement).closest<HTMLButtonElement>(
-        ".fk-action",
+        ".action",
       );
       if (!btn) return;
       const action = btn.dataset.action;
@@ -257,7 +257,7 @@ import Header from "../../components/Header.astro";
           return;
         }
         const input =
-          document.querySelector<HTMLTextAreaElement>(".fk-comment-input");
+          document.querySelector<HTMLTextAreaElement>(".comment-input");
         input?.scrollIntoView({ behavior: "smooth", block: "center" });
         input?.focus();
         return;
@@ -315,13 +315,13 @@ import Header from "../../components/Header.astro";
     author: Comment["author"],
     createdAt: string,
   ): HTMLElement {
-    const head = el("header", "fk-thread-meta");
-    const who = el("div", "fk-thread-who");
+    const head = el("header", "thread-meta");
+    const who = el("div", "thread-who");
     const name = el("strong");
     name.textContent = author.name;
     who.append(name);
     if (author.verified) who.insertAdjacentHTML("beforeend", ICONS.verified);
-    const handle = el("span", "fk-thread-handle");
+    const handle = el("span", "thread-handle");
     handle.textContent = `@${author.handle}`;
     const time = el("time");
     time.dateTime = createdAt;
@@ -332,24 +332,24 @@ import Header from "../../components/Header.astro";
   }
 
   function renderOriginPost(post: Post): HTMLElement {
-    const article = el("article", "fk-thread-post fk-thread-origin fk-shard");
+    const article = el("article", "thread-post thread-origin shard");
     article.dataset.shard = postShard(post.id);
-    const kind = el("span", "fk-thread-kind");
+    const kind = el("span", "thread-kind");
     kind.textContent = "发起";
     const avatar = authorAvatar(
       post.author.handle,
       post.author.name,
-      "fk-avatar",
+      "avatar",
       post.author.avatarUrl,
     );
-    const body = el("div", "fk-thread-body");
+    const body = el("div", "thread-body");
     body.append(threadAuthorLine(post.author, post.createdAt));
-    const text = el("p", "fk-thread-text");
+    const text = el("p", "thread-text");
     text.append(renderRichText(post.text));
     body.append(text);
     if (post.media) {
-      const media = el("div", "fk-media");
-      const image = el("img", "fk-media-image");
+      const media = el("div", "media");
+      const image = el("img", "media-image");
       image.src = post.media.url.startsWith("/")
         ? apiEndpoint(post.media.url)
         : post.media.url;
@@ -373,21 +373,21 @@ import Header from "../../components/Header.astro";
     status: HTMLElement,
     nested: boolean,
   ): HTMLElement {
-    const article = el("article", "fk-thread-post fk-thread-reply fk-shard");
+    const article = el("article", "thread-post thread-reply shard");
     article.id = `comment-${comment.id}`;
     article.dataset.shard = postShard(comment.id);
-    const kind = el("span", "fk-thread-kind");
+    const kind = el("span", "thread-kind");
     kind.textContent = "回帖";
     const avatar = authorAvatar(
       comment.author.handle,
       comment.author.name,
-      "fk-avatar",
+      "avatar",
       comment.author.avatarUrl,
     );
-    const body = el("div", "fk-thread-body");
+    const body = el("div", "thread-body");
     body.append(threadAuthorLine(comment.author, comment.createdAt));
     if (comment.parent && !nested) {
-      const quote = el("button", "fk-reply-quote");
+      const quote = el("button", "reply-quote");
       quote.type = "button";
       const who = el("strong");
       who.textContent = `回覆 @${comment.parent.handle}`;
@@ -401,12 +401,12 @@ import Header from "../../components/Header.astro";
       });
       body.append(quote);
     }
-    const text = el("p", "fk-thread-text");
+    const text = el("p", "thread-text");
     text.append(renderRichText(comment.text));
     body.append(text);
 
-    const actions = el("footer", "fk-thread-reply-actions");
-    const reply = el("button", "fk-thread-link-btn");
+    const actions = el("footer", "thread-reply-actions");
+    const reply = el("button", "thread-link-btn");
     reply.type = "button";
     reply.textContent = "回复";
     reply.addEventListener("click", () =>
@@ -425,7 +425,7 @@ import Header from "../../components/Header.astro";
     repost.classList.toggle("is-reposted", comment.viewer.reposted);
     const setCommentCount = (button: HTMLButtonElement, count: number) => {
       button.dataset.count = String(count);
-      button.querySelector<HTMLElement>(".fk-action-count")!.textContent =
+      button.querySelector<HTMLElement>(".action-count")!.textContent =
         count > 0 ? fmtCount(count) : "";
     };
     like.addEventListener("click", async () => {
@@ -482,7 +482,7 @@ import Header from "../../components/Header.astro";
 
     const me = getAccount();
     if (me && (canModerate || comment.author.handle === me.profile.handle)) {
-      const remove = el("button", "fk-thread-link-btn is-danger");
+      const remove = el("button", "thread-link-btn is-danger");
       remove.type = "button";
       remove.textContent = "删除";
       remove.addEventListener("click", async () => {
@@ -509,16 +509,16 @@ import Header from "../../components/Header.astro";
     canModerate: boolean,
     onReplyCountChange: (count: number) => void,
   ): { thread: HTMLElement; composer: HTMLElement } {
-    const thread = el("section", "fk-thread");
-    const head = el("header", "fk-thread-head");
+    const thread = el("section", "thread");
+    const head = el("header", "thread-head");
     const title = el("h1");
     title.textContent = "帖子线程";
     const hint = el("p");
     hint.textContent = "发起与回帖按时间排列";
     head.append(title, hint);
 
-    const replies = el("section", "fk-thread-replies");
-    const repliesHead = el("header", "fk-replies-head");
+    const replies = el("section", "thread-replies");
+    const repliesHead = el("header", "replies-head");
     const repliesTitle = el("h2");
     repliesTitle.textContent = "回帖";
     const repliesCount = el("span");
@@ -528,39 +528,34 @@ import Header from "../../components/Header.astro";
     const me = getAccount();
     const input = el(
       "textarea",
-      "fk-comment-input fk-side-comment-input",
+      "comment-input side-comment-input",
     ) as HTMLTextAreaElement;
     input.rows = 2;
     input.placeholder = me ? "写下你的回帖" : "登录后才能回帖";
     input.disabled = !me;
-    const submit = el("button", "fk-primary-btn fk-comment-submit");
+    const submit = el("button", "primary-btn comment-submit");
     submit.type = "button";
     submit.textContent = "回帖";
     submit.disabled = !me;
-    const count = el("span", "fk-comment-count");
+    const count = el("span", "comment-count");
     count.textContent = `0 / ${MAX_COMMENT_CHARS}`;
-    const composerActions = el("div", "fk-thread-composer-actions");
+    const composerActions = el("div", "thread-composer-actions");
     composerActions.append(count, submit);
-    const composer = el("section", "fk-thread-composer fk-shard");
+    const composer = el("section", "thread-composer shard");
     composer.dataset.shard = postShard(`${post.id}:composer`);
     const composerAvatar = me
-      ? authorAvatar(
-          me.profile.handle,
-          me.profile.name,
-          "fk-avatar",
-          me.avatarUrl,
-        )
-      : el("span", "fk-avatar");
-    const composerBody = el("div", "fk-composer-body");
+      ? authorAvatar(me.profile.handle, me.profile.name, "avatar", me.avatarUrl)
+      : el("span", "avatar");
+    const composerBody = el("div", "composer-body");
     composerBody.append(input);
 
-    const status = el("p", "fk-thread-status");
+    const status = el("p", "thread-status");
     status.setAttribute("aria-live", "polite");
-    const list = el("div", "fk-comments-list fk-thread-list");
+    const list = el("div", "comments-list thread-list");
 
-    const replyChip = el("div", "fk-reply-chip");
-    const replyChipLabel = el("span", "fk-reply-chip-label");
-    const replyChipClear = el("button", "fk-reply-chip-clear");
+    const replyChip = el("div", "reply-chip");
+    const replyChipLabel = el("span", "reply-chip-label");
+    const replyChipClear = el("button", "reply-chip-clear");
     replyChipClear.type = "button";
     replyChipClear.textContent = "×";
     replyChipClear.setAttribute("aria-label", "取消回覆");
@@ -627,7 +622,7 @@ import Header from "../../components/Header.astro";
         total > comments.length ? `仅显示最近 ${comments.length} 条回帖` : "";
       onReplyCountChange(total);
       if (comments.length === 0) {
-        const empty = el("div", "fk-comments-empty");
+        const empty = el("div", "comments-empty");
         const emptyTitle = el("strong");
         emptyTitle.textContent = "还没有回帖";
         const emptyHint = el("span");
@@ -668,7 +663,7 @@ import Header from "../../components/Header.astro";
         if (depth > 0) node.classList.add("is-nested");
         const kids = children.get(comment.id) ?? [];
         if (kids.length > 0) {
-          const box = el("div", "fk-thread-children");
+          const box = el("div", "thread-children");
           for (const kid of kids) box.append(renderNode(kid, depth + 1));
           node.append(box);
         }
@@ -746,10 +741,10 @@ import Header from "../../components/Header.astro";
   }
 
   const mount = async () => {
-    const container = document.querySelector<HTMLElement>("[data-fk-post]");
+    const container = document.querySelector<HTMLElement>("[data-post]");
     if (!container) return;
-    if (container.dataset.fkPostMounted === "true") return;
-    container.dataset.fkPostMounted = "true";
+    if (container.dataset.postMounted === "true") return;
+    container.dataset.postMounted = "true";
     const sessionPromise = hydrateSession();
 
     container
@@ -758,10 +753,10 @@ import Header from "../../components/Header.astro";
         history.length > 1 ? history.back() : (location.href = "/"),
       );
 
-    const layout = container.querySelector<HTMLElement>(".fk-post-layout")!;
+    const layout = container.querySelector<HTMLElement>(".post-layout")!;
     layout.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
-      const follow = target.closest<HTMLButtonElement>(".fk-follow-btn");
+      const follow = target.closest<HTMLButtonElement>(".follow-btn");
       if (follow?.dataset.handle) {
         if (!getAccount()) {
           requestAuthentication();
@@ -782,7 +777,7 @@ import Header from "../../components/Header.astro";
         return;
       }
 
-      const avatarLink = target.closest<HTMLElement>(".fk-avatar-link");
+      const avatarLink = target.closest<HTMLElement>(".avatar-link");
       if (avatarLink?.dataset.handle) {
         event.preventDefault();
         navigate(userPath(avatarLink.dataset.handle));
@@ -822,7 +817,7 @@ import Header from "../../components/Header.astro";
             );
             if (!reply) return;
             reply.dataset.count = String(count);
-            reply.querySelector<HTMLElement>(".fk-action-count")!.textContent =
+            reply.querySelector<HTMLElement>(".action-count")!.textContent =
               count > 0 ? fmtCount(count) : "";
           },
         );
@@ -841,7 +836,7 @@ import Header from "../../components/Header.astro";
           .then((result) => {
             post.stats.views = result.views;
             side
-              .querySelector<HTMLElement>(".fk-post-info")
+              .querySelector<HTMLElement>(".post-info")
               ?.replaceWith(renderPostInfo(post));
           })
           .catch(() => {});
@@ -854,7 +849,7 @@ import Header from "../../components/Header.astro";
       });
   };
 
-  onFuckxterPageReady(() => {
+  onPageReady(() => {
     void mount();
   });
 </script>

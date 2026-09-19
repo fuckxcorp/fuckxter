@@ -6,25 +6,25 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="关注关系">
-  <div class="fk-app fk-subpage" data-fk-connections>
+  <div class="app subpage" data-connections>
     <Header />
-    <main class="fk-connections-main">
-      <section class="fk-connections-panel">
-        <header class="fk-connections-head">
+    <main class="connections-main">
+      <section class="connections-panel">
+        <header class="connections-head">
           <h1 data-role="connections-title">关注关系</h1>
           <p data-role="connections-summary">正在加载…</p>
         </header>
-        <div class="fk-user-list" data-role="connections-list"></div>
+        <div class="user-list" data-role="connections-list"></div>
       </section>
     </main>
   </div>
 </Layout>
 
 <script>
-  import { getUserList } from "../lib/fuckxter/api";
-  import { authorAvatar, el, statusRow } from "../lib/fuckxter/dom";
-  import { onFuckxterPageReady } from "../lib/fuckxter/page";
-  import { userPath } from "../lib/fuckxter/urls";
+  import { getUserList } from "../lib/accounts/api";
+  import { authorAvatar, el, statusRow } from "../lib/ui/dom";
+  import { onPageReady } from "../lib/core/page";
+  import { userPath } from "../lib/core/urls";
 
   const renderUsers = (users: Awaited<ReturnType<typeof getUserList>>) => {
     const fragment = document.createDocumentFragment();
@@ -33,14 +33,14 @@ import Layout from "../layouts/Layout.astro";
       return fragment;
     }
     for (const user of users) {
-      const row = el("div", "fk-user-list-item");
+      const row = el("div", "user-list-item");
       const avatar = authorAvatar(
         user.handle,
         user.name,
-        "fk-avatar",
+        "avatar",
         user.avatarUrl,
       );
-      const identity = el("a", "fk-user-list-identity");
+      const identity = el("a", "user-list-identity");
       identity.href = userPath(user.handle);
       const name = el("strong");
       name.textContent = user.name;
@@ -48,10 +48,10 @@ import Layout from "../layouts/Layout.astro";
       handle.textContent = `@${user.handle}`;
       identity.append(name, handle);
 
-      const details = el("div", "fk-user-list-details");
+      const details = el("div", "user-list-details");
       const bio = el("p");
       bio.textContent = user.bio || "这个人很懒，什么都没有写。";
-      const stats = el("div", "fk-user-list-stats");
+      const stats = el("div", "user-list-stats");
       const stat = (label: string, value: number) => {
         const item = el("span");
         item.textContent = `${label} ${value}`;
@@ -60,7 +60,7 @@ import Layout from "../layouts/Layout.astro";
       stat("帖子", user.stats.posts);
       stat("粉丝", user.stats.followers);
       stat("关注", user.stats.following);
-      const joined = el("time", "fk-user-list-joined");
+      const joined = el("time", "user-list-joined");
       joined.dateTime = user.createdAt;
       joined.textContent = `加入于 ${new Date(user.createdAt).toLocaleDateString("zh-CN")}`;
       details.append(bio, stats, joined);
@@ -71,10 +71,10 @@ import Layout from "../layouts/Layout.astro";
     return fragment;
   };
 
-  onFuckxterPageReady(() => {
-    const root = document.querySelector<HTMLElement>("[data-fk-connections]");
-    if (!root || root.dataset.fkConnectionsMounted === "true") return;
-    root.dataset.fkConnectionsMounted = "true";
+  onPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-connections]");
+    if (!root || root.dataset.connectionsMounted === "true") return;
+    root.dataset.connectionsMounted = "true";
 
     root
       .querySelector<HTMLButtonElement>("[data-role=back]")!

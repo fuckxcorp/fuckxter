@@ -1,21 +1,21 @@
-.fk-reply-chip {
+.reply-chip {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.4rem;
   padding: 0.3rem 0.5rem 0.3rem 0.7rem;
-  border-left: 2px solid var(--fk-ink);
+  border-left: 2px solid var(--ink);
   background: var(--color-bg-subtle);
   color: var(--color-text);
   font-size: 0.82rem;
 }
 
-.fk-reply-chip[hidden] {
+.reply-chip[hidden] {
   display: none;
 }
 
-.fk-reply-chip-clear {
+.reply-chip-clear {
   border: 0;
   background: none;
   cursor: pointer;
@@ -25,11 +25,11 @@
   line-height: 1;
 }
 
-.fk-reply-chip-clear:hover {
-  color: var(--fk-like);
+.reply-chip-clear:hover {
+  color: var(--like);
 }
 
-.fk-reply-quote {
+.reply-quote {
   display: block;
   width: 100%;
   margin: 0.35rem 0 0.5rem;
@@ -43,16 +43,16 @@
   text-align: left;
 }
 
-.fk-reply-quote strong {
+.reply-quote strong {
   color: var(--color-accent);
   font-weight: 700;
 }
 
-.fk-reply-quote:hover {
+.reply-quote:hover {
   border-left-color: var(--color-accent);
 }
 
-@keyframes fk-post-enter {
+@keyframes post-enter {
   from {
     opacity: 0;
     transform: translateY(16px) scale(0.992);
@@ -63,29 +63,29 @@
   }
 }
 
-.fk-thread,
-.fk-post-side {
-  animation: fk-post-enter 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+.thread,
+.post-side {
+  animation: post-enter 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.fk-post-side {
+.post-side {
   animation-delay: 70ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fk-thread,
-  .fk-post-side {
+  .thread,
+  .post-side {
     animation: none;
   }
 }
 
-.fk-post-layout {
+.post-layout {
   flex: 1 1 auto;
   display: flex;
   min-height: 0;
 }
 
-.fk-post-main {
+.post-main {
   flex: 1 1 auto;
   min-width: 0;
   overflow-y: auto;
@@ -95,12 +95,12 @@
   background: transparent;
 }
 
-.fk-post-main-inner {
+.post-main-inner {
   width: min(760px, 100%);
   align-self: flex-start;
 }
 
-.fk-skeleton {
+.skeleton {
   display: block;
   min-width: 0;
   border-radius: 999px;
@@ -111,97 +111,97 @@
     var(--color-bg-subtle) 66%
   );
   background-size: 220% 100%;
-  animation: fk-placeholder-shimmer 1.6s ease-in-out infinite;
+  animation: placeholder-shimmer 1.6s ease-in-out infinite;
 }
 
-.fk-post-skeleton {
+.post-skeleton {
   pointer-events: none;
 }
 
-.fk-skeleton-pill {
+.skeleton-pill {
   grid-column: 1 / -1;
   width: 3.25rem;
   height: 1.25rem;
 }
 
-.fk-skeleton-avatar {
+.skeleton-avatar {
   width: 42px;
   height: 42px;
   border-radius: 50%;
 }
 
-.fk-skeleton-avatar.is-small {
+.skeleton-avatar.is-small {
   width: 48px;
   height: 48px;
 }
 
-.fk-skeleton-copy,
-.fk-detail-skeleton {
+.skeleton-copy,
+.detail-skeleton {
   display: grid;
   align-content: start;
   gap: 0.7rem;
   min-width: 0;
 }
 
-.fk-detail-skeleton {
+.detail-skeleton {
   grid-template-columns: 48px minmax(0, 1fr);
 }
 
-.fk-detail-skeleton .fk-skeleton-avatar {
+.detail-skeleton .skeleton-avatar {
   grid-row: 1 / span 2;
 }
 
-.fk-skeleton-line {
+.skeleton-line {
   width: 100%;
   height: 0.78rem;
 }
 
-.fk-skeleton-line.is-short {
+.skeleton-line.is-short {
   width: 30%;
 }
 
-.fk-skeleton-line.is-medium {
+.skeleton-line.is-medium {
   width: 68%;
 }
 
-.fk-control-skeleton {
+.control-skeleton {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
-.fk-skeleton-button {
+.skeleton-button {
   width: 100%;
   height: 2.35rem;
   border-radius: 10px;
 }
 
-.fk-thread {
+.thread {
   display: grid;
   gap: 0.35rem;
 }
 
-.fk-thread-head {
+.thread-head {
   padding: 0 0.25rem 0.65rem;
 }
 
-.fk-replies-head {
+.replies-head {
   padding: 0.55rem 0.25rem 0.2rem;
 }
 
-.fk-thread-head h1 {
+.thread-head h1 {
   margin: 0;
   color: var(--color-text-strong);
   font-size: clamp(1.35rem, 2vw, 1.75rem);
 }
 
-.fk-thread-head p {
+.thread-head p {
   margin: 0.3rem 0 0;
   color: var(--color-text-muted);
   font-size: 0.86rem;
 }
 
-.fk-thread-post {
+.thread-post {
   position: relative;
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
@@ -212,7 +212,7 @@
   overflow: visible;
 }
 
-.fk-thread-kind {
+.thread-kind {
   position: relative;
   isolation: isolate;
   grid-column: 1 / -1;
@@ -220,41 +220,41 @@
   padding: 0.22rem 0.85rem;
   border-radius: 0;
   background: none;
-  color: var(--fk-ink-text);
+  color: var(--ink-text);
   font-size: 0.75rem;
   font-weight: 750;
   letter-spacing: 0.03em;
 }
 
-.fk-thread-kind::before {
+.thread-kind::before {
   content: "";
   position: absolute;
   inset: 0.05rem 0.04rem;
   z-index: -1;
-  background: var(--fk-ink);
+  background: var(--ink);
   transform: skewX(-12deg);
 }
 
-.fk-thread-origin .fk-thread-kind {
-  color: var(--fk-ink-text);
+.thread-origin .thread-kind {
+  color: var(--ink-text);
 }
 
-.fk-thread-post > .fk-avatar {
+.thread-post > .avatar {
   align-self: start;
 }
 
-.fk-thread-body {
+.thread-body {
   min-width: 0;
 }
 
-.fk-thread-meta {
+.thread-meta {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.fk-thread-who {
+.thread-who {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -262,7 +262,7 @@
   min-width: 0;
 }
 
-.fk-thread-who strong {
+.thread-who strong {
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-strong);
@@ -271,18 +271,18 @@
   white-space: nowrap;
 }
 
-.fk-thread-handle,
-.fk-thread-meta time {
+.thread-handle,
+.thread-meta time {
   color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
-.fk-thread-meta time {
+.thread-meta time {
   flex: none;
   text-align: right;
 }
 
-.fk-thread-text {
+.thread-text {
   margin: 0.42rem 0 0;
   color: var(--color-text-strong);
   font-size: 1rem;
@@ -291,48 +291,48 @@
   overflow-wrap: anywhere;
 }
 
-.fk-thread-reply-actions {
+.thread-reply-actions {
   display: flex;
   gap: 0.65rem;
   margin-top: 0.45rem;
 }
 
-.fk-thread-link-btn {
+.thread-link-btn {
   position: relative;
   isolation: isolate;
   padding: 0.22rem 0.75rem;
   border: 0;
   background: none;
-  color: var(--fk-ink-text);
+  color: var(--ink-text);
   cursor: pointer;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 650;
 }
 
-.fk-thread-link-btn::before {
+.thread-link-btn::before {
   content: "";
   position: absolute;
   inset: 0.04rem 0.02rem;
   z-index: -1;
-  background: var(--fk-ink);
+  background: var(--ink);
   transform: skewX(-12deg);
 }
 
-.fk-thread-link-btn:hover:not(:disabled) {
+.thread-link-btn:hover:not(:disabled) {
   text-decoration: underline;
 }
 
-.fk-thread-link-btn.is-danger {
-  color: var(--fk-like);
+.thread-link-btn.is-danger {
+  color: var(--like);
 }
 
-.fk-thread-link-btn:disabled {
+.thread-link-btn:disabled {
   cursor: wait;
   opacity: 0.55;
 }
 
-.fk-thread-replies {
+.thread-replies {
   display: grid;
   gap: 0.32rem;
   padding: 0;
@@ -341,41 +341,41 @@
   background: none;
 }
 
-.fk-replies-head {
+.replies-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.fk-replies-head h2 {
+.replies-head h2 {
   margin: 0;
   color: var(--color-text-strong);
   font-size: 1rem;
 }
 
-.fk-replies-head span {
+.replies-head span {
   position: relative;
   isolation: isolate;
   min-width: 1.6rem;
   padding: 0.16rem 0.7rem;
   border-radius: 0;
   background: none;
-  color: var(--fk-ink-text);
+  color: var(--ink-text);
   font-size: 0.75rem;
   text-align: center;
 }
 
-.fk-replies-head span::before {
+.replies-head span::before {
   content: "";
   position: absolute;
   inset: 0.04rem 0.02rem;
   z-index: -1;
-  background: var(--fk-ink);
+  background: var(--ink);
   transform: skewX(-12deg);
 }
 
-.fk-thread-composer {
+.thread-composer {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -384,84 +384,66 @@
   overflow: visible;
 }
 
-.fk-thread-composer .fk-composer-input,
-.fk-thread-composer .fk-comment-input {
+.thread-composer .composer-input,
+.thread-composer .comment-input {
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--color-text-strong);
 }
 
-.fk-thread-composer .fk-comment-input:focus {
+.thread-composer .comment-input:focus {
   border: 0;
 }
 
-.fk-thread-composer .fk-primary-btn,
-.fk-post-layout .fk-primary-btn {
+.thread-composer .primary-btn,
+.post-layout .primary-btn {
   position: relative;
   isolation: isolate;
   border: 0;
   border-radius: 0;
   background: none;
-  color: var(--fk-ink-text);
+  color: var(--ink-text);
 }
 
-.fk-thread-composer .fk-primary-btn::before,
-.fk-post-layout .fk-primary-btn::before {
+.thread-composer .primary-btn::before,
+.post-layout .primary-btn::before {
   content: "";
   position: absolute;
   inset: 0.08rem 0.04rem;
   z-index: -1;
-  background: var(--fk-ink);
+  background: var(--ink);
   transform: skewX(-12deg);
 }
 
-.fk-thread-composer .fk-composer-body {
+.thread-composer .composer-body {
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
 }
 
-.fk-thread-status {
+.thread-status {
   min-height: 1.15em;
   margin: 0.25rem 0 0;
   color: var(--color-accent);
   font-size: 0.82rem;
 }
 
-.fk-thread-list {
+.thread-list {
   display: grid;
   gap: 0.32rem;
   overflow: visible;
 }
 
-.fk-thread-list .fk-thread-reply {
+.thread-list .thread-reply {
   margin-left: 0.6rem;
 }
 
-.fk-thread-list .fk-thread-reply::before {
+.thread-list .thread-reply::before {
   display: none;
 }
 
-.fk-post-content-only {
-  width: 100%;
-  padding: 1.5rem 1.6rem;
-  border-radius: 0;
-  overflow: visible;
-}
-
-.fk-post-content-only .fk-post-text {
-  margin: 0;
-  color: var(--color-text-strong);
-  font-size: 1.12rem;
-  line-height: 1.7;
-}
-
-.fk-post-content-only .fk-media {
-  margin-top: 1rem;
-}
-
-.fk-toast {
+.toast {
   position: fixed;
   left: 50%;
   bottom: 1.25rem;
@@ -483,12 +465,12 @@
   backdrop-filter: blur(10px);
 }
 
-.fk-toast.is-visible {
+.toast.is-visible {
   opacity: 1;
   translate: -50% 0;
 }
 
-.fk-share-menu {
+.share-menu {
   position: fixed;
   z-index: 1100;
   display: grid;
@@ -501,7 +483,7 @@
   gap: 0.2rem;
 }
 
-.fk-share-menu-item {
+.share-menu-item {
   display: grid;
   gap: 0.1rem;
   width: 100%;
@@ -514,27 +496,27 @@
   text-align: left;
 }
 
-.fk-share-menu-item:hover:not(:disabled),
-.fk-share-menu-item:focus-visible {
+.share-menu-item:hover:not(:disabled),
+.share-menu-item:focus-visible {
   background: var(--color-bg-hover);
   outline: none;
 }
 
-.fk-share-menu-item strong {
+.share-menu-item strong {
   font-size: 0.9rem;
 }
 
-.fk-share-menu-item span {
+.share-menu-item span {
   color: var(--color-text-muted);
   font-size: 0.75rem;
 }
 
-.fk-share-menu-item:disabled {
+.share-menu-item:disabled {
   cursor: not-allowed;
   opacity: 0.48;
 }
 
-.fk-post-side {
+.post-side {
   flex: none;
   width: min(430px, 40vw);
   overflow-y: auto;
@@ -546,45 +528,44 @@
   gap: 0.55rem;
 }
 
-.fk-post-info,
-.fk-post-controls,
-.fk-comments,
-.fk-hot-posts {
+.post-info,
+.post-controls,
+.hot-posts {
   padding: 1.05rem 1.2rem 1.25rem;
   border-radius: 0;
   overflow: visible;
 }
 
-.fk-post-info-title,
-.fk-post-controls-title {
+.post-info-title,
+.post-controls-title {
   margin: 0 0 0.9rem;
   color: var(--color-text-strong);
   font-size: 1rem;
 }
 
-.fk-post-info-author {
+.post-info-author {
   display: flex;
   align-items: center;
   gap: 0.8rem;
   margin-bottom: 1rem;
 }
 
-.fk-post-info-author .fk-avatar {
+.post-info-author .avatar {
   width: 48px;
   height: 48px;
   font-size: 1.2rem;
 }
 
-.fk-post-info-author strong {
+.post-info-author strong {
   display: block;
   color: var(--color-text-strong);
 }
 
-.fk-post-info-author small {
+.post-info-author small {
   color: var(--color-text-muted);
 }
 
-.fk-post-info-rows {
+.post-info-rows {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.4rem 1rem;
@@ -592,24 +573,24 @@
   font-size: 0.9rem;
 }
 
-.fk-post-info-rows dt {
+.post-info-rows dt {
   color: var(--color-text-muted);
 }
 
-.fk-post-info-rows dd {
+.post-info-rows dd {
   margin: 0;
   color: var(--color-text-strong);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.fk-post-control-actions {
+.post-control-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.fk-post-control-actions .fk-action {
+.post-control-actions .action {
   position: relative;
   isolation: isolate;
   justify-content: center;
@@ -619,49 +600,28 @@
   border: 0;
   border-radius: 0;
   background: none;
-  color: var(--fk-ink-text);
+  color: var(--ink-text);
 }
 
-.fk-post-control-actions .fk-action::before {
+.post-control-actions .action::before {
   content: "";
   position: absolute;
   inset: 0.08rem 0.04rem;
   z-index: -1;
-  background: var(--fk-ink);
+  background: var(--ink);
   transform: skewX(-12deg);
 }
 
-.fk-post-control-actions .fk-action:hover {
-  color: var(--fk-ink-text);
+.post-control-actions .action:hover {
+  color: var(--ink-text);
   background: none;
 }
 
-.fk-post-control-actions .fk-action:last-child {
+.post-control-actions .action:last-child {
   width: auto;
 }
 
-.fk-comments {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.fk-comments-title {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--color-text-strong);
-}
-
-.fk-comments-composer {
-  display: flex;
-  gap: 0.6rem;
-  align-items: flex-end;
-}
-
-.fk-comment-input {
+.comment-input {
   flex: 1 1 auto;
   box-sizing: border-box;
   resize: none;
@@ -678,29 +638,29 @@
   outline: none;
 }
 
-.fk-comment-input:focus {
+.comment-input:focus {
   border-color: var(--color-accent);
 }
 
-.fk-thread-composer .fk-comment-submit {
+.thread-composer .comment-submit {
   flex: none;
   border-radius: 0;
   padding: 0.5rem 1.15rem;
   background: none;
-  color: var(--fk-ink-text);
+  color: var(--ink-text);
   clip-path: none;
 }
 
-.fk-thread-composer .fk-comment-submit:hover:not(:disabled) {
-  background: var(--fk-ink);
+.thread-composer .comment-submit:hover:not(:disabled) {
+  background: var(--ink);
   opacity: 0.86;
 }
 
-.fk-thread-composer .fk-comment-submit:disabled {
+.thread-composer .comment-submit:disabled {
   opacity: 0.4;
 }
 
-.fk-thread-composer-actions {
+.thread-composer-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -711,13 +671,7 @@
   gap: 0.65rem;
 }
 
-.fk-side-composer .fk-composer-body {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: 100%;
-}
-
-.fk-thread-composer .fk-side-comment-input {
+.thread-composer .side-comment-input {
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
@@ -731,52 +685,34 @@
   line-height: 1.45;
 }
 
-.fk-thread-composer .fk-side-comment-input:focus {
+.thread-composer .side-comment-input:focus {
   border-color: transparent;
 }
 
-@media (min-width: 901px) {
-  .fk-side-composer {
-    flex: 1 1 auto;
-    min-height: 220px;
-  }
-
-  .fk-side-composer .fk-composer-body {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .fk-side-composer .fk-side-comment-input {
-    flex: 1 1 auto;
-    min-height: 140px;
-  }
-}
-
-.fk-comment-count {
+.comment-count {
   color: var(--color-text-muted);
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
 
-.fk-hot-title {
+.hot-title {
   margin: 0;
   color: var(--color-text-strong);
   font-size: 0.95rem;
 }
 
-.fk-hot-hint {
+.hot-hint {
   margin: 0.2rem 0 0.75rem;
   color: var(--color-text-muted);
   font-size: 0.78rem;
 }
 
-.fk-hot-list {
+.hot-list {
   display: grid;
   gap: 0.5rem;
 }
 
-.fk-hot-item {
+.hot-item {
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
@@ -791,21 +727,21 @@
     background 150ms ease;
 }
 
-.fk-hot-item:hover,
-.fk-hot-item:focus-visible {
+.hot-item:hover,
+.hot-item:focus-visible {
   border-color: var(--color-border-strong);
   outline: none;
 }
 
-.fk-hot-rank {
+.hot-rank {
   flex: none;
   display: grid;
   place-items: center;
   width: 1.6rem;
   height: 1.5rem;
   border-radius: 0;
-  background: var(--fk-ink);
-  color: var(--fk-ink-text);
+  background: var(--ink);
+  color: var(--ink-text);
 
   clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
   font-size: 0.72rem;
@@ -813,13 +749,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-.fk-hot-body {
+.hot-body {
   display: grid;
   gap: 0.15rem;
   min-width: 0;
 }
 
-.fk-hot-meta {
+.hot-meta {
   color: var(--color-text-muted);
   font-size: 0.76rem;
   overflow: hidden;
@@ -827,7 +763,7 @@
   white-space: nowrap;
 }
 
-.fk-hot-text {
+.hot-text {
   color: var(--color-text);
   font-size: 0.86rem;
   display: -webkit-box;
@@ -837,17 +773,17 @@
   overflow: hidden;
 }
 
-.fk-hot-views {
+.hot-views {
   color: var(--color-text-muted);
   font-size: 0.72rem;
 }
 
-.fk-comment-count.is-over {
-  color: var(--fk-like);
+.comment-count.is-over {
+  color: var(--like);
   font-weight: 700;
 }
 
-.fk-comments-list {
+.comments-list {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -857,7 +793,7 @@
   overscroll-behavior: contain;
 }
 
-.fk-comments-empty {
+.comments-empty {
   flex: 1 1 auto;
   display: grid;
   place-content: center;
@@ -870,112 +806,54 @@
   text-align: center;
 }
 
-.fk-comments-empty strong {
+.comments-empty strong {
   color: var(--color-text-strong);
   font-size: 0.9rem;
 }
 
-.fk-comments-empty span {
+.comments-empty span {
   color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
-.fk-comment {
-  display: flex;
-  gap: 0.7rem;
-}
-
-.fk-comment .fk-avatar {
-  width: 34px;
-  height: 34px;
-  font-size: 0.85rem;
-}
-
-.fk-comment-body {
-  min-width: 0;
-}
-
-.fk-comment-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-}
-
-.fk-comment-head strong {
-  font-size: 0.88rem;
-  color: var(--color-text-strong);
-}
-
-.fk-comment-head time {
-  font-size: 0.76rem;
-  color: var(--color-text-muted);
-}
-
-.fk-comment-text {
-  margin: 0.2rem 0 0;
-  font-size: 0.9rem;
-  color: var(--color-text);
-  overflow-wrap: anywhere;
-}
-
-.fk-comment-delete {
-  margin-top: 0.28rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 0.76rem;
-}
-
-.fk-comment-delete:hover:not(:disabled) {
-  color: var(--fk-like);
-}
-
-.fk-comment-delete:disabled {
-  cursor: wait;
-  opacity: 0.55;
-}
-
 @media (max-width: 900px) {
-  .fk-comment-input {
+  .comment-input {
     max-height: 240px;
   }
 
-  .fk-post-layout {
+  .post-layout {
     display: block;
     overflow-y: auto;
   }
 
-  .fk-post-main {
+  .post-main {
     display: block;
     padding: 1.25rem 0.9rem 2rem;
     overflow: visible;
   }
 
-  .fk-post-side {
+  .post-side {
     width: 100%;
     overflow: visible;
     border-left: 0;
     border-top: 1px solid var(--color-border);
   }
 
-  .fk-comments,
-  .fk-comments-list {
+  .comments-list {
     overflow: visible;
   }
 
-  .fk-comments-empty {
+  .comments-empty {
     min-height: 88px;
     padding: 0.85rem;
   }
 
-  .fk-thread-list .fk-thread-reply {
+  .thread-list .thread-reply {
     margin-left: 0;
   }
 }
 
-.fk-thread-children {
+.thread-children {
   grid-column: 1 / -1;
   display: grid;
   gap: 0.32rem;
@@ -984,6 +862,6 @@
   border-left: 2px solid var(--color-border);
 }
 
-.fk-thread-reply.is-nested {
+.thread-reply.is-nested {
   background: none;
 }

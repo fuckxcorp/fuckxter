@@ -1,0 +1,36 @@
+---
+import Header from "../components/Header.astro";
+import Layout from "./Layout.astro";
+
+interface Props {
+  /** 同时用作文档标题和页面内的 h1 */
+  title: string;
+  /** 根容器的标记属性，页面脚本用它 querySelector，例如 "data-notice" */
+  root: string;
+  /** 没有传 subtitle 插槽时显示的副标题 */
+  subtitle?: string;
+  showRefresh?: boolean;
+}
+
+const { title, root, subtitle, showRefresh = false } = Astro.props;
+---
+
+<Layout title={title}>
+  <div class="app subpage" {...{ [root]: true }}>
+    <Header showRefresh={showRefresh} />
+    <main class="notice-main">
+      <section class="notice-panel">
+        <header class="notice-head">
+          <div>
+            <h1>{title}</h1>
+            <slot name="subtitle">
+              <p>{subtitle}</p>
+            </slot>
+          </div>
+          <slot name="actions" />
+        </header>
+        <slot />
+      </section>
+    </main>
+  </div>
+</Layout>

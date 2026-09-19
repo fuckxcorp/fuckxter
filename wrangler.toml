@@ -1,7 +1,6 @@
-name = "fuckxter-api"
+name = "fuckxter"
 main = "worker/index.ts"
 compatibility_date = "2026-09-08"
-compatibility_flags = ["assets_navigation_has_no_effect"]
 
 [placement]
 mode = "smart"
@@ -15,7 +14,7 @@ binding = "ASSETS"
 run_worker_first = true
 
 [observability]
-enabled = true
+enabled = false
 
 [images]
 binding = "IMAGES"
@@ -39,8 +38,8 @@ custom_domain = true
 [[d1_databases]]
 binding = "DB"
 database_name = "fuckxter"
-database_id = "56ac6d87-cc10-4b8c-85c9-6689ef074ad8"
-migrations_dir = "worker/migrations"
+database_id = "6c654dd2-9ac1-4028-99d0-ee268874c498"
+migrations_dir = "worker/databases"
 
 [[r2_buckets]]
 binding = "MEDIA_CACHE"
