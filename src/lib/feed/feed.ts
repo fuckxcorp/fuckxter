@@ -182,6 +182,12 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStatus = container.querySelector<HTMLElement>(
     "[data-role=media-status]",
   )!;
+  const mediaPreview = container.querySelector<HTMLElement>(
+    "[data-role=media-preview]",
+  )!;
+  const mediaPreviewImage = container.querySelector<HTMLImageElement>(
+    "[data-role=media-preview-image]",
+  )!;
   const mediaStorageWrap = container.querySelector<HTMLElement>(
     "[data-role=media-storage-wrap]",
   )!;
@@ -203,7 +209,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const visibilityMenu = container.querySelector<HTMLElement>(
     "[data-role=visibility-menu]",
   );
-  // visibility 在型別上是 optional，這裡只需要實際的三個值。
+  // visibility 在类型上是 optional，这里只需要实际的三个值。
   const VISIBILITY_LABELS: Record<NonNullable<Post["visibility"]>, string> = {
     public: "公开可见",
     mutual: "仅互关可见",
@@ -216,6 +222,20 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const composerAvatar =
     container.querySelector<HTMLElement>(".composer .avatar")!;
   let selectedMedia: PostMedia | null = null;
+
+  /** 把已选/已有的图片直接显示在按钮下面，尺寸和帖子里的图片一致 */
+  const showMediaPreview = (media: PostMedia | null | undefined) => {
+    if (!media) {
+      mediaPreview.hidden = true;
+      mediaPreviewImage.removeAttribute("src");
+      return;
+    }
+    mediaPreviewImage.src = media.url.startsWith("/")
+      ? apiEndpoint(media.url)
+      : media.url;
+    mediaPreviewImage.alt = media.alt;
+    mediaPreview.hidden = false;
+  };
   let uploadingMedia = false;
   let editingPostId: string | null = null;
   let storageOptions: StorageOption[] | null = null;
@@ -414,6 +434,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       selectedMedia = null;
       mediaInput.value = "";
       mediaStatus.hidden = true;
+      showMediaPreview(null);
     }
   };
   syncComposerUser();
@@ -908,6 +929,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       composer.hidden = false;
       composerInput.value = post.text;
       setVisibility(post.visibility ?? "public");
+      showMediaPreview(post.media);
       composerInput.style.height = "auto";
       composerInput.style.height = `${composerInput.scrollHeight}px`;
       composerBtn.textContent = "保存";
@@ -958,6 +980,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const resetComposer = () => {
     editingPostId = null;
+    showMediaPreview(null);
     composerInput.value = "";
     composerInput.style.height = "";
     selectedMedia = null;
@@ -1018,8 +1041,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
           : "proxy",
       );
       mediaStatus.textContent = `已添加：${file.name}`;
+      showMediaPreview(selectedMedia);
     } catch (error) {
       selectedMedia = null;
+      showMediaPreview(null);
       mediaStatus.textContent =
         error instanceof ApiError && error.code === "STORAGE_REQUIRED"
           ? "请先在设置中配置 S3 对象存储。"

@@ -21,8 +21,8 @@ import Layout from "../layouts/Layout.astro";
           return;
         }
         splash.dataset.shownAt = String(performance.now());
-        // 保險：app 的腳本若沒載成功（dev server 重啟、chunk 404），
-        // 模組裡的收尾就不會執行，遮罩會一直蓋著整頁，所以在這裡也放一個保險。
+        // 保险：app 的脚本若没加载成功（dev server 重启、chunk 404），
+        // 模块里的收尾就不会执行，遮罩会一直盖着整页，所以在这里也放一个保险。
         window.setTimeout(() => {
           if (splash.isConnected) splash.remove();
         }, 4000);
@@ -450,6 +450,13 @@ import Layout from "../layouts/Layout.astro";
                   <span class="menu-check">✓</span>私密贴
                 </button>
               </div>
+            </div>
+            <div
+              class="media composer-preview"
+              data-role="media-preview"
+              hidden
+            >
+              <img class="media-image" data-role="media-preview-image" alt="" />
             </div>
             <span
               class="media-status"

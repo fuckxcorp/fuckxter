@@ -7,10 +7,10 @@ function currentSplash(): HTMLElement | null {
 }
 
 /**
- * 收起開屏遮罩。
- * 狀態記在元素自己身上（data-state），不要用模組層旗標：
- * 從別頁用前端路由回到首頁時模組不會重新執行，旗標會是舊的 true，
- * 新的遮罩就永遠沒人收。
+ * 收起开屏遮罩。
+ * 状态记在元素自己身上（data-state），不要用模块层旗标：
+ * 从别的页面用前端路由回到首页时模块不会重新执行，旗标会是旧的 true，
+ * 新的遮罩就永远没人收。
  */
 export function dismissHomeSplash(): void {
   const splash = currentSplash();
@@ -41,8 +41,8 @@ export function dismissHomeSplash(): void {
 }
 
 /**
- * 每次頁面載入（含前端路由回到首頁）都替當下的遮罩掛一個保險，
- * 就算資料一直沒回來、或收尾邏輯沒被呼叫，遮罩也會自己消失。
+ * 每次页面加载（含前端路由回到首页）都替当下的遮罩挂一个保险，
+ * 就算数据一直没回来、或收尾逻辑没被调用，遮罩也会自己消失。
  */
 function armSplashSafety(): void {
   const splash = currentSplash();

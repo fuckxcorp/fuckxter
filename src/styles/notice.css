@@ -96,7 +96,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  /* 跟頭像菜單同一塊墨色：淺色主題黑底，深色主題深灰浮起。 */
+  /* 跟头像菜单同一块墨色：浅色主题黑底，深色主题深灰浮起。 */
   background: var(--menu-surface);
   color: var(--menu-text);
   cursor: pointer;
