@@ -64,6 +64,27 @@ export interface QueueProducer<T> {
   send(body: T, options?: { delaySeconds?: number }): Promise<void>;
 }
 
+/** HTMLRewriter 的最小类型（项目没有装 workers-types，手写一份够用的）。 */
+export interface HtmlElement {
+  setAttribute(name: string, value: string): void;
+  setInnerContent(content: string, options?: { html?: boolean }): void;
+  append(content: string, options?: { html?: boolean }): void;
+  replace(content: string, options?: { html?: boolean }): void;
+}
+
+export interface HtmlRewriterHandler {
+  element(element: HtmlElement): void;
+}
+
+export interface HtmlRewriterInstance {
+  on(selector: string, handlers: HtmlRewriterHandler): HtmlRewriterInstance;
+  transform(response: Response): Response;
+}
+
+export interface HtmlRewriterConstructor {
+  new (): HtmlRewriterInstance;
+}
+
 export interface ImageTransformer {
   transform(options: {
     width?: number;

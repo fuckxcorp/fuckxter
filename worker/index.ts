@@ -61,6 +61,7 @@ import {
   setSaved,
   updatePost,
 } from "./posts/posts";
+import { withPostPageHtml } from "./posts/post-page";
 import { testStorageConnection } from "./accounts/s3";
 import {
   accountFromRow,
@@ -987,7 +988,18 @@ export default {
         assetUrl.pathname = assetPath;
         const cacheUrl = new URL(assetUrl);
         cacheUrl.search = "";
-        return fetchAsset(request, env, assetUrl, cacheUrl, context, cacheable);
+        const response = await fetchAsset(
+          request,
+          env,
+          assetUrl,
+          cacheUrl,
+          context,
+          cacheable,
+        );
+        // 帖子页补上 og:*，Telegram 之类的爬虫才抓得到内容
+        return assetPath === "/post/"
+          ? await withPostPageHtml(request, env, url, response)
+          : response;
       }
       return fetchAsset(request, env, url, url, context, cacheable);
     }
