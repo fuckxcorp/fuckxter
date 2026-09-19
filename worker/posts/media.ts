@@ -172,8 +172,14 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
   }
 
   const extension = MEDIA_EXTENSIONS[contentType] ?? "bin";
-  const objectKey = `fuckxter/media/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
+  const sha256 = await sha256Hex(bytes);
+  // 平台存储直接用这个键：它既是源文件，也是首次读取时被原地转成 AVIF 的缓存，
+  // 所以整张图在 R2 里只占一份。
+  const cacheKey = `media/${sha256}`;
+  let objectKey: string;
+
   if (config) {
+    objectKey = `fuckxter/media/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
     // 用户自己的 S3：签名后由 Worker 代传
     const upload = await presignS3Request(
       config,
@@ -198,14 +204,10 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
       );
     }
   } else {
-    // 没配 S3：落到平台自己的 R2
-    await env.MEDIA_CACHE.put(objectKey, bytes, {
-      httpMetadata: { contentType },
-    });
+    // 没配 S3：落到平台自己的 R2，只有这一份
+    objectKey = cacheKey;
   }
 
-  const sha256 = await sha256Hex(bytes);
-  const cacheKey = `media/${sha256}`;
   await env.MEDIA_CACHE.put(cacheKey, bytes, {
     httpMetadata: { contentType },
   });

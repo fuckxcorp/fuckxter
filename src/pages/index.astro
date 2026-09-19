@@ -9,6 +9,17 @@ import Layout from "../layouts/Layout.astro";
     <script is:inline>
       (() => {
         const splash = document.currentScript.parentElement;
+        // 开屏动画每个会话只播一次：从别的页面转回来（前端路由）时直接不显示。
+        // 想改成「一辈子只播一次」把 sessionStorage 换成 localStorage 即可。
+        let seen = false;
+        try {
+          seen = sessionStorage.getItem("splash-shown") === "1";
+          if (!seen) sessionStorage.setItem("splash-shown", "1");
+        } catch {}
+        if (seen) {
+          splash.remove();
+          return;
+        }
         splash.dataset.shownAt = String(performance.now());
         // 保險：app 的腳本若沒載成功（dev server 重啟、chunk 404），
         // 模組裡的收尾就不會執行，遮罩會一直蓋著整頁，所以在這裡也放一個保險。

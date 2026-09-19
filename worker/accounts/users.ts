@@ -20,6 +20,7 @@ interface ProfileRow {
   updated_at: string;
   avatar_media_id: string | null;
   avatar_key: string | null;
+  deleted_at: string | null;
   post_count: number;
   follower_count: number;
   following_count: number;
@@ -91,6 +92,7 @@ function publicProfile(row: ProfileRow, headerUrl: string | null) {
       following: Boolean(row.following),
       blocked: Boolean(row.blocked),
     },
+    deleted: Boolean(row.deleted_at),
   };
 }
 
@@ -112,6 +114,7 @@ export async function getUserProfile(
        u.created_at,
        u.avatar_media_id,
        u.avatar_key,
+       u.deleted_at,
        u.updated_at,
        (SELECT COUNT(*) FROM posts p
          WHERE p.author_id = u.id AND p.deleted_at IS NULL) AS post_count,
@@ -128,7 +131,7 @@ export async function getUserProfile(
          WHERE vb.blocker_id = ? AND vb.blocked_id = u.id
        ) AS blocked
      FROM users u
-     WHERE u.id = ? AND u.deleted_at IS NULL
+     WHERE u.id = ?
      LIMIT 1`,
   )
     .bind(viewerId ?? "", viewerId ?? "", usernameKey(handle))

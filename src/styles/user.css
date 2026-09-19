@@ -146,10 +146,28 @@
 }
 
 .user-bio {
-  margin: 0.6rem 0 0;
+  /* 单独一行，不跟头像/昵称挤在同一块里——否则签名异步填充时会把整行撑高，产生 CLS */
+  margin: 0.75rem 0 0;
+  padding: 0 1.25rem;
   color: var(--color-text);
   font-size: 0.92rem;
   line-height: 1.55;
+}
+
+.user-deleted {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.user-deleted[hidden] {
+  display: none;
 }
 
 .user-meta {

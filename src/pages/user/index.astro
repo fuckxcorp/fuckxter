@@ -54,9 +54,13 @@ import Header from "../../components/Header.astro";
                   </span>
                 </div>
                 <div class="user-handle" data-role="user-handle"></div>
-                <p class="user-bio" data-role="user-bio"></p>
+                <span class="user-deleted" data-role="user-deleted" hidden>
+                  已删除账号
+                </span>
               </div>
             </div>
+
+            <p class="user-bio" data-role="user-bio"></p>
 
             <div class="user-meta">
               <span class="user-chip" data-role="user-chip-gender" hidden>
@@ -239,6 +243,7 @@ import Header from "../../components/Header.astro";
     const block = role<HTMLButtonElement>("block");
     const followersChip = role<HTMLAnchorElement>("chip-followers");
     const followingChip = role<HTMLAnchorElement>("chip-following");
+    const deleted = Boolean(profile.deleted);
 
     avatar.href = userPath(profile.handle);
     avatar.dataset.handle = profile.handle;
@@ -262,6 +267,7 @@ import Header from "../../components/Header.astro";
     role<HTMLElement>("bio").textContent =
       profile.bio || "这个人很懒，什么都没有写。";
     verified.toggleAttribute("hidden", !profile.verified);
+    role<HTMLElement>("deleted").toggleAttribute("hidden", !deleted);
     followersChip.href = `${userPath(profile.handle)}/followers`;
     followingChip.href = `${userPath(profile.handle)}/following`;
 
@@ -273,11 +279,11 @@ import Header from "../../components/Header.astro";
     setUserChip(card, "followers", String(profile.stats.followers));
     setUserChip(card, "following", String(profile.stats.following));
 
-    edit.hidden = !isOwn;
+    edit.hidden = !isOwn || deleted;
     const blocked = Boolean(profile.viewer.blocked);
-    follow.hidden = isOwn || blocked;
-    message.hidden = isOwn || blocked;
-    block.hidden = isOwn;
+    follow.hidden = isOwn || blocked || deleted;
+    message.hidden = isOwn || blocked || deleted;
+    block.hidden = isOwn || deleted;
     block.dataset.handle = profile.handle;
     block.textContent = blocked ? "已拉黑" : "拉黑";
     block.classList.toggle("is-danger", blocked);

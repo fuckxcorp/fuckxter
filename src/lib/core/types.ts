@@ -159,6 +159,8 @@ export interface UserProfile {
     following: boolean;
     blocked?: boolean;
   };
+  /** 已申请删除（3 天宽限期内）的账号：昵称还在，但主页标注为已删除 */
+  deleted?: boolean;
 }
 
 export interface StorageOption {
