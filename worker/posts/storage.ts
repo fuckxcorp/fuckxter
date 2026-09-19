@@ -1,7 +1,7 @@
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
 import type { S3Config } from "../accounts/s3";
-import { decryptSecret, encryptSecret, randomId } from "../accounts/security";
+import { decryptSecret, encryptSecret, randomId } from "../shared/crypto";
 
 interface StorageRow {
   id: string;
@@ -23,7 +23,11 @@ async function storageFromRow(env: Env, row: StorageRow): Promise<S3Config> {
     region: row.region,
     bucket: row.bucket,
     accessKeyId: row.access_key_id,
-    secretAccessKey: await decryptSecret(row.secret_ciphertext, env),
+    secretAccessKey: await decryptSecret(
+      row.secret_ciphertext,
+      env,
+      `s3-config:${row.id}`,
+    ),
     pathStyle: Boolean(row.path_style),
     isDefault: Boolean(row.is_default),
   };
@@ -125,7 +129,7 @@ export async function saveStorageConfig(
 
   const suppliedSecret = input.secretAccessKey ?? "";
   const secretCiphertext = suppliedSecret
-    ? await encryptSecret(suppliedSecret, env)
+    ? await encryptSecret(suppliedSecret, env, `s3-config:${id}`)
     : existing?.secret_ciphertext;
   if (!secretCiphertext) {
     throw new HttpError(400, "SECRET_REQUIRED", "必须填写 Secret Access Key。");

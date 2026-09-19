@@ -267,7 +267,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const renderStorageMenu = (
     options: StorageOption[],
-    emptyLabel = options.length ? "默认存储桶" : "尚未配置对象存储",
+    emptyLabel = options.length ? "默认存储桶" : "平台存储（R2）",
   ) => {
     mediaStorageValue.textContent = storageLabel(options, emptyLabel);
     mediaStorageMenu.replaceChildren(
@@ -361,9 +361,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
       })
       .catch((error: unknown) => {
         if (storageOwner !== owner) return;
+        // 读不到配置就静默用平台存储，不打扰用户
         storageOptions = [];
         selectedStorageId = "";
-        renderStorageMenu([], "存储桶加载失败，将使用默认配置");
+        renderStorageMenu([], "平台存储（R2）");
         console.error("Failed to load storage options", error);
       })
       .finally(() => {

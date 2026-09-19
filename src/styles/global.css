@@ -444,72 +444,6 @@ body {
   border-top: 1px solid var(--menu-line);
 }
 
-.modal {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-}
-
-.modal[hidden] {
-  display: none;
-}
-
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, #000 45%, transparent);
-  backdrop-filter: blur(2px);
-}
-
-.dialog {
-  position: relative;
-  width: min(420px, 100%);
-  max-height: 92dvh;
-  padding: 1.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
-  background: var(--color-bg-raised);
-  box-shadow: var(--shadow-trigger);
-}
-
-.dialog-brand {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1.1rem;
-}
-
-.dialog-close {
-  position: absolute;
-  top: 0.7rem;
-  right: 0.7rem;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--color-bg-hover);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1.05rem;
-  line-height: 1;
-}
-
-.dialog-close:hover {
-  color: var(--color-text-strong);
-}
-
-.dialog .primary-btn {
-  display: block;
-  width: 100%;
-  margin-top: 0.4rem;
-  padding: 0.7rem 1.2rem;
-}
-
 .field {
   display: block;
   margin-bottom: 0.85rem;
@@ -642,7 +576,9 @@ body {
   --slab-top-right: 0px;
 
   width: min(360px, calc(100vw - 2rem));
-  height: calc(100dvh - 3.5rem);
+  /* top 已经用掉「锚点高度 + 8px」，高度必须按同一个锚点算，
+     否则菜单底边会超出视口 8px，文档多出可滚动高度 → 出现滚动条 → 页面横向抖动 */
+  height: calc(100dvh - 100% - 1rem);
 
   padding: 0.6rem 1.25rem 1rem min(96px, var(--menu-slant));
   border: 0;
@@ -1276,10 +1212,6 @@ body {
     right: 0.4rem;
     left: 0.4rem;
     top: calc(100% + 4px);
-  }
-
-  .dialog {
-    padding: 1.1rem;
   }
 
   .post {

@@ -1,0 +1,67 @@
+.login-page {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.login-card {
+  width: min(380px, 100%);
+  padding: 1.6rem 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-trigger);
+}
+
+.login-brand {
+  margin: 0 0 1.1rem;
+  color: var(--color-text-strong);
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.login-card form {
+  display: grid;
+}
+
+.login-card .primary-btn {
+  width: 100%;
+}
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.9rem;
+}
+
+.login-links a,
+.login-links button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.login-links a:hover,
+.login-links button:hover {
+  color: var(--color-accent);
+}
+
+.login-note {
+  margin: 1rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.login-note strong {
+  color: var(--color-text-strong);
+}
+
+.login-card [data-role="recovery-notice"].is-warning .login-note {
+  color: var(--like);
+}

@@ -1,7 +1,7 @@
 import { buildAvatarUrl } from "../accounts/avatar";
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
-import { randomId } from "../accounts/security";
+import { randomId } from "../shared/crypto";
 import { usernameKey } from "../accounts/usernames";
 import { isBlockedBetween } from "../accounts/users";
 
@@ -96,6 +96,47 @@ async function findThreadId(
     .bind(lowId, highId)
     .first<ThreadIdRow>();
   return row?.id ?? null;
+}
+
+interface ThreadContextRow extends PersonRow {
+  blocked: number;
+  thread_id: string | null;
+}
+
+/**
+ * 一次查询拿齐「对方资料 + 有没有拉黑 + 已有的会话 id」。
+ * 这三件事以前是三次串行往返，而发消息每次都要问一遍。
+ */
+async function loadThreadContext(env: Env, userId: string, handle: string) {
+  const normalized = usernameKey(handle);
+  if (!normalized) {
+    throw new HttpError(400, "INVALID_HANDLE", "用户名无效。");
+  }
+  const [low, high] = pairFor(userId, normalized);
+  const row = await env.DB.prepare(
+    `SELECT ${PERSON_COLUMNS},
+       EXISTS(
+         SELECT 1 FROM blocks b
+         WHERE (b.blocker_id = ? AND b.blocked_id = o.id)
+            OR (b.blocker_id = o.id AND b.blocked_id = ?)
+       ) AS blocked,
+       (
+         SELECT t.id FROM dm_threads t
+         WHERE t.user_low_id = ? AND t.user_high_id = ?
+       ) AS thread_id
+     FROM users o
+     WHERE o.id = ?`,
+  )
+    .bind(userId, userId, low, high, normalized)
+    .first<ThreadContextRow>();
+  if (!row) {
+    throw new HttpError(404, "USER_NOT_FOUND", "用户不存在。");
+  }
+  return {
+    person: row,
+    blocked: Boolean(row.blocked),
+    threadId: row.thread_id,
+  };
 }
 
 export async function listConversations(env: Env, userId: string) {
@@ -209,40 +250,54 @@ export async function sendMessage(
     );
   }
 
-  const person = await findPerson(env, handle);
+  const {
+    person,
+    blocked,
+    threadId: existingThreadId,
+  } = await loadThreadContext(env, userId, handle);
   if (person.id === userId) {
     throw new HttpError(400, "SELF_MESSAGE", "不能和自己私信。");
   }
-  if (await isBlockedBetween(env, userId, person.id)) {
+  if (blocked) {
     throw new HttpError(403, "BLOCKED", "你们之间存在拉黑关系，无法私信。");
   }
 
-  const [low, high] = pairFor(userId, person.id);
   const now = new Date().toISOString();
-  let threadId = await findThreadId(env, low, high);
+  let threadId = existingThreadId;
   if (!threadId) {
+    const [low, high] = pairFor(userId, person.id);
     const candidate = randomId();
-    await env.DB.prepare(
+    const created = await env.DB.prepare(
       `INSERT INTO dm_threads (id, user_low_id, user_high_id, created_at, last_message_at)
        VALUES (?, ?, ?, ?, ?)
        ON CONFLICT (user_low_id, user_high_id) DO NOTHING`,
     )
       .bind(candidate, low, high, now, now)
       .run();
-    threadId = (await findThreadId(env, low, high)) ?? candidate;
+    // 并发开聊时对方可能刚插进去，插入没生效就回读真实 id
+    threadId =
+      Number(created.meta?.changes ?? 0) > 0
+        ? candidate
+        : ((await findThreadId(env, low, high)) ?? candidate);
   }
 
-  await env.DB.prepare(
-    `INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-  )
-    .bind(randomId(), threadId, userId, body, now)
-    .run();
-  await env.DB.prepare("UPDATE dm_threads SET last_message_at = ? WHERE id = ?")
-    .bind(now, threadId)
-    .run();
+  // 插消息 + 更新会话时间，一次往返
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).bind(randomId(), threadId, userId, body, now),
+    env.DB.prepare(
+      "UPDATE dm_threads SET last_message_at = ? WHERE id = ?",
+    ).bind(now, threadId),
+  ]);
 
-  return getConversation(env, userId, handle);
+  const messages = await loadMessages(env, threadId, userId);
+  return {
+    user: serializePerson(person),
+    messages,
+    unread: messages.filter((message) => !message.mine && !message.read).length,
+  };
 }
 
 export async function markConversationRead(
@@ -267,10 +322,18 @@ export async function recallMessage(
   userId: string,
   handle: string,
   messageId: string,
-): Promise<void> {
-  const person = await findPerson(env, handle);
-  const [low, high] = pairFor(userId, person.id);
-  const threadId = await findThreadId(env, low, high);
+) {
+  const { person, blocked, threadId } = await loadThreadContext(
+    env,
+    userId,
+    handle,
+  );
+  if (person.id === userId) {
+    throw new HttpError(400, "SELF_MESSAGE", "不能和自己私信。");
+  }
+  if (blocked) {
+    throw new HttpError(403, "BLOCKED", "你们之间存在拉黑关系，无法私信。");
+  }
   if (!threadId) {
     throw new HttpError(404, "MESSAGE_NOT_FOUND", "私信不存在。");
   }
@@ -303,6 +366,13 @@ export async function recallMessage(
       .bind(threadId)
       .run();
   }
+
+  const messages = latest ? await loadMessages(env, threadId, userId) : [];
+  return {
+    user: serializePerson(person),
+    messages,
+    unread: messages.filter((message) => !message.mine && !message.read).length,
+  };
 }
 
 export async function countUnreadMessages(

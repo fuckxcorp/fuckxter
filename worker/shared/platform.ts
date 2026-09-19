@@ -1,3 +1,5 @@
+import type { Job } from "./jobs";
+
 export interface D1Result<T> {
   results?: T[];
   success: boolean;
@@ -48,6 +50,20 @@ export interface R2Bucket {
   ): Promise<unknown>;
 }
 
+export interface KVStore {
+  get(key: string): Promise<string | null>;
+  put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number },
+  ): Promise<void>;
+  delete(key: string): Promise<void>;
+}
+
+export interface QueueProducer<T> {
+  send(body: T, options?: { delaySeconds?: number }): Promise<void>;
+}
+
 export interface ImageTransformer {
   transform(options: {
     width?: number;
@@ -70,6 +86,8 @@ export interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   MEDIA_CACHE: R2Bucket;
   IMAGES: ImagesBinding;
+  KV: KVStore;
+  JOBS: QueueProducer<Job>;
   FUCKXTER_ORIGINS: string;
   FUCKXTER_SECRET?: string;
 }

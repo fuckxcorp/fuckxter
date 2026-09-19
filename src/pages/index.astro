@@ -468,65 +468,6 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </div>
   </div>
-
-  <div class="modal" data-role="auth-modal" hidden>
-    <div class="modal-backdrop" data-role="auth-backdrop"></div>
-    <div class="dialog" role="dialog" aria-modal="true" aria-label="登录或注册">
-      <div class="dialog-brand">
-        <h2>FuckXter</h2>
-      </div>
-
-      <form data-role="signin-form" novalidate>
-        <label class="field">
-          <span class="field-label">邮箱</span>
-          <input
-            name="identifier"
-            type="email"
-            autocomplete="username"
-            placeholder="you@example.com"
-            required
-          />
-        </label>
-        <label class="field">
-          <span class="field-label">密码</span>
-          <input
-            name="password"
-            type="password"
-            autocomplete="current-password"
-            placeholder="密码"
-            required
-          />
-        </label>
-        <label class="field login-tfa-field" data-role="login-tfa-field" hidden>
-          <span class="field-label">动态验证码</span>
-          <input
-            name="code"
-            type="text"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            maxlength="6"
-            placeholder="6 位验证码"
-          />
-        </label>
-        <p class="form-status" data-role="signin-status" aria-live="polite"></p>
-        <button class="primary-btn" type="submit">
-          登录
-        </button>
-        <p class="form-hint">
-          未注册的用户将会自动注册，注册表示你同意我们的用户协议。
-        </p>
-      </form>
-
-      <button
-        type="button"
-        class="dialog-close"
-        data-role="auth-close"
-        aria-label="关闭"
-      >
-        ×
-      </button>
-    </div>
-  </div>
 </Layout>
 
 <script>

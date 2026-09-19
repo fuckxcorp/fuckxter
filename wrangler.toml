@@ -44,3 +44,17 @@ migrations_dir = "worker/databases"
 [[r2_buckets]]
 binding = "MEDIA_CACHE"
 bucket_name = "fuckxter"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "04ae5aae580845bc9b923315aefab1fc"
+
+[[queues.producers]]
+binding = "JOBS"
+queue = "fuckxchat"
+
+[[queues.consumers]]
+queue = "fuckxchat"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3

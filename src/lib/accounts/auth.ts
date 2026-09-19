@@ -1,3 +1,4 @@
+import { navigate } from "astro:transitions/client";
 import { ApiError, apiRequest } from "../core/http";
 import type { FeedUser } from "../core/types";
 
@@ -34,7 +35,6 @@ interface AccountResponse {
   account: Account | null;
 }
 
-export const AUTH_REQUIRED_EVENT = "auth-required";
 const ACCOUNT_CACHE_KEY = "fk-account-cache";
 const ACCOUNT_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -118,14 +118,18 @@ export function toFeedUser(value: Account | null): FeedUser {
   };
 }
 
+/** 需要登录时跳到登录页，登录完成后回到当前页面。 */
 export function requestAuthentication(): void {
-  window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
+  if (location.pathname.startsWith("/login")) return;
+  const next = `${location.pathname}${location.search}`;
+  void navigate(`/login?next=${encodeURIComponent(next)}`);
 }
 
 export async function signIn(input: {
   identifier: string;
   password: string;
   code?: string;
+  recoveryCode?: string;
 }): Promise<Account> {
   const response = await apiRequest<AccountResponse>("/auth/login", {
     method: "POST",

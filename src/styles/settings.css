@@ -447,6 +447,15 @@
   display: none;
 }
 
+.security-state-row.is-warning {
+  border-color: color-mix(in srgb, var(--like) 55%, transparent);
+  background: color-mix(in srgb, var(--like) 10%, transparent);
+}
+
+.security-state-row.is-warning .security-state {
+  color: var(--like);
+}
+
 .security-state {
   color: var(--color-text-strong);
   font-size: 0.85rem;

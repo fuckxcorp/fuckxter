@@ -38,6 +38,8 @@ import {
   getUnreadNotificationCount,
   markNotificationsRead,
 } from "./notifications/notifications";
+import { handleQueue } from "./jobs";
+import type { Job, QueueBatch } from "./shared/jobs";
 import type { Env } from "./shared/platform";
 import {
   createComment,
@@ -107,6 +109,8 @@ const MESSAGE_ASSET_PATH = /^\/messages\/([^/]+)\/?$/i;
 const CONNECTIONS_ASSET_PATH = /^\/user\/([^/]+)\/(followers|following)\/?$/i;
 const PRETTY_ASSET_PATHS = new Set([
   "/connections",
+  "/login",
+  "/login/forgot",
   "/notice",
   "/saved",
   "/settings",
@@ -239,12 +243,14 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         identifier?: string;
         password?: string;
         code?: string;
+        recoveryCode?: string;
       }>(request);
       const result = await loginOrRegister(
         env,
         body.identifier ?? "",
         body.password ?? "",
         body.code,
+        body.recoveryCode,
       );
       const response = json({ account: result.account }, request, env);
       return withCookie(
@@ -314,9 +320,8 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
         if (typeof body.text !== "string") {
           throw new HttpError(400, "INVALID_MESSAGE", "私信内容无效。");
         }
-        const conversation = await sendMessage(env, user.id, handle, body.text);
         return json(
-          { ...conversation, unread: await countUnreadMessages(env, user.id) },
+          await sendMessage(env, user.id, handle, body.text),
           request,
           env,
           { status: 201 },
@@ -335,10 +340,8 @@ async function route(request: Request, env: Env, url: URL): Promise<Response> {
 
     if (parts.length === 4 && method === "DELETE") {
       const handle = segment(parts, 2);
-      await recallMessage(env, user.id, handle, segment(parts, 3));
-      const conversation = await getConversation(env, user.id, handle);
       return json(
-        { ...conversation, unread: await countUnreadMessages(env, user.id) },
+        await recallMessage(env, user.id, handle, segment(parts, 3)),
         request,
         env,
       );
@@ -954,6 +957,7 @@ export default {
       pathname.startsWith("/me/") ||
       pathname.startsWith("/auth/") ||
       pathname.startsWith("/posts") ||
+      pathname === "/media" ||
       pathname.startsWith("/media/") ||
       pathname.startsWith("/avatars/") ||
       pathname.startsWith("/headers/") ||
@@ -998,5 +1002,9 @@ export default {
     } catch (error) {
       return errorResponse(error, request, env);
     }
+  },
+
+  async queue(batch: QueueBatch<Job>, env: Env): Promise<void> {
+    await handleQueue(batch, env);
   },
 };

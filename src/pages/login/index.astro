@@ -1,0 +1,262 @@
+---
+import "../../styles/login.css";
+
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="登录">
+  <div class="app subpage login-page" data-login>
+    <section class="login-card">
+      <h1 class="login-brand">FuckXter</h1>
+
+      <div data-role="login-body">
+        <form data-role="login-form" novalidate>
+          <label class="field">
+            <span class="field-label">邮箱</span>
+            <input
+              name="identifier"
+              type="email"
+              autocomplete="username"
+              placeholder="you@example.com"
+              required
+            />
+          </label>
+          <label class="field">
+            <span class="field-label">密码</span>
+            <input
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="密码"
+              required
+            />
+          </label>
+          <label class="field" data-role="code-field" hidden>
+            <span class="field-label">动态验证码</span>
+            <input
+              name="code"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              placeholder="6 位验证码"
+            />
+          </label>
+          <label class="field" data-role="recovery-field" hidden>
+            <span class="field-label">恢复码</span>
+            <input
+              name="recoveryCode"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="XXXX-XXXX"
+            />
+          </label>
+          <p
+            class="form-status"
+            data-role="login-status"
+            aria-live="polite"
+          ></p>
+          <button class="primary-btn" type="submit" data-role="login-submit">
+            登录
+          </button>
+        </form>
+
+        <div class="login-links">
+          <a href="/login/forgot">忘记密码</a>
+          <button type="button" data-role="use-recovery">
+            用恢复码登录
+          </button>
+        </div>
+
+        <p class="form-hint">
+          未注册的用户将会自动注册，注册表示你同意我们的用户协议。
+        </p>
+      </div>
+
+      <div data-role="recovery-notice" hidden>
+        <p class="login-note" data-role="recovery-notice-text"></p>
+        <div class="login-links">
+          <a href="/settings/security">去重新生成</a>
+          <button type="button" data-role="recovery-notice-continue">
+            稍后再说
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  import { hydrateSession, signIn } from "../../lib/accounts/auth";
+  import { ApiError } from "../../lib/core/http";
+  import { onPageReady } from "../../lib/core/page";
+  import { isValidEmail } from "../../lib/core/validation";
+
+  /** 只接受站内路径，避免 ?next= 被拿去做跳转钓鱼。 */
+  function nextPath(): string {
+    const raw = new URL(location.href).searchParams.get("next") ?? "/";
+    if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
+      return "/";
+    }
+    return raw;
+  }
+
+  onPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-login]");
+    if (!root || root.dataset.loginMounted === "true") return;
+    root.dataset.loginMounted = "true";
+
+    const form = root.querySelector<HTMLFormElement>("[data-role=login-form]")!;
+    const identifier =
+      form.querySelector<HTMLInputElement>("[name=identifier]")!;
+    const password = form.querySelector<HTMLInputElement>("[name=password]")!;
+    const codeField = root.querySelector<HTMLElement>(
+      "[data-role=code-field]",
+    )!;
+    const codeInput = codeField.querySelector<HTMLInputElement>("[name=code]")!;
+    const recoveryField = root.querySelector<HTMLElement>(
+      "[data-role=recovery-field]",
+    )!;
+    const recoveryInput = recoveryField.querySelector<HTMLInputElement>(
+      "[name=recoveryCode]",
+    )!;
+    const status = root.querySelector<HTMLElement>("[data-role=login-status]")!;
+    const submit = root.querySelector<HTMLButtonElement>(
+      "[data-role=login-submit]",
+    )!;
+    const recoveryToggle = root.querySelector<HTMLButtonElement>(
+      "[data-role=use-recovery]",
+    )!;
+    const loginBody = root.querySelector<HTMLElement>(
+      "[data-role=login-body]",
+    )!;
+    const recoveryNotice = root.querySelector<HTMLElement>(
+      "[data-role=recovery-notice]",
+    )!;
+    const recoveryNoticeText = root.querySelector<HTMLElement>(
+      "[data-role=recovery-notice-text]",
+    )!;
+    const recoveryNoticeContinue = root.querySelector<HTMLButtonElement>(
+      "[data-role=recovery-notice-continue]",
+    )!;
+
+    /** totp：密码 + 动态验证码；recovery：密码 + 恢复码。 */
+    let secondFactor: "totp" | "recovery" = "totp";
+    /** 只有密码验证通过、服务端要求 2FA 之后才显示验证码输入框。 */
+    let codeRequested = false;
+
+    const render = () => {
+      recoveryField.hidden = secondFactor !== "recovery";
+      codeField.hidden = secondFactor !== "totp" || !codeRequested;
+      recoveryToggle.textContent =
+        secondFactor === "recovery" ? "改用动态验证码" : "用恢复码登录";
+      submit.textContent =
+        secondFactor === "recovery"
+          ? "用恢复码登录"
+          : codeRequested
+            ? "验证并登录"
+            : "登录";
+    };
+
+    const setStatus = (message: string) => {
+      status.textContent = message;
+    };
+
+    /** 用恢复码进来之后提醒重新生成，用完时语气更重。 */
+    const showRecoveryNotice = (remaining: number) => {
+      loginBody.hidden = true;
+      recoveryNotice.hidden = false;
+      recoveryNoticeText.textContent =
+        remaining > 0
+          ? `已使用一个恢复码登录，还剩 ${remaining} 个。建议重新生成一份新的。`
+          : "你的恢复码已经全部用完，建议立即重新生成，否则下次就进不来了。";
+      recoveryNotice.classList.toggle("is-warning", remaining === 0);
+    };
+
+    recoveryNoticeContinue.addEventListener("click", () => {
+      location.href = nextPath();
+    });
+
+    recoveryToggle.addEventListener("click", () => {
+      secondFactor = secondFactor === "recovery" ? "totp" : "recovery";
+      if (secondFactor === "recovery") codeRequested = true;
+      setStatus("");
+      render();
+      (secondFactor === "recovery" ? recoveryInput : identifier).focus();
+    });
+
+    // 已经登录过就直接回目标页
+    void hydrateSession().then((account) => {
+      if (account) location.href = nextPath();
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const email = identifier.value.trim();
+      if (!isValidEmail(email)) {
+        identifier.setAttribute("aria-invalid", "true");
+        setStatus("请输入有效的邮箱地址");
+        identifier.focus();
+        return;
+      }
+      identifier.removeAttribute("aria-invalid");
+
+      const code = codeInput.value.trim();
+      const recoveryCode = recoveryInput.value.trim();
+      if (secondFactor === "recovery" && !recoveryCode) {
+        setStatus("请输入恢复码");
+        recoveryInput.focus();
+        return;
+      }
+      if (secondFactor === "totp" && codeRequested && !code) {
+        setStatus("请输入动态验证码");
+        codeInput.focus();
+        return;
+      }
+
+      submit.disabled = true;
+      setStatus("登录中…");
+      try {
+        const account = await signIn({
+          identifier: email,
+          password: password.value,
+          code: secondFactor === "totp" ? code : undefined,
+          recoveryCode: secondFactor === "recovery" ? recoveryCode : undefined,
+        });
+        // 只有确实开了 2FA、真的消费掉一个恢复码时才提醒
+        if (secondFactor === "recovery" && account.twoFactorEnabled) {
+          showRecoveryNotice(account.recoveryCodeCount);
+          return;
+        }
+        location.href = nextPath();
+      } catch (error) {
+        const apiError = error instanceof ApiError ? error : null;
+        if (apiError?.code === "TWO_FACTOR_REQUIRED") {
+          codeRequested = true;
+          setStatus("该账号已开启双重验证，请输入动态验证码。");
+          render();
+          codeInput.focus();
+        } else {
+          if (
+            apiError?.code === "INVALID_TOTP" ||
+            apiError?.code === "INVALID_RECOVERY_CODE"
+          ) {
+            codeRequested = true;
+            render();
+            (secondFactor === "recovery" ? recoveryInput : codeInput).focus();
+          }
+          setStatus(
+            error instanceof Error ? error.message : "登录失败，请重试。",
+          );
+        }
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    render();
+    identifier.focus();
+  });
+</script>

@@ -143,17 +143,29 @@ export async function uploadMedia(
     return proxyUploadMedia(file, storageConfigId);
   }
 
-  const presign = await apiRequest<{ upload: MediaUploadTicket }>(
-    "/media/uploads",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        storageConfigId,
-        fileName: file.name,
-        contentType: file.type,
-      }),
-    },
-  );
+  let presign: { upload: MediaUploadTicket };
+  try {
+    presign = await apiRequest<{ upload: MediaUploadTicket }>(
+      "/media/uploads",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          storageConfigId,
+          fileName: file.name,
+          contentType: file.type,
+        }),
+      },
+    );
+  } catch (error) {
+    // 走平台存储时没法直传（浏览器拿不到 R2 的签名），退回 Worker 中转
+    if (
+      error instanceof ApiError &&
+      error.code === "DIRECT_UPLOAD_UNAVAILABLE"
+    ) {
+      return proxyUploadMedia(file, storageConfigId);
+    }
+    throw error;
+  }
   await putFileToStorage(
     presign.upload.url,
     presign.upload.headers,

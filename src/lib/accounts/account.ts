@@ -1,11 +1,5 @@
 import { navigate } from "astro:transitions/client";
-import {
-  AUTH_REQUIRED_EVENT,
-  getAccount,
-  signIn,
-  signOut,
-  type Account,
-} from "./auth";
+import { getAccount, signOut, type Account } from "./auth";
 import { getUnreadMessageCount, getUnreadNotificationCount } from "./api";
 import {
   avatarGradient,
@@ -14,9 +8,8 @@ import {
   isPanelOpen,
   showPanel,
 } from "../ui/dom";
-import { ApiError, apiEndpoint } from "../core/http";
+import { apiEndpoint } from "../core/http";
 import { userPath } from "../core/urls";
-import { isValidEmail } from "../core/validation";
 
 interface AccountControlsOptions {
   onAccountChange: () => void;
@@ -82,10 +75,6 @@ export function mountAccountControls(
   )!;
   const themeSubmenu = accountMenu.querySelector<HTMLElement>(
     "[data-role=theme-submenu]",
-  )!;
-
-  const authModal = document.querySelector<HTMLElement>(
-    "[data-role=auth-modal]",
   )!;
 
   let account: Account | null = getAccount();
@@ -268,39 +257,12 @@ export function mountAccountControls(
     syncThemeMenu();
   });
 
-  const onModalKeydown = (event: KeyboardEvent) => {
-    if (event.key !== "Escape") return;
-    if (!authModal.hidden) closeModal(authModal);
-  };
-  let modalKeysBound = false;
-  const bindModalKeys = () => {
-    if (modalKeysBound) return;
-    modalKeysBound = true;
-    document.addEventListener("keydown", onModalKeydown, true);
-  };
-  const unbindModalKeys = () => {
-    if (!modalKeysBound || !authModal.hidden) return;
-    modalKeysBound = false;
-    document.removeEventListener("keydown", onModalKeydown, true);
-  };
-  const openModal = (modal: HTMLElement) => {
-    modal.hidden = false;
-    bindModalKeys();
-  };
-  const closeModal = (modal: HTMLElement) => {
-    modal.hidden = true;
-    unbindModalKeys();
-  };
-  const setStatus = (element: HTMLElement | null, message: string) => {
-    if (element) element.textContent = message;
-  };
-
   accountMenu.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     const authOpen = target.closest<HTMLButtonElement>("[data-auth-open]");
     if (authOpen) {
       closeAccountMenu();
-      openAuthModal();
+      void navigate("/login");
       return;
     }
     const open = target.closest<HTMLButtonElement>("[data-account-open]");
@@ -341,79 +303,6 @@ export function mountAccountControls(
     }
   });
 
-  const signinForm = authModal.querySelector<HTMLFormElement>(
-    "[data-role=signin-form]",
-  )!;
-  const signinIdentifier =
-    signinForm.querySelector<HTMLInputElement>("[name=identifier]")!;
-  const signinStatus = authModal.querySelector<HTMLElement>(
-    "[data-role=signin-status]",
-  )!;
-  const loginTfaField = authModal.querySelector<HTMLElement>(
-    "[data-role=login-tfa-field]",
-  )!;
-  const loginTfaInput =
-    loginTfaField.querySelector<HTMLInputElement>("[name=code]")!;
-
-  const openAuthModal = () => {
-    signinForm.reset();
-    loginTfaField.hidden = true;
-    setStatus(signinStatus, "");
-    openModal(authModal);
-  };
-
-  authModal
-    .querySelector<HTMLButtonElement>("[data-role=auth-close]")!
-    .addEventListener("click", () => closeModal(authModal));
-  authModal
-    .querySelector<HTMLElement>("[data-role=auth-backdrop]")!
-    .addEventListener("click", () => closeModal(authModal));
-
-  const onAuthRequired = () => {
-    closeAccountMenu();
-    openAuthModal();
-  };
-  window.addEventListener(AUTH_REQUIRED_EVENT, onAuthRequired);
-
-  signinForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const data = new FormData(signinForm);
-    const identifier = String(data.get("identifier") ?? "").trim();
-    if (!isValidEmail(identifier)) {
-      signinIdentifier.setAttribute("aria-invalid", "true");
-      setStatus(signinStatus, "请输入有效的邮箱地址");
-      signinIdentifier.focus();
-      return;
-    }
-    signinIdentifier.removeAttribute("aria-invalid");
-    const button = signinForm.querySelector<HTMLButtonElement>(".primary-btn")!;
-    button.disabled = true;
-    setStatus(signinStatus, "登录中…");
-    try {
-      account = await signIn({
-        identifier,
-        password: String(data.get("password") ?? ""),
-        code: String(data.get("code") ?? ""),
-      });
-      renderAccountUI();
-      closeModal(authModal);
-    } catch (error) {
-      if (
-        error instanceof ApiError &&
-        (error.code === "TWO_FACTOR_REQUIRED" || error.code === "INVALID_TOTP")
-      ) {
-        loginTfaField.hidden = false;
-        loginTfaInput.focus();
-      }
-      setStatus(
-        signinStatus,
-        error instanceof Error ? error.message : "登录失败",
-      );
-    } finally {
-      button.disabled = false;
-    }
-  });
-
   renderAccountUI();
 
   const onVisibilityChange = () => {
@@ -439,11 +328,8 @@ export function mountAccountControls(
       setPeeled(false);
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("keydown", onMenuKeydown, true);
-      document.removeEventListener("keydown", onModalKeydown, true);
-      window.removeEventListener(AUTH_REQUIRED_EVENT, onAuthRequired);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.clearInterval(unreadInterval);
-      modalKeysBound = false;
     },
   };
 }

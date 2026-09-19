@@ -234,13 +234,18 @@ export function mountSecuritySettings(
     const account = context.getAccount();
     if (!account) return;
     const recoveryCount = account.recoveryCodeCount;
+    const usedUp = account.twoFactorEnabled && recoveryCount === 0;
     recoveryBox.hidden = !showCodes;
     recoveryHint.hidden = account.twoFactorEnabled;
-    recoverySummary.hidden = !account.twoFactorEnabled || recoveryCount === 0;
+    recoverySummary.hidden = !account.twoFactorEnabled;
+    recoverySummary.classList.toggle("is-warning", usedUp);
+    recoveryReplace.hidden = recoveryCount === 0;
     recoveryGenerate.hidden = false;
     recoveryGenerate.disabled = !account.twoFactorEnabled || recoveryCount > 0;
     root.querySelector<HTMLElement>("[data-role=recovery-count]")!.textContent =
-      `当前已生成 ${recoveryCount} 个恢复密钥`;
+      usedUp
+        ? "恢复密钥已用完，请立即重新生成"
+        : `当前已生成 ${recoveryCount} 个恢复密钥`;
   };
 
   const replaceRecoveryCodes = async () => {

@@ -1,6 +1,6 @@
 import { HttpError } from "../shared/http";
 import type { D1PreparedStatement, Env, PostRow } from "../shared/platform";
-import { randomId } from "../accounts/security";
+import { randomId } from "../shared/crypto";
 import { usernameKey } from "../accounts/usernames";
 import { buildAvatarUrl } from "../accounts/avatar";
 import {

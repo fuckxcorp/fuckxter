@@ -1,21 +1,24 @@
 import { HttpError } from "../shared/http";
-import type { Env, UserRow } from "../shared/platform";
-import { moveAvatar, moveHeader } from "../posts/media";
 import {
-  accountFromRow,
   createPasswordHash,
   decryptSecret,
   encryptSecret,
-  generateTotpSecret,
   randomId,
   randomToken,
-  randomRecoveryCode,
-  recoverableCodeHash,
   verifyPassword,
+} from "../shared/crypto";
+import type { Env, UserRow } from "../shared/platform";
+import { moveAvatar, moveHeader } from "../posts/media";
+import { accountFromRow } from "./security";
+import {
+  consumeRecoveryCode,
+  generateTotpSecret,
+  randomRecoveryCode,
+  recoveryCodeHash,
   verifyTotp,
-} from "./security";
+} from "./two-factor";
 import { usernameKey, validateUsername } from "./usernames";
-import { createNotification } from "../notifications/notifications";
+import { enqueueJob } from "../shared/jobs";
 
 const RESERVED_HANDLES = new Set(["user", "post", "settings", "api", "assets"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -116,6 +119,7 @@ export async function loginOrRegister(
   identifierValue: string,
   password: string,
   code?: string,
+  recoveryCode?: string,
 ) {
   const identifier = identifierValue.trim().replace(/^@/, "").normalize("NFKC");
   if (!identifier) throw new HttpError(400, "EMAIL_REQUIRED", "请填写邮箱。");
@@ -131,12 +135,26 @@ export async function loginOrRegister(
       throw new HttpError(401, "INVALID_CREDENTIALS", "邮箱或密码错误。");
     }
     if (user.two_factor_enabled) {
-      if (!code?.trim()) {
-        throw new HttpError(428, "TWO_FACTOR_REQUIRED", "请输入动态验证码。");
-      }
-      const secret = await decryptSecret(user.totp_secret ?? "", env);
-      if (!(await verifyTotp(secret, code.trim()))) {
-        throw new HttpError(401, "INVALID_TOTP", "动态验证码不正确。");
+      if (recoveryCode?.trim()) {
+        if (!(await consumeRecoveryCode(env, user.id, recoveryCode))) {
+          throw new HttpError(
+            401,
+            "INVALID_RECOVERY_CODE",
+            "恢复码无效或已被使用。",
+          );
+        }
+      } else {
+        if (!code?.trim()) {
+          throw new HttpError(428, "TWO_FACTOR_REQUIRED", "请输入动态验证码。");
+        }
+        const secret = await decryptSecret(
+          user.totp_secret ?? "",
+          env,
+          `user:${user.id}:totp`,
+        );
+        if (!(await verifyTotp(secret, code.trim()))) {
+          throw new HttpError(401, "INVALID_TOTP", "动态验证码不正确。");
+        }
       }
     }
     return { userId: user.id, account: await getAccount(env, user.id) };
@@ -199,15 +217,7 @@ export async function loginOrRegister(
   if (!user) {
     throw new HttpError(500, "USER_CREATE_FAILED", "创建账号失败。");
   }
-  await createNotification(env, {
-    recipientId: user.id,
-    type: "system",
-    eventKey: `system:welcome:${user.id}`,
-    data: {
-      title: "欢迎来到 FuckXter",
-      body: "账号已就绪，完善资料就可以开始了。",
-    },
-  });
+  await enqueueJob(env, { type: "notification.welcome", userId: user.id });
   return { userId: user.id, account: await getAccount(env, user.id) };
 }
 
@@ -342,7 +352,11 @@ export async function beginTwoFactor(env: Env, userId: string) {
      SET totp_secret = ?, two_factor_enabled = 0, updated_at = ?
      WHERE id = ?`,
   )
-    .bind(await encryptSecret(secret, env), new Date().toISOString(), userId)
+    .bind(
+      await encryptSecret(secret, env, `user:${userId}:totp`),
+      new Date().toISOString(),
+      userId,
+    )
     .run();
   return { secret };
 }
@@ -354,7 +368,11 @@ export async function confirmTwoFactor(env: Env, userId: string, code: string) {
   if (!user?.totp_secret) {
     throw new HttpError(400, "TOTP_NOT_STARTED", "请先开始动态验证码设置。");
   }
-  const secret = await decryptSecret(user.totp_secret, env);
+  const secret = await decryptSecret(
+    user.totp_secret,
+    env,
+    `user:${userId}:totp`,
+  );
   if (!(await verifyTotp(secret, code.trim()))) {
     throw new HttpError(400, "INVALID_TOTP", "动态验证码不正确。");
   }
@@ -380,7 +398,7 @@ export async function replaceRecoveryCodes(env: Env, userId: string) {
   const codes = Array.from({ length: 8 }, randomRecoveryCode);
   const now = new Date().toISOString();
   const hashes = await Promise.all(
-    codes.map((code) => recoverableCodeHash(env, code)),
+    codes.map((code) => recoveryCodeHash(env, userId, code)),
   );
   await env.DB.batch([
     env.DB.prepare("DELETE FROM recovery_codes WHERE user_id = ?").bind(userId),

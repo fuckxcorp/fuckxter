@@ -1,0 +1,33 @@
+---
+import "../../styles/login.css";
+
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="忘记密码">
+  <div class="app subpage login-page" data-login-forgot>
+    <section class="login-card">
+      <h1 class="login-brand">忘记密码</h1>
+      <p class="login-note">
+        目前还没有接入邮件服务，所以暂时不支持自助重置密码。可以按下面的顺序处理：
+      </p>
+      <p class="login-note">
+        <strong>还能登录</strong>：进「设置 → 访问控制」直接改密码。
+      </p>
+      <p class="login-note">
+        <strong>已经进不去</strong>
+        ：回到登录页点「用恢复码登录」，用恢复码进去之后再改密码。
+      </p>
+      <p class="login-note">
+        <strong>恢复码也用完了</strong>：先进账号，然后在「设置 →
+        访问控制」里重新生成一份；恢复码是最后一道门，用完就该马上补。
+      </p>
+      <p class="login-note">
+        <strong>实在进不去</strong>：那只能联系管理员手动处理了。
+      </p>
+      <div class="login-links">
+        <a href="/login">← 返回登录</a>
+      </div>
+    </section>
+  </div>
+</Layout>

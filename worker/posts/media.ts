@@ -5,7 +5,7 @@ import {
   presignS3Request,
   signedS3Request,
 } from "../accounts/s3";
-import { randomId, randomToken } from "../accounts/security";
+import { randomId, randomToken } from "../shared/crypto";
 import { getStorageConfig } from "./storage";
 import { usernameKey } from "../accounts/usernames";
 import { headerObjectKey } from "../accounts/avatar";
@@ -167,28 +167,41 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
   const requestedConfigId =
     request.headers.get("X-Storage-Config-Id")?.trim() || undefined;
   const config = await getStorageConfig(env, userId, requestedConfigId);
-  if (!config) {
-    throw new HttpError(400, "STORAGE_REQUIRED", "请先配置 S3 存储。");
+  if (!config && requestedConfigId) {
+    throw new HttpError(404, "STORAGE_NOT_FOUND", "存储配置不存在。");
   }
 
   const extension = MEDIA_EXTENSIONS[contentType] ?? "bin";
   const objectKey = `fuckxter/media/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
-  const upload = await presignS3Request(config, "PUT", objectKey, contentType);
-  const response = await fetch(upload.url, {
-    method: "PUT",
-    headers: upload.headers,
-    body: bytes,
-  });
-  if (!response.ok) {
-    let detail = "";
-    try {
-      detail = (await response.text()).trim().slice(0, 240);
-    } catch {}
-    throw new HttpError(
-      502,
-      "MEDIA_UPLOAD_FAILED",
-      `媒体上传失败（S3 ${response.status}）${detail ? `: ${detail}` : "。"}`,
+  if (config) {
+    // 用户自己的 S3：签名后由 Worker 代传
+    const upload = await presignS3Request(
+      config,
+      "PUT",
+      objectKey,
+      contentType,
     );
+    const response = await fetch(upload.url, {
+      method: "PUT",
+      headers: upload.headers,
+      body: bytes,
+    });
+    if (!response.ok) {
+      let detail = "";
+      try {
+        detail = (await response.text()).trim().slice(0, 240);
+      } catch {}
+      throw new HttpError(
+        502,
+        "MEDIA_UPLOAD_FAILED",
+        `媒体上传失败（S3 ${response.status}）${detail ? `: ${detail}` : "。"}`,
+      );
+    }
+  } else {
+    // 没配 S3：落到平台自己的 R2
+    await env.MEDIA_CACHE.put(objectKey, bytes, {
+      httpMetadata: { contentType },
+    });
   }
 
   const sha256 = await sha256Hex(bytes);
@@ -208,7 +221,7 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
     .bind(
       id,
       userId,
-      config.id ?? null,
+      config?.id ?? null,
       objectKey,
       originalName,
       contentType,
@@ -222,7 +235,7 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
   return mediaJson({
     id,
     owner_id: userId,
-    storage_config_id: config.id ?? null,
+    storage_config_id: config?.id ?? null,
     object_key: objectKey,
     original_name: originalName,
     content_type: contentType,
@@ -254,7 +267,11 @@ export async function presignMediaUpload(
   }
   const config = await getStorageConfig(env, userId, input.storageConfigId);
   if (!config) {
-    throw new HttpError(400, "STORAGE_REQUIRED", "请先配置 S3 存储。");
+    throw new HttpError(
+      400,
+      "DIRECT_UPLOAD_UNAVAILABLE",
+      "当前存储不支持浏览器直传，请改用 Worker 中转。",
+    );
   }
   const objectKey = `fuckxter/media/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
   const presigned = await presignS3Put(config, objectKey, contentType, 3600);
@@ -532,6 +549,31 @@ async function getMediaRow(env: Env, id: string): Promise<MediaRow> {
   return row;
 }
 
+/** 源图 → AVIF 并写进缓存。平台存储和用户 S3 共用这一段。 */
+async function avifFromSource(env: Env, row: MediaRow, bytes: ArrayBuffer) {
+  const detected = detectImageType(new Uint8Array(bytes.slice(0, 64)));
+  if (!detected || detected !== row.content_type) {
+    throw new HttpError(502, "MEDIA_CHANGED", "源媒体内容已变更。");
+  }
+  const avifBytes =
+    detected === "image/avif"
+      ? bytes
+      : await convertToAvif(env, bytes, {
+          width: MEDIA_MAX_DIMENSION,
+          height: MEDIA_MAX_DIMENSION,
+          animated: true,
+        });
+  await env.MEDIA_CACHE.put(`media/${row.sha256}`, avifBytes, {
+    httpMetadata: { contentType: "image/avif" },
+  });
+  return {
+    body: avifBytes,
+    contentType: "image/avif",
+    size: avifBytes.byteLength,
+    etag: row.sha256,
+  };
+}
+
 export async function getMedia(
   env: Env,
   id: string,
@@ -569,10 +611,23 @@ export async function getMedia(
     };
   }
 
+  // 平台存储：源文件本来就在 R2 里，不用再问 S3
+  if (!row.storage_config_id) {
+    const object = await env.MEDIA_CACHE.get(row.object_key);
+    if (!object) {
+      throw new HttpError(
+        502,
+        "MEDIA_FETCH_FAILED",
+        "媒体读取失败（平台存储）。",
+      );
+    }
+    return avifFromSource(env, row, await object.arrayBuffer());
+  }
+
   const config = await getStorageConfig(
     env,
     row.owner_id,
-    row.storage_config_id ?? undefined,
+    row.storage_config_id,
   );
   if (!config) {
     throw new HttpError(502, "STORAGE_UNAVAILABLE", "媒体所在的存储不可用。");
@@ -596,26 +651,5 @@ export async function getMedia(
       etag: row.sha256,
     };
   }
-  const bytes = await response.arrayBuffer();
-  const detected = detectImageType(new Uint8Array(bytes.slice(0, 64)));
-  if (!detected || detected !== row.content_type) {
-    throw new HttpError(502, "MEDIA_CHANGED", "源媒体内容已变更。");
-  }
-  const avifBytes =
-    detected === "image/avif"
-      ? bytes
-      : await convertToAvif(env, bytes, {
-          width: MEDIA_MAX_DIMENSION,
-          height: MEDIA_MAX_DIMENSION,
-          animated: true,
-        });
-  await env.MEDIA_CACHE.put(cacheKey, avifBytes, {
-    httpMetadata: { contentType: "image/avif" },
-  });
-  return {
-    body: avifBytes,
-    contentType: "image/avif",
-    size: avifBytes.byteLength,
-    etag: row.sha256,
-  };
+  return avifFromSource(env, row, await response.arrayBuffer());
 }

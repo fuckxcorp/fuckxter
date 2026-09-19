@@ -1,7 +1,7 @@
 import { buildAvatarUrl } from "../accounts/avatar";
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
-import { randomId } from "../accounts/security";
+import { randomId } from "../shared/crypto";
 
 export type NotificationType =
   "reply" | "like" | "repost" | "follow" | "system";
