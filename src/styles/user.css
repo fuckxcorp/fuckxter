@@ -176,9 +176,10 @@
 }
 
 .user-chip-action {
+  /* 注意：这里不能写 font: inherit——它和 .user-chip 同权重且在后面，
+     会把 .user-chip 的 font-size 覆盖掉，导致链接 chip 比普通 chip 大一圈 */
   color: inherit;
   cursor: pointer;
-  font: inherit;
   text-align: left;
   text-decoration: none;
 }
