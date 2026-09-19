@@ -4,6 +4,27 @@
   padding: 2rem 1.25rem 3rem;
 }
 
+.login-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) min(380px, 100%);
+  gap: 3rem;
+  align-items: center;
+  width: min(980px, 100%);
+}
+
+.login-brand-panel {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+}
+
+/* 比全局 .logo-img 更具体：页面 CSS 是被内联在 Layout 样式表之前的 */
+.login-brand-panel .login-logo {
+  height: clamp(64px, 9vw, 110px);
+  width: auto;
+  max-width: 100%;
+}
+
 .login-card {
   width: min(380px, 100%);
   padding: 1.6rem 1.5rem;
@@ -13,7 +34,7 @@
   box-shadow: var(--shadow-trigger);
 }
 
-.login-brand {
+.login-card-title {
   margin: 0 0 1.1rem;
   color: var(--color-text-strong);
   font-size: 1.35rem;
@@ -64,4 +85,15 @@
 
 .login-card [data-role="recovery-notice"].is-warning .login-note {
   color: var(--like);
+}
+
+@media (max-width: 900px) {
+  .login-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+
+  .login-brand-panel .login-logo {
+    height: clamp(44px, 12vw, 64px);
+  }
 }

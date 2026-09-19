@@ -11,8 +11,13 @@ const HKDF_SALT = encoder.encode("fuckxter.hkdf.v1");
 export const KEY_PURPOSE_RECOVERY_CODE = "recovery-code";
 const KEY_PURPOSE_SECRET = "secret";
 
-/** PBKDF2-HMAC-SHA256 迭代次数。参数写进哈希串，将来提高不会让旧密码失效。 */
-export const PASSWORD_ITERATIONS = 600_000;
+/**
+ * PBKDF2-HMAC-SHA256 迭代次数。
+ * 注意：Cloudflare 运行时硬性限制最多 100000 次（超过会抛
+ * NotSupportedError: iteration counts above 100000 are not supported），
+ * 所以这里就是上限，不能往上调。参数写进哈希串，将来换算法时旧密码仍可校验。
+ */
+export const PASSWORD_ITERATIONS = 100_000;
 const PASSWORD_FORMAT = "pbkdf2-sha256";
 const PASSWORD_SALT_BYTES = 16;
 const PASSWORD_KEY_BITS = 256;

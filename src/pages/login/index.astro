@@ -6,95 +6,114 @@ import Layout from "../../layouts/Layout.astro";
 
 <Layout title="登录">
   <div class="app subpage login-page" data-login>
-    <section class="login-card">
-      <h1 class="login-brand">FuckXter</h1>
+    <div class="login-split">
+      <h1 class="login-brand-panel">
+        <img
+          class="logo-img logo-light login-logo"
+          src="/fuckxter_bk.avif"
+          alt="FuckXter"
+          width="515"
+          height="128"
+          decoding="async"
+        />
+        <img
+          class="logo-img logo-dark login-logo"
+          src="/fuckxter_wh.avif"
+          alt="FuckXter"
+          width="514"
+          height="514"
+          decoding="async"
+        />
+      </h1>
 
-      <div data-role="login-body">
-        <form data-role="login-form" novalidate>
-          <label class="field">
-            <span class="field-label">邮箱</span>
-            <input
-              name="identifier"
-              type="email"
-              autocomplete="username"
-              placeholder="you@example.com"
-              required
-            />
-          </label>
-          <label class="field">
-            <span class="field-label">密码</span>
-            <input
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              placeholder="密码"
-              required
-            />
-          </label>
-          <label class="field" data-role="code-field" hidden>
-            <span class="field-label">动态验证码</span>
-            <input
-              name="code"
-              type="text"
-              inputmode="numeric"
-              autocomplete="one-time-code"
-              maxlength="6"
-              placeholder="6 位验证码"
-            />
-          </label>
-          <label class="field" data-role="recovery-field" hidden>
-            <span class="field-label">恢复码</span>
-            <input
-              name="recoveryCode"
-              type="text"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="XXXX-XXXX"
-            />
-          </label>
-          <p
-            class="form-status"
-            data-role="login-status"
-            aria-live="polite"
-          ></p>
-          <button class="primary-btn" type="submit" data-role="login-submit">
-            登录
-          </button>
-        </form>
+      <section class="login-card">
+        <div data-role="login-body">
+          <form data-role="login-form" novalidate>
+            <label class="field">
+              <span class="field-label">邮箱</span>
+              <input
+                name="identifier"
+                type="email"
+                autocomplete="username"
+                placeholder="you@example.com"
+                required
+              />
+            </label>
+            <label class="field">
+              <span class="field-label">密码</span>
+              <input
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="密码"
+                required
+              />
+            </label>
+            <label class="field" data-role="code-field" hidden>
+              <span class="field-label">动态验证码</span>
+              <input
+                name="code"
+                type="text"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="6"
+                placeholder="6 位验证码"
+              />
+            </label>
+            <label class="field" data-role="recovery-field" hidden>
+              <span class="field-label">恢复码</span>
+              <input
+                name="recoveryCode"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="XXXX-XXXX"
+              />
+            </label>
+            <p
+              class="form-status"
+              data-role="login-status"
+              aria-live="polite"
+            ></p>
+            <button class="primary-btn" type="submit" data-role="login-submit">
+              登录
+            </button>
+          </form>
 
-        <div class="login-links">
-          <a href="/login/forgot">忘记密码</a>
-          <button type="button" data-role="use-recovery">
-            用恢复码登录
-          </button>
+          <div class="login-links">
+            <a href="/login/forgot">忘记密码</a>
+            <button type="button" data-role="use-recovery">
+              用恢复码登录
+            </button>
+          </div>
+
+          <p class="form-hint">
+            未注册的用户将会自动注册，注册表示你同意我们的用户协议。
+          </p>
         </div>
 
-        <p class="form-hint">
-          未注册的用户将会自动注册，注册表示你同意我们的用户协议。
-        </p>
-      </div>
-
-      <div data-role="recovery-notice" hidden>
-        <p class="login-note" data-role="recovery-notice-text"></p>
-        <div class="login-links">
-          <a href="/settings/security">去重新生成</a>
-          <button type="button" data-role="recovery-notice-continue">
-            稍后再说
-          </button>
+        <div data-role="recovery-notice" hidden>
+          <p class="login-note" data-role="recovery-notice-text"></p>
+          <div class="login-links">
+            <a href="/settings/security">去重新生成</a>
+            <button type="button" data-role="recovery-notice-continue">
+              稍后再说
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div data-role="restored-notice" hidden>
-        <p class="login-note">
-          你之前申请过删除账号，本次登录已经自动取消删除，账号和内容都还在。
-        </p>
-        <div class="login-links">
-          <button type="button" data-role="restored-continue">
-            继续
-          </button>
+        <div data-role="restored-notice" hidden>
+          <p class="login-note">
+            你之前申请过删除账号，本次登录已经自动取消删除，账号和内容都还在。
+          </p>
+          <div class="login-links">
+            <button type="button" data-role="restored-continue">
+              继续
+            </button>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </div>
 </Layout>
 
