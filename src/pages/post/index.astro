@@ -649,7 +649,16 @@ import Header from "../../components/Header.astro";
         children.set(parentId, bucket);
       }
 
+      /**
+       * 楼中楼只缩进前几层。
+       * 每往下一层都会叠加卡片内边距 + 子层内边距 + 缩进边距（约 72px），
+       * 不封顶的话十几层之后回帖会被挤成一条竖线并一路向右延伸，
+       * 楼中楼下面的其他回帖就被顶到很下面、也基本没法看了。
+       */
+      const MAX_INDENT_DEPTH = 3;
+
       const renderNode = (comment: Comment, depth: number): HTMLElement => {
+        const indented = depth > 0 && depth <= MAX_INDENT_DEPTH;
         const node = renderReply(
           post.id,
           comment,
@@ -657,10 +666,12 @@ import Header from "../../components/Header.astro";
           replyTo,
           refreshComments,
           status,
-          depth > 0,
+          // 超过缩进上限后不再缩进，改由「回覆 @xxx」标出回帖对象
+          indented,
         );
         node.dataset.depth = String(depth);
         if (depth > 0) node.classList.add("is-nested");
+        if (depth > MAX_INDENT_DEPTH) node.classList.add("is-deep");
         const kids = children.get(comment.id) ?? [];
         if (kids.length > 0) {
           const box = el("div", "thread-children");

@@ -1,6 +1,7 @@
 import {
   KEY_PURPOSE_RECOVERY_CODE,
   hmacSha256,
+  hmacSha256All,
   randomBytes,
   type Bytes,
 } from "../shared/crypto";
@@ -121,6 +122,19 @@ export function recoveryCodeHash(
   );
 }
 
+/** 校验时把所有候选主密钥的哈希都算出来，换过主密钥的老恢复码也还算数。 */
+export function recoveryCodeHashes(
+  env: Env,
+  userId: string,
+  code: string,
+): Promise<string[]> {
+  return hmacSha256All(
+    env,
+    KEY_PURPOSE_RECOVERY_CODE,
+    `${userId}:${normalizeRecoveryCode(code)}`,
+  );
+}
+
 /**
  * 校验并消费一个恢复码：命中就标记 used_at，同一个码只能用一次。
  */
@@ -129,13 +143,14 @@ export async function consumeRecoveryCode(
   userId: string,
   code: string,
 ): Promise<boolean> {
-  const hash = await recoveryCodeHash(env, userId, code);
+  const hashes = await recoveryCodeHashes(env, userId, code);
   const row = await env.DB.prepare(
     `SELECT id FROM recovery_codes
-     WHERE user_id = ? AND code_hash = ? AND used_at IS NULL
+     WHERE user_id = ? AND code_hash IN (${hashes.map(() => "?").join(", ")})
+       AND used_at IS NULL
      LIMIT 1`,
   )
-    .bind(userId, hash)
+    .bind(userId, ...hashes)
     .first<{ id: string }>();
   if (!row) return false;
   await env.DB.prepare("UPDATE recovery_codes SET used_at = ? WHERE id = ?")

@@ -308,16 +308,25 @@
   border: 0;
   background: none;
   cursor: pointer;
-  padding: 0;
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
   color: var(--color-text-muted);
   font-size: 0.72rem;
-  opacity: 0;
-  transition: opacity 150ms ease;
+  transition:
+    opacity 150ms ease,
+    color 150ms ease;
 }
 
-.chat-row:hover .chat-recall,
-.chat-recall:focus-visible {
-  opacity: 1;
+/* 悬停才显示「撤回」只在有鼠标时成立：触屏没有 hover，藏起来就永远点不到 */
+@media (hover: hover) and (pointer: fine) {
+  .chat-recall {
+    opacity: 0;
+  }
+
+  .chat-row:hover .chat-recall,
+  .chat-recall:focus-visible {
+    opacity: 1;
+  }
 }
 
 .chat-recall:hover {

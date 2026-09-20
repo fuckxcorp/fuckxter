@@ -1233,6 +1233,81 @@ body {
   }
 }
 
+/* 分享菜单和提示条由 share.ts / dom.ts 挂到 document.body，
+   首页、个人主页、私信页都要用到，所以放在全局样式里。 */
+.share-menu {
+  position: fixed;
+  z-index: 1100;
+  display: grid;
+  width: min(250px, calc(100vw - 1rem));
+  padding: 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-raised);
+  box-shadow: var(--shadow-card);
+  gap: 0.2rem;
+}
+
+.share-menu-item {
+  display: grid;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-strong);
+  cursor: pointer;
+  text-align: left;
+}
+
+.share-menu-item:hover:not(:disabled),
+.share-menu-item:focus-visible {
+  background: var(--color-bg-hover);
+  outline: none;
+}
+
+.share-menu-item strong {
+  font-size: 0.9rem;
+}
+
+.share-menu-item span {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.share-menu-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  z-index: 1000;
+  max-width: min(90vw, 420px);
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-bg-raised) 94%, transparent);
+  color: var(--color-text-strong);
+  box-shadow: var(--shadow-card);
+  font-size: 0.86rem;
+  opacity: 0;
+  pointer-events: none;
+  translate: -50% 0.5rem;
+  transition:
+    opacity 150ms ease,
+    translate 150ms ease;
+  backdrop-filter: blur(10px);
+}
+
+.toast.is-visible {
+  opacity: 1;
+  translate: -50% 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .menu:not([hidden]),
   .menu:not([hidden])::before,

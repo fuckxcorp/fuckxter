@@ -410,6 +410,17 @@
 }
 
 @media (max-width: 640px) {
+  /* 手机上头图按 5:1 只有 70px 左右，太矮了：
+     窄屏换成更方的比例，图片按居中裁切填满。 */
+  .user-banner {
+    aspect-ratio: 2 / 1;
+    min-height: 8.5rem;
+  }
+
+  .user-banner-image {
+    object-fit: cover;
+  }
+
   .user-list-item {
     grid-template-columns: 42px minmax(0, 1fr);
   }
