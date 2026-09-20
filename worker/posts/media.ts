@@ -11,13 +11,7 @@ import { usernameKey } from "../accounts/usernames";
 import { headerObjectKey } from "../accounts/avatar";
 
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
-const AVATAR_MAX_DIMENSION = 512;
-const MEDIA_MAX_DIMENSION = 2048;
-const HEADER_MAX_WIDTH = 1500;
-const HEADER_MAX_HEIGHT = 300;
 const STREAM_FALLBACK_BYTES = 25 * 1024 * 1024;
-const AVIF_QUALITY = 82;
-const HEADER_AVIF_QUALITY = 92;
 const ALLOWED_MEDIA = new Set([
   "image/jpeg",
   "image/png",
@@ -71,48 +65,6 @@ function safeFileName(value: string | null): string {
     .trim()
     .slice(0, 120);
   return cleaned || "image";
-}
-
-async function convertToAvif(
-  env: Env,
-  bytes: ArrayBuffer,
-  options: {
-    width: number;
-    height: number;
-    animated: boolean;
-    quality?: number;
-  },
-): Promise<ArrayBuffer> {
-  const body = new Response(bytes).body;
-  if (!body) {
-    throw new HttpError(
-      500,
-      "IMAGE_CONVERSION_FAILED",
-      "图片转换无法读取源文件。",
-    );
-  }
-
-  try {
-    const output = await env.IMAGES.input(body)
-      .transform({
-        width: options.width,
-        height: options.height,
-        fit: "scale-down",
-      })
-      .output({
-        format: "image/avif",
-        quality: options.quality ?? AVIF_QUALITY,
-        anim: options.animated,
-      });
-    const response = output.response();
-    if (!response.ok) {
-      throw new Error(`Images binding returned ${response.status}`);
-    }
-    return response.arrayBuffer();
-  } catch (error) {
-    console.error("Image conversion failed", error);
-    throw new HttpError(502, "IMAGE_CONVERSION_FAILED", "图片转换失败。");
-  }
 }
 
 async function sha256Hex(bytes: BufferSource): Promise<string> {
@@ -394,13 +346,8 @@ export async function uploadAvatar(
   userId: string,
   handle: string,
 ): Promise<string> {
-  const { bytes: sourceBytes } = await readImage(request);
-  const bytes = await convertToAvif(env, sourceBytes, {
-    width: AVATAR_MAX_DIMENSION,
-    height: AVATAR_MAX_DIMENSION,
-    animated: false,
-  });
-  const contentType = "image/avif";
+  // 客户端已经按 512×512 裁好了，这里直接存原样，不再转码。
+  const { bytes, contentType } = await readImage(request);
   const objectKey = `avatars/${handle}.avif`;
   const current = await env.DB.prepare(
     "SELECT avatar_key FROM users WHERE id = ?",
@@ -429,14 +376,8 @@ export async function uploadHeader(
   userId: string,
   handle: string,
 ): Promise<string> {
-  const { bytes: sourceBytes } = await readImage(request);
-  const bytes = await convertToAvif(env, sourceBytes, {
-    width: HEADER_MAX_WIDTH,
-    height: HEADER_MAX_HEIGHT,
-    animated: false,
-    quality: HEADER_AVIF_QUALITY,
-  });
-  const contentType = "image/avif";
+  // 头图同样在客户端就裁成了 5:1，直接存原样。
+  const { bytes, contentType } = await readImage(request);
   const objectKey = headerObjectKey(handle);
   await env.MEDIA_CACHE.put(objectKey, bytes, {
     httpMetadata: { contentType },
@@ -551,27 +492,18 @@ async function getMediaRow(env: Env, id: string): Promise<MediaRow> {
   return row;
 }
 
-/** 源图 → AVIF 并写进缓存。平台存储和用户 S3 共用这一段。 */
-async function avifFromSource(env: Env, row: MediaRow, bytes: ArrayBuffer) {
+/**
+ * 直接返回源文件。
+ * 以前这里会调 Images 绑定转成 AVIF，但源文件本来就能被浏览器直接显示，
+ * 转码失败反而会让整张图 502（上传的 JPEG/PNG 全都打不开），所以不再转码。
+ */
+function mediaFromSource(row: MediaRow, bytes: ArrayBuffer) {
   const detected = detectImageType(new Uint8Array(bytes.slice(0, 64)));
-  if (!detected || detected !== row.content_type) {
-    throw new HttpError(502, "MEDIA_CHANGED", "源媒体内容已变更。");
-  }
-  const avifBytes =
-    detected === "image/avif"
-      ? bytes
-      : await convertToAvif(env, bytes, {
-          width: MEDIA_MAX_DIMENSION,
-          height: MEDIA_MAX_DIMENSION,
-          animated: true,
-        });
-  await env.MEDIA_CACHE.put(`media/${row.sha256}`, avifBytes, {
-    httpMetadata: { contentType: "image/avif" },
-  });
   return {
-    body: avifBytes,
-    contentType: "image/avif",
-    size: avifBytes.byteLength,
+    body: bytes,
+    // 以文件头为准，免得数据库里记的类型和实际字节对不上导致浏览器不显示
+    contentType: detected ?? row.content_type,
+    size: bytes.byteLength,
     etag: row.sha256,
   };
 }
@@ -589,26 +521,10 @@ export async function getMedia(
   const cacheKey = `media/${row.sha256}`;
   const cached = await env.MEDIA_CACHE.get(cacheKey);
   if (cached) {
-    if (cached.httpMetadata?.contentType === "image/avif") {
-      return {
-        body: cached.body,
-        contentType: "image/avif",
-        size: cached.size,
-        etag: row.sha256,
-      };
-    }
-    const avifBytes = await convertToAvif(env, await cached.arrayBuffer(), {
-      width: MEDIA_MAX_DIMENSION,
-      height: MEDIA_MAX_DIMENSION,
-      animated: true,
-    });
-    await env.MEDIA_CACHE.put(cacheKey, avifBytes, {
-      httpMetadata: { contentType: "image/avif" },
-    });
     return {
-      body: avifBytes,
-      contentType: "image/avif",
-      size: avifBytes.byteLength,
+      body: cached.body,
+      contentType: cached.httpMetadata?.contentType ?? row.content_type,
+      size: cached.size,
       etag: row.sha256,
     };
   }
@@ -623,7 +539,7 @@ export async function getMedia(
         "媒体读取失败（平台存储）。",
       );
     }
-    return avifFromSource(env, row, await object.arrayBuffer());
+    return mediaFromSource(row, await object.arrayBuffer());
   }
 
   const config = await getStorageConfig(
@@ -653,5 +569,5 @@ export async function getMedia(
       etag: row.sha256,
     };
   }
-  return avifFromSource(env, row, await response.arrayBuffer());
+  return mediaFromSource(row, await response.arrayBuffer());
 }

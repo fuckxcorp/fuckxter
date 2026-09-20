@@ -12,6 +12,27 @@ import { setStatus, type SettingsContext } from "./shared";
 
 const GENDER_PRESETS = ["男", "女", "跨性别男", "跨性别女"];
 
+/**
+ * 滚轮缩放：向上滚放大、向下滚缩小，范围和步进跟随滑杆。
+ * 一格滚轮走滑杆全量的 5%，手感不会太跳。
+ */
+function zoomByWheel(
+  input: HTMLInputElement,
+  current: number,
+  deltaY: number,
+): number {
+  if (!deltaY) return current;
+  const min = Number(input.min || "1");
+  const max = Number(input.max || "3");
+  const step = Number(input.step || "0.01");
+  const delta = deltaY > 0 ? -1 : 1;
+  const amount = Math.max(step, (max - min) * 0.05) * delta;
+  const next = Math.min(max, Math.max(min, current + amount));
+  const snapped = Number(next.toFixed(2));
+  input.value = String(snapped);
+  return snapped;
+}
+
 export function mountProfileSettings(
   root: HTMLElement,
   context: SettingsContext,
@@ -383,6 +404,16 @@ export function mountProfileSettings(
     cropZoomValue = Number(cropZoom.value);
     drawCrop();
   });
+  // 滚轮也能缩放：不用去够下面的滑杆
+  cropCanvas.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      cropZoomValue = zoomByWheel(cropZoom, cropZoomValue, event.deltaY);
+      drawCrop();
+    },
+    { passive: false },
+  );
   cropCancel.addEventListener("click", closeCrop);
   cropDialog.addEventListener("cancel", (event) => {
     event.preventDefault();
@@ -485,6 +516,19 @@ export function mountProfileSettings(
     headerCropZoomValue = Number(headerCropZoom.value);
     drawHeaderCrop();
   });
+  headerCropCanvas.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      headerCropZoomValue = zoomByWheel(
+        headerCropZoom,
+        headerCropZoomValue,
+        event.deltaY,
+      );
+      drawHeaderCrop();
+    },
+    { passive: false },
+  );
   headerCropCancel.addEventListener("click", closeHeaderCrop);
   headerCropDialog.addEventListener("cancel", (event) => {
     event.preventDefault();

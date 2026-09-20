@@ -39,7 +39,7 @@ import Layout from "../../layouts/Layout.astro";
                 required
               />
             </label>
-            <label class="field">
+            <label class="field" data-role="password-field">
               <span class="field-label">密码</span>
               <input
                 name="password"
@@ -141,6 +141,9 @@ import Layout from "../../layouts/Layout.astro";
     const identifier =
       form.querySelector<HTMLInputElement>("[name=identifier]")!;
     const password = form.querySelector<HTMLInputElement>("[name=password]")!;
+    const passwordField = root.querySelector<HTMLElement>(
+      "[data-role=password-field]",
+    )!;
     const codeField = root.querySelector<HTMLElement>(
       "[data-role=code-field]",
     )!;
@@ -185,6 +188,8 @@ import Layout from "../../layouts/Layout.astro";
     const render = () => {
       recoveryField.hidden = secondFactor !== "recovery";
       codeField.hidden = secondFactor !== "totp" || !codeRequested;
+      // 恢复码代替密码使用，所以这个模式下不显示密码输入框
+      passwordField.hidden = secondFactor === "recovery";
       recoveryToggle.textContent =
         secondFactor === "recovery" ? "改用动态验证码" : "用恢复码登录";
       submit.textContent =
@@ -261,7 +266,7 @@ import Layout from "../../layouts/Layout.astro";
       try {
         const result = await signIn({
           identifier: email,
-          password: password.value,
+          password: secondFactor === "recovery" ? "" : password.value,
           code: secondFactor === "totp" ? code : undefined,
           recoveryCode: secondFactor === "recovery" ? recoveryCode : undefined,
         });

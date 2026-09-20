@@ -296,16 +296,36 @@ import Header from "../../components/Header.astro";
     }
   }
 
+  /**
+   * 列表状态单独放一份：重新渲染只换数据，点击事件只绑一次，
+   * 免得重复绑定导致一次点击跑两遍。
+   */
+  const postList: {
+    posts: Post[];
+    onChange: () => void;
+    reload?: () => Promise<void>;
+  } = {
+    posts: [],
+    onChange: () => {},
+  };
+
   function bindPostList(
     root: HTMLElement,
     posts: Post[],
     onChange: () => void,
+    reload?: () => Promise<void>,
   ) {
+    postList.posts = posts;
+    postList.onChange = onChange;
+    if (reload) postList.reload = reload;
     root.replaceChildren(
       ...(posts.length === 0
         ? [statusRow("还没有发过帖子。")]
         : posts.map((post) => renderPost(post))),
     );
+
+    if (root.dataset.postListBound === "true") return;
+    root.dataset.postListBound = "true";
 
     root.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
@@ -344,7 +364,7 @@ import Header from "../../components/Header.astro";
       const btn = target.closest<HTMLButtonElement>(".action");
       const article = (btn ?? target).closest<HTMLElement>(".post");
       const id = article?.dataset.postId;
-      const post = posts.find((p) => p.id === id);
+      const post = postList.posts.find((p) => p.id === id);
       if (!post) return;
 
       if (!btn) {
@@ -369,19 +389,21 @@ import Header from "../../components/Header.astro";
         btn.disabled = true;
         try {
           await deletePost(post.id);
-          const index = posts.indexOf(post);
-          if (index !== -1) posts.splice(index, 1);
+          const index = postList.posts.indexOf(post);
+          if (index !== -1) postList.posts.splice(index, 1);
           article?.remove();
           const userCard = document.querySelector<HTMLElement>(
             "[data-role=user-card]",
           );
           if (userCard) {
-            setUserChip(userCard, "posts-count", String(posts.length));
+            setUserChip(userCard, "posts-count", String(postList.posts.length));
           }
-          if (posts.length === 0) {
+          if (postList.posts.length === 0) {
             root.replaceChildren(statusRow("还没有发过帖子。"));
           }
           showToast("帖子已删除");
+          // 再按服务端结果刷一遍列表，避免本地状态和实际内容不一致
+          await postList.reload?.();
         } catch (error) {
           btn.disabled = false;
           showToast(error instanceof Error ? error.message : "删除失败");
@@ -412,7 +434,7 @@ import Header from "../../components/Header.astro";
           btn.querySelector<HTMLElement>(".action-count")!.textContent =
             count > 0 ? fmtCount(count) : "";
           btn.classList.toggle(cls, willActive);
-          onChange();
+          postList.onChange();
         } catch {
           btn.classList.toggle(cls, !willActive);
         }
@@ -577,15 +599,19 @@ import Header from "../../components/Header.astro";
               error instanceof Error ? error.message : "用户加载失败。";
           });
 
-        void getPostsByUser(handle)
-          .then((posts) => bindPostList(postsRoot, posts, () => {}))
-          .catch((error: unknown) => {
+        const reloadPosts = async (): Promise<void> => {
+          try {
+            const posts = await getPostsByUser(handle);
+            bindPostList(postsRoot, posts, () => {}, reloadPosts);
+          } catch (error: unknown) {
             postsRoot.replaceChildren(
               statusRow(
                 error instanceof Error ? error.message : "帖子加载失败。",
               ),
             );
-          });
+          }
+        };
+        void reloadPosts();
       })
       .catch((error: unknown) => {
         bannerHost.hidden = true;

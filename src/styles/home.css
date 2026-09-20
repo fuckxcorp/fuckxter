@@ -347,6 +347,33 @@ html.menu-open .main {
   display: none;
 }
 
+/* 发帖时的图片预览：放在「上传图片」那一行下面，按缩略图大小显示 */
+.composer-preview {
+  display: grid;
+  place-items: start;
+  margin-top: 0.7rem;
+  width: fit-content;
+  max-width: min(100%, 320px);
+  max-height: 190px;
+  padding: 0.25rem;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-bg-subtle);
+}
+
+.composer-preview[hidden] {
+  display: none;
+}
+
+.composer-preview .media-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
 .composer-picker[hidden] {
   display: none;
 }

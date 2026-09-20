@@ -509,6 +509,11 @@ body {
   font-size: 0.85rem;
 }
 
+/* 没有提示文字时不要占着一行，否则按钮上下会多出一截空白 */
+.form-status:empty {
+  display: none;
+}
+
 .form-hint {
   margin: 0.8rem 0;
   color: var(--color-text-muted);
@@ -870,6 +875,12 @@ body {
   background: transparent !important;
   background-image: none !important;
   animation: none !important;
+}
+
+/* 图片加载失败时整块藏掉，别留一个空框 */
+.media.is-image-error,
+.user-banner.is-image-error {
+  display: none;
 }
 
 .verified {

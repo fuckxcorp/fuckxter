@@ -111,7 +111,11 @@ export async function loginOrRegister(
 ) {
   const identifier = identifierValue.trim().replace(/^@/, "").normalize("NFKC");
   if (!identifier) throw new HttpError(400, "EMAIL_REQUIRED", "请填写邮箱。");
-  if (!password) throw new HttpError(400, "PASSWORD_REQUIRED", "请填写密码。");
+  const recovery = recoveryCode?.trim() ?? "";
+  // 用恢复码登录时可以不带密码：恢复码是给「已经进不去」的人准备的凭据。
+  if (!password && !recovery) {
+    throw new HttpError(400, "PASSWORD_REQUIRED", "请填写密码。");
+  }
   const isEmail = identifier.includes("@");
   if (isEmail && (identifier.length > 254 || !EMAIL_PATTERN.test(identifier))) {
     throw new HttpError(400, "INVALID_EMAIL", "邮箱地址无效。");
@@ -119,7 +123,15 @@ export async function loginOrRegister(
 
   let user = await findUserByIdentifier(env, identifier);
   if (user) {
-    if (!(await verifyPassword(password, user))) {
+    if (recovery) {
+      if (!(await consumeRecoveryCode(env, user.id, recovery))) {
+        throw new HttpError(
+          401,
+          "INVALID_RECOVERY_CODE",
+          "恢复码无效或已被使用。",
+        );
+      }
+    } else if (!(await verifyPassword(password, user))) {
       throw new HttpError(401, "INVALID_CREDENTIALS", "邮箱或密码错误。");
     }
     let restored = false;
@@ -139,31 +151,18 @@ export async function loginOrRegister(
       }
     }
     if (user) {
-      if (user.two_factor_enabled) {
-        if (recoveryCode?.trim()) {
-          if (!(await consumeRecoveryCode(env, user.id, recoveryCode))) {
-            throw new HttpError(
-              401,
-              "INVALID_RECOVERY_CODE",
-              "恢复码无效或已被使用。",
-            );
-          }
-        } else {
-          if (!code?.trim()) {
-            throw new HttpError(
-              428,
-              "TWO_FACTOR_REQUIRED",
-              "请输入动态验证码。",
-            );
-          }
-          const secret = await decryptSecret(
-            user.totp_secret ?? "",
-            env,
-            `user:${user.id}:totp`,
-          );
-          if (!(await verifyTotp(secret, code.trim()))) {
-            throw new HttpError(401, "INVALID_TOTP", "动态验证码不正确。");
-          }
+      // 已经用恢复码进来的就不用再验动态验证码了
+      if (!recovery && user.two_factor_enabled) {
+        if (!code?.trim()) {
+          throw new HttpError(428, "TWO_FACTOR_REQUIRED", "请输入动态验证码。");
+        }
+        const secret = await decryptSecret(
+          user.totp_secret ?? "",
+          env,
+          `user:${user.id}:totp`,
+        );
+        if (!(await verifyTotp(secret, code.trim()))) {
+          throw new HttpError(401, "INVALID_TOTP", "动态验证码不正确。");
         }
       }
       return {
@@ -172,6 +171,11 @@ export async function loginOrRegister(
         restored,
       };
     }
+  }
+
+  // 账号不存在时不能拿恢复码去注册新号
+  if (recovery) {
+    throw new HttpError(401, "INVALID_RECOVERY_CODE", "恢复码无效或已被使用。");
   }
 
   if (!isEmail) {
