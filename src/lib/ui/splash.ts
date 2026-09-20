@@ -2,6 +2,14 @@ const MIN_MS = 720;
 const EXIT_MS = 560;
 const SAFETY_MS = 4000;
 
+/**
+ * 首页里那段内联脚本靠 sessionStorage 判断「这个会话已经播过开屏」，
+ * 但内联脚本在客户端路由里只按内容去重，回到首页时不会再执行，
+ * 于是遮罩又盖了上来，只能等收尾逻辑或 4 秒保险把它掀掉——看起来就像「卡在加载」。
+ * 所以这里自己记一笔：只要发生过前端路由跳转，之后每次页面载入都直接掀掉遮罩。
+ */
+let routedNavigation = false;
+
 function currentSplash(): HTMLElement | null {
   return document.querySelector<HTMLElement>("[data-role=splash]");
 }
@@ -55,5 +63,16 @@ function armSplashSafety(): void {
 
 if (typeof window !== "undefined") {
   armSplashSafety();
-  document.addEventListener("astro:page-load", armSplashSafety);
+  document.addEventListener("astro:before-swap", () => {
+    routedNavigation = true;
+  });
+  document.addEventListener("astro:page-load", () => {
+    const splash = currentSplash();
+    // 前端路由回到首页：开屏动画这个会话已经放过，直接掀掉，别再闪一下。
+    if (routedNavigation && splash) {
+      splash.remove();
+      return;
+    }
+    armSplashSafety();
+  });
 }

@@ -92,6 +92,7 @@ import Header from "../../components/Header.astro";
     fmtCount,
     ICONS,
     postShard,
+    relativeTime,
     renderRichText,
     setFollowButtonState,
     showToast,
@@ -314,6 +315,7 @@ import Header from "../../components/Header.astro";
   function threadAuthorLine(
     author: Comment["author"],
     createdAt: string,
+    compact = false,
   ): HTMLElement {
     const head = el("header", "thread-meta");
     const who = el("div", "thread-who");
@@ -325,7 +327,8 @@ import Header from "../../components/Header.astro";
     handle.textContent = `@${author.handle}`;
     const time = el("time");
     time.dateTime = createdAt;
-    time.textContent = fullTime(createdAt);
+    time.textContent = compact ? relativeTime(createdAt) : fullTime(createdAt);
+    time.title = fullTime(createdAt);
     who.append(handle);
     head.append(who, time);
     return head;
@@ -348,7 +351,7 @@ import Header from "../../components/Header.astro";
     text.append(renderRichText(post.text));
     body.append(text);
     if (post.media) {
-      const media = el("div", "media");
+      const media = el("div", post.media.hdr ? "media is-hdr" : "media");
       const image = el("img", "media-image");
       image.src = post.media.url.startsWith("/")
         ? apiEndpoint(post.media.url)
@@ -358,6 +361,12 @@ import Header from "../../components/Header.astro";
       image.decoding = "async";
       image.referrerPolicy = "no-referrer";
       media.append(image);
+      if (post.media.hdr) {
+        const badge = el("span", "media-hdr-badge");
+        badge.textContent = "HDR";
+        badge.title = "这条图片按 HDR 显示：在支持 HDR 的屏幕上不做 SDR 压暗";
+        media.append(badge);
+      }
       body.append(media);
     }
     article.append(kind, avatar, body);
@@ -368,16 +377,19 @@ import Header from "../../components/Header.astro";
     postId: string,
     comment: Comment,
     canModerate: boolean,
-    replyTo: (handle: string, commentId?: string) => void,
+    openReply: (host: HTMLElement, comment: Comment) => void,
     refreshComments: () => Promise<void>,
+    scrollToComment: (target: HTMLElement | null) => void,
     status: HTMLElement,
-    nested: boolean,
+    depth: number,
   ): HTMLElement {
     const article = el("article", "thread-post thread-reply shard");
+    /** 楼中楼里每条都顶着完整表头 + 一整套按钮会很乱，嵌套层用精简版 */
+    const compact = depth > 0;
     article.id = `comment-${comment.id}`;
     article.dataset.shard = postShard(comment.id);
     const kind = el("span", "thread-kind");
-    kind.textContent = "回帖";
+    kind.textContent = compact ? `第 ${depth + 1} 层` : "回帖";
     const avatar = authorAvatar(
       comment.author.handle,
       comment.author.name,
@@ -385,19 +397,28 @@ import Header from "../../components/Header.astro";
       comment.author.avatarUrl,
     );
     const body = el("div", "thread-body");
-    body.append(threadAuthorLine(comment.author, comment.createdAt));
-    if (comment.parent && !nested) {
+    body.append(threadAuthorLine(comment.author, comment.createdAt, compact));
+    if (comment.parent) {
       const quote = el("button", "reply-quote");
       quote.type = "button";
       const who = el("strong");
-      who.textContent = `回覆 @${comment.parent.handle}`;
-      const snippet = el("span");
-      snippet.textContent = `：${comment.parent.text.replace(/\s+/g, " ").slice(0, 40)}`;
-      quote.append(who, snippet);
+      const parentText = comment.parent.text.replace(/\s+/g, " ").slice(0, 60);
+      if (compact) {
+        // 嵌套层只标出回复对象，正文摘要放到 title 里，避免每层都占两三行
+        who.textContent = `↳ @${comment.parent.handle}`;
+        quote.append(who);
+      } else {
+        who.textContent = `回覆 @${comment.parent.handle}`;
+        const snippet = el("span");
+        snippet.textContent = `：${parentText.slice(0, 40)}`;
+        quote.append(who, snippet);
+      }
+      quote.title = `回覆 @${comment.parent.handle}：${parentText}`;
       quote.addEventListener("click", () => {
-        document
-          .getElementById(`comment-${comment.parent!.id}`)
-          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        // 父回帖可能被折叠在楼中楼里，先展开再滚过去
+        scrollToComment(
+          document.getElementById(`comment-${comment.parent!.id}`),
+        );
       });
       body.append(quote);
     }
@@ -409,9 +430,10 @@ import Header from "../../components/Header.astro";
     const reply = el("button", "thread-link-btn");
     reply.type = "button";
     reply.textContent = "回复";
-    reply.addEventListener("click", () =>
-      replyTo(comment.author.handle, comment.id),
-    );
+    // 就地回复：输入框直接长在这一层下面，不再把页面拽回顶部的主输入框
+    const inlineHost = el("div", "reply-inline");
+    inlineHost.hidden = true;
+    reply.addEventListener("click", () => openReply(inlineHost, comment));
     actions.append(reply);
 
     const like = actionButton("like", ICONS.heart, "喜欢", comment.stats.likes);
@@ -499,7 +521,7 @@ import Header from "../../components/Header.astro";
       });
       actions.append(remove);
     }
-    body.append(actions);
+    body.append(actions, inlineHost);
     article.append(kind, avatar, body);
     return article;
   }
@@ -553,23 +575,7 @@ import Header from "../../components/Header.astro";
     status.setAttribute("aria-live", "polite");
     const list = el("div", "comments-list thread-list");
 
-    const replyChip = el("div", "reply-chip");
-    const replyChipLabel = el("span", "reply-chip-label");
-    const replyChipClear = el("button", "reply-chip-clear");
-    replyChipClear.type = "button";
-    replyChipClear.textContent = "×";
-    replyChipClear.setAttribute("aria-label", "取消回覆");
-    replyChip.append(replyChipLabel, replyChipClear);
-    replyChip.hidden = true;
-    let replyParent: string | null = null;
-    const clearReplyTarget = () => {
-      replyParent = null;
-      replyChip.hidden = true;
-      replyChipLabel.textContent = "";
-    };
-    replyChipClear.addEventListener("click", clearReplyTarget);
-
-    composerBody.append(replyChip, status, composerActions);
+    composerBody.append(status, composerActions);
     composer.append(composerAvatar, composerBody);
 
     const resizeCommentInput = () => {
@@ -592,30 +598,159 @@ import Header from "../../components/Header.astro";
         submit.dataset.busy === "true";
     };
 
-    const replyTo = (handle: string, commentId?: string) => {
-      if (!me) {
-        showToast("请先登录后再回帖");
-        return;
+    /**
+     * 楼中楼太长时默认折叠。
+     * 一层回帖下面挂几十条回复，整个评论区会被撑到几万像素高，后面的楼层在窄屏
+     * （评论列表不单独滚动、跟着整页滚）上等于「看不见了」。所以只默认展示前几条，
+     * 其余收起来；要看的点了就展开（展开后仍然限高，避免又一次把下面的楼层顶走）。
+     */
+    const AUTO_COLLAPSE_DESCENDANTS = 3;
+    const PREVIEW_CHILDREN = 2;
+    /**
+     * 已经很深的楼中楼不再预览子回复：每层都预览几条会指数膨胀（2ⁿ 条），
+     * 照样能把后面的楼层顶走。注意这个上限只作用于「本来就很大的楼中楼」，
+     * 正常的小楼中楼（子孙不超过 AUTO_COLLAPSE_DESCENDANTS）保持原样。
+     */
+    const AUTO_COLLAPSE_DEPTH = 1;
+    /** 一次「继续展开」放出多少条（按回复条数算），避免一口气铺开几千条 */
+    const EXPAND_PAGE_SIZE = 30;
+    const descendantCounts = new Map<string, number>();
+    /** 折叠区块 -> 展开函数，深链接跳进去之前先把祖先展开 */
+    const expanders = new Map<HTMLElement, () => void>();
+
+    const revealComment = (target: HTMLElement | null): void => {
+      if (!target) return;
+      for (const [box, expand] of expanders) {
+        if (box.hidden && box.contains(target)) expand();
       }
-      if (commentId) {
-        replyParent = commentId;
-        replyChipLabel.textContent = `回覆 @${handle}`;
-        replyChip.hidden = false;
-      }
-      const prefix = `@${handle} `;
-      input.value = input.value.startsWith(prefix)
-        ? input.value
-        : `${prefix}${input.value}`;
-      syncCommentSubmit();
-      resizeCommentInput();
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-      composer.scrollIntoView({ behavior: "smooth", block: "center" });
     };
 
-    let renderedComments: Comment[] = [];
+    /**
+     * 把某个节点内部所有被折叠的楼中楼也展开。
+     * 点了「展开」就该看到整段内容，而不是又冒出一堆「展开其余 N 条」。
+     */
+    const expandAllWithin = (node: HTMLElement): void => {
+      for (let pass = 0; pass < 30; pass += 1) {
+        const pending = [
+          ...node.querySelectorAll<HTMLElement>(".thread-children-rest"),
+        ].filter((box) => box.hidden);
+        if (pending.length === 0) return;
+        for (const box of pending) expanders.get(box)?.();
+      }
+    };
+
+    const scrollToComment = (target: HTMLElement | null): void => {
+      if (!target) return;
+      revealComment(target);
+      requestAnimationFrame(() =>
+        target.scrollIntoView({ behavior: "smooth", block: "center" }),
+      );
+    };
+
+    /**
+     * 就地回复：点某一层的「回复」时，输入框长在那条回帖下面。
+     * 之前是滚回顶部那个大输入框，视线被拽走一大截，很割裂。
+     */
+    let inlineReply: { host: HTMLElement; close: () => void } | null = null;
+    const closeInlineReply = () => {
+      const current = inlineReply;
+      inlineReply = null;
+      current?.close();
+    };
+
+    const openInlineReply = (host: HTMLElement, comment: Comment): void => {
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
+      // 再点一次同一层就收起
+      if (inlineReply?.host === host) {
+        closeInlineReply();
+        return;
+      }
+      closeInlineReply();
+
+      const handle = comment.author.handle;
+      const box = el("div", "inline-composer");
+      const input = el("textarea", "inline-comment-input");
+      input.rows = 2;
+      input.maxLength = MAX_COMMENT_CHARS;
+      input.placeholder = `回覆 @${handle}…`;
+      input.setAttribute("aria-label", `回覆 @${handle}`);
+      const foot = el("div", "inline-composer-foot");
+      const hint = el("span", "comment-count");
+      const cancel = el("button", "thread-link-btn inline-cancel");
+      cancel.type = "button";
+      cancel.textContent = "取消";
+      const send = el("button", "primary-btn inline-send");
+      send.type = "button";
+      send.textContent = "回覆";
+      send.disabled = true;
+      foot.append(hint, cancel, send);
+      box.append(input, foot);
+      host.replaceChildren(box);
+      host.hidden = false;
+
+      const close = () => {
+        host.hidden = true;
+        host.replaceChildren();
+      };
+      inlineReply = { host, close };
+
+      const sync = () => {
+        const length = [...input.value].length;
+        hint.textContent = `${length} / ${MAX_COMMENT_CHARS}`;
+        hint.classList.toggle("is-over", length > MAX_COMMENT_CHARS);
+        send.disabled =
+          length === 0 ||
+          length > MAX_COMMENT_CHARS ||
+          send.dataset.busy === "true";
+      };
+
+      const submitInline = async () => {
+        const text = input.value.trim();
+        if (!text || send.dataset.busy === "true") return;
+        send.dataset.busy = "true";
+        send.textContent = "回覆中…";
+        sync();
+        try {
+          const created = await createComment(post.id, text, comment.id);
+          closeInlineReply();
+          await refreshComments();
+          scrollToComment(document.getElementById(`comment-${created.id}`));
+        } catch (error) {
+          status.textContent =
+            error instanceof Error ? error.message : "回帖失败";
+        } finally {
+          delete send.dataset.busy;
+          send.textContent = "回覆";
+          sync();
+        }
+      };
+
+      input.addEventListener("input", sync);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeInlineReply();
+          return;
+        }
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          void submitInline();
+        }
+      });
+      cancel.addEventListener("click", closeInlineReply);
+      send.addEventListener("click", () => void submitInline());
+
+      sync();
+      input.focus();
+    };
+
     const renderList = (comments: Comment[], total = comments.length): void => {
-      renderedComments = comments;
+      descendantCounts.clear();
+      expanders.clear();
+      inlineReply = null;
       repliesCount.textContent =
         total > comments.length ? `${comments.length}/${total}` : String(total);
       repliesCount.title =
@@ -655,19 +790,29 @@ import Header from "../../components/Header.astro";
        * 不封顶的话十几层之后回帖会被挤成一条竖线并一路向右延伸，
        * 楼中楼下面的其他回帖就被顶到很下面、也基本没法看了。
        */
-      const MAX_INDENT_DEPTH = 3;
+      const MAX_INDENT_DEPTH = 2;
+
+      const countDescendants = (commentId: string): number => {
+        const cached = descendantCounts.get(commentId);
+        if (cached !== undefined) return cached;
+        let total = 0;
+        for (const kid of children.get(commentId) ?? []) {
+          total += 1 + countDescendants(kid.id);
+        }
+        descendantCounts.set(commentId, total);
+        return total;
+      };
 
       const renderNode = (comment: Comment, depth: number): HTMLElement => {
-        const indented = depth > 0 && depth <= MAX_INDENT_DEPTH;
         const node = renderReply(
           post.id,
           comment,
           canModerate,
-          replyTo,
+          openInlineReply,
           refreshComments,
+          scrollToComment,
           status,
-          // 超过缩进上限后不再缩进，改由「回覆 @xxx」标出回帖对象
-          indented,
+          depth,
         );
         node.dataset.depth = String(depth);
         if (depth > 0) node.classList.add("is-nested");
@@ -675,7 +820,73 @@ import Header from "../../components/Header.astro";
         const kids = children.get(comment.id) ?? [];
         if (kids.length > 0) {
           const box = el("div", "thread-children");
-          for (const kid of kids) box.append(renderNode(kid, depth + 1));
+          const collapsible =
+            countDescendants(comment.id) > AUTO_COLLAPSE_DESCENDANTS;
+          const previewCount = !collapsible
+            ? kids.length
+            : depth >= AUTO_COLLAPSE_DEPTH
+              ? 0
+              : Math.min(PREVIEW_CHILDREN, kids.length);
+          for (const kid of kids.slice(0, previewCount)) {
+            box.append(renderNode(kid, depth + 1));
+          }
+          const rest = collapsible ? kids.slice(previewCount) : [];
+          if (rest.length > 0) {
+            // 展开是「整段展开、页面正常滚动」，条数多就分几次展开，不再做成内部滚动条
+            const shownBox = el("div", "thread-children-rest");
+            const pendingBox = el("div", "thread-children-rest");
+            pendingBox.hidden = true;
+            for (const kid of rest)
+              pendingBox.append(renderNode(kid, depth + 1));
+            // 每条被折叠的子回复连同它的子孙一共多少条
+            const sizes = rest.map((kid) => 1 + countDescendants(kid.id));
+            const totalHidden = sizes.reduce((sum, size) => sum + size, 0);
+            const toggle = el("button", "thread-more");
+            toggle.type = "button";
+            let revealed = 0;
+            let hiddenReplies = totalHidden;
+            const syncLabel = () => {
+              toggle.setAttribute("aria-expanded", String(revealed > 0));
+              toggle.textContent =
+                revealed === rest.length
+                  ? "收起楼中楼"
+                  : `${revealed === 0 ? "展开其余" : "继续展开"} ${hiddenReplies} 条回复`;
+            };
+            const revealNext = () => {
+              let added = 0;
+              while (revealed < rest.length && added < EXPAND_PAGE_SIZE) {
+                const next = pendingBox.firstElementChild as HTMLElement | null;
+                if (!next) break;
+                shownBox.append(next);
+                // 这一条自己下面的楼中楼也一起展开，点了「展开」就是整段都出来
+                expandAllWithin(next);
+                hiddenReplies -= sizes[revealed];
+                revealed += 1;
+                added += sizes[revealed - 1];
+              }
+              pendingBox.hidden = pendingBox.childElementCount === 0;
+              syncLabel();
+            };
+            const collapseAll = () => {
+              while (shownBox.firstElementChild) {
+                pendingBox.append(shownBox.firstElementChild);
+              }
+              revealed = 0;
+              hiddenReplies = totalHidden;
+              pendingBox.hidden = true;
+              syncLabel();
+            };
+            toggle.addEventListener("click", () => {
+              if (revealed === rest.length) collapseAll();
+              else revealNext();
+            });
+            // 深链接跳进被折叠的回帖：一次全展开
+            expanders.set(pendingBox, () => {
+              while (revealed < rest.length) revealNext();
+            });
+            syncLabel();
+            box.append(shownBox, pendingBox, toggle);
+          }
           node.append(box);
         }
         return node;
@@ -689,11 +900,9 @@ import Header from "../../components/Header.astro";
         const page = await getComments(post.id);
         renderList(page.comments, page.total);
         if (location.hash.startsWith("#comment-")) {
-          requestAnimationFrame(() => {
-            document
-              .getElementById(decodeURIComponent(location.hash.slice(1)))
-              ?.scrollIntoView({ behavior: "smooth", block: "center" });
-          });
+          scrollToComment(
+            document.getElementById(decodeURIComponent(location.hash.slice(1))),
+          );
         }
       } catch (error) {
         renderList([], 0);
@@ -709,19 +918,13 @@ import Header from "../../components/Header.astro";
       submit.disabled = true;
       submit.textContent = "回帖中…";
       try {
-        await createComment(post.id, text, replyParent ?? undefined);
+        const created = await createComment(post.id, text);
         input.value = "";
-        clearReplyTarget();
         syncCommentSubmit();
         resizeCommentInput();
         status.textContent = "";
         await refreshComments();
-        const latest = renderedComments.at(-1);
-        if (latest) {
-          document
-            .getElementById(`comment-${latest.id}`)
-            ?.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
+        scrollToComment(document.getElementById(`comment-${created.id}`));
       } catch (error) {
         status.textContent =
           error instanceof Error ? error.message : "回帖失败";

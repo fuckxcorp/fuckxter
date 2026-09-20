@@ -22,6 +22,8 @@ export interface PostMedia {
   alt: string;
   contentType: string;
   byteSize: number;
+  /** 发帖时勾了「HDR 显示」：在支持 HDR 的屏幕上不做 SDR 压暗。只有图片会有。 */
+  hdr?: boolean;
 }
 
 export interface Post {
@@ -130,12 +132,27 @@ export interface Conversation {
 export interface ConversationListPage {
   threads: Conversation[];
   unread: number;
+  /** 「快速发起会话」用的人选：你关注的人（含互关标记与权限判断） */
+  suggestions?: MessageSuggestion[];
+}
+
+/** 谁可以给我发私信：everyone 所有人 / mutual 仅互关 / nobody 不接收 */
+export type DmPolicy = "everyone" | "mutual" | "nobody";
+
+export interface MessageSuggestion extends FeedUser {
+  mutual: boolean;
+  hasThread: boolean;
+  canDm: boolean;
 }
 
 export interface ConversationPage {
   user: FeedUser;
   messages: DirectMessage[];
   unread: number;
+  /** 按对方的私信权限，我现在能不能发 */
+  canSend?: boolean;
+  dmPolicy?: DmPolicy;
+  hint?: string | null;
 }
 
 export interface UserProfile {
@@ -158,6 +175,8 @@ export interface UserProfile {
   viewer: {
     following: boolean;
     blocked?: boolean;
+    /** 按对方的私信权限，我能不能给他发私信 */
+    canMessage?: boolean;
   };
   /** 已申请删除（3 天宽限期内）的账号：昵称还在，但主页标注为已删除 */
   deleted?: boolean;

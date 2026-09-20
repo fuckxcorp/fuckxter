@@ -7,6 +7,7 @@ import {
   purgeDeletedAccounts,
   replaceRecoveryCodes,
   requestAccountDeletion,
+  updateDmPolicy,
   updateProfile,
 } from "./accounts/accounts";
 import {
@@ -31,6 +32,7 @@ import {
   countUnreadMessages,
   getConversation,
   listConversations,
+  listMessageSuggestions,
   markConversationRead,
   recallMessage,
   sendMessage,
@@ -331,11 +333,12 @@ async function route(
     const user = await requireUser(request, env);
 
     if (parts.length === 2 && method === "GET") {
-      const [threads, unread] = await Promise.all([
+      const [threads, unread, suggestions] = await Promise.all([
         listConversations(env, user.id),
         countUnreadMessages(env, user.id),
+        listMessageSuggestions(env, user.id),
       ]);
-      return json({ threads, unread }, request, env);
+      return json({ threads, unread, suggestions }, request, env);
     }
 
     if (parts.length === 3) {
@@ -553,6 +556,18 @@ async function route(
       return withCookie(response, clearSessionCookie(request));
     }
 
+    // 私信权限单独一个接口：资料那套 PATCH 会把没传的字段当空值写回去
+    if (parts[2] === "dm-policy" && parts.length === 3 && method === "PATCH") {
+      const body = await readJson<{ policy?: unknown }>(request);
+      await updateDmPolicy(env, user.id, body.policy);
+      const updated = await requireUser(request, env);
+      return json(
+        { account: await accountFromRow(env, updated) },
+        request,
+        env,
+      );
+    }
+
     if (parts[2] === "email" && parts.length === 3 && method === "PUT") {
       const body = await readJson<{ email?: string; password?: string }>(
         request,
@@ -743,6 +758,7 @@ async function route(
           body.text,
           body.mediaId,
           normalizeVisibility(payload.visibility),
+          (body as { hdr?: unknown }).hdr === true,
         ),
         request,
         env,
@@ -769,6 +785,7 @@ async function route(
         const body = await readJson<{
           text?: string;
           visibility?: unknown;
+          hdr?: unknown;
         }>(request);
         return json(
           await updatePost(
@@ -779,6 +796,7 @@ async function route(
             typeof body.visibility === "string"
               ? normalizeVisibility(body.visibility)
               : undefined,
+            typeof body.hdr === "boolean" ? body.hdr : undefined,
           ),
           request,
           env,

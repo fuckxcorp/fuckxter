@@ -271,15 +271,29 @@
   white-space: nowrap;
 }
 
+.thread-handle {
+  /* body 上是 overflow-wrap: anywhere，窄栏里会把 @用户名 拆成两行 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .thread-handle,
 .thread-meta time {
   color: var(--color-text-muted);
   font-size: 0.8rem;
 }
 
+.thread-meta {
+  flex-wrap: wrap;
+  gap: 0.2rem 0.75rem;
+}
+
 .thread-meta time {
   flex: none;
   text-align: right;
+  white-space: nowrap;
 }
 
 .thread-text {
@@ -293,6 +307,7 @@
 
 .thread-reply-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.65rem;
   margin-top: 0.45rem;
 }
@@ -300,6 +315,9 @@
 .thread-link-btn {
   position: relative;
   isolation: isolate;
+  /* 按钮整体换行，别把「回复」拆成「回」「复」 */
+  flex: none;
+  white-space: nowrap;
   padding: 0.22rem 0.75rem;
   border: 0;
   background: none;
@@ -789,6 +807,36 @@
   border-left: 2px solid var(--color-border);
 }
 
+/* 折叠起来的楼中楼：不再加一层缩进，展开后限高，免得又把下面的楼层顶到看不见 */
+.thread-children-rest {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.thread-children-rest[hidden] {
+  display: none;
+}
+
+.thread-more {
+  justify-self: start;
+  margin-top: 0.2rem;
+  padding: 0.22rem 0.7rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.thread-more:hover,
+.thread-more:focus-visible {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  outline: none;
+}
+
 /* 超过缩进上限的楼中楼：不再往右让位，平铺在同一层里显示，
    否则每层都会叠加缩进，十几层之后内容会被挤成竖条、后面的回帖也点不到。 */
 .thread-reply.is-deep {
@@ -805,6 +853,148 @@
   border-left: 0;
 }
 
+/*
+ * 楼中楼越深越紧凑。
+ * 每深一层都要叠上「子层缩进 + 卡片内边距 + 头像列 + 列间距」，窄屏上一共约 68px，
+ * 三层之后正文只剩几十像素宽，中文会被压成一条竖线，看起来像字体坏了。
+ * 所以嵌套层收窄头像列和内边距，把宽度尽量留给正文。
+ */
 .thread-reply.is-nested {
+  /* 不要每层再套一个 3px 粗边的盒子：楼中楼改成「一棵树」，靠左边线 + 浅底分组 */
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-bg-subtle) 55%, transparent);
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 0.45rem 0.6rem;
+  padding: 0.75rem 0.9rem 0.85rem;
+}
+
+.thread-reply.is-nested > .avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 0.82rem;
+}
+
+.thread-reply.is-nested .thread-text {
+  font-size: 0.95rem;
+  line-height: 1.58;
+}
+
+/* 嵌套层的「第 N 层」标记和操作按钮都轻量化，别每层再糊一堆黑块 */
+.thread-reply.is-nested .thread-kind {
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.thread-reply.is-nested .thread-kind::before {
+  display: none;
+}
+
+.thread-reply.is-nested .thread-reply-actions {
+  gap: 0.1rem 0.3rem;
+  margin-top: 0.3rem;
+  margin-left: -0.3rem;
+}
+
+.thread-reply.is-nested .thread-link-btn {
+  padding: 0.16rem 0.42rem;
+  /* 嵌套层的按钮也保持平行四边形，只是更小一号 */
+  color: var(--ink-text);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.thread-reply.is-nested .thread-link-btn.is-danger {
+  color: var(--like);
+}
+
+.thread-reply.is-nested .reply-quote {
+  margin: 0.3rem 0 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-left-width: 2px;
   background: none;
+  font-size: 0.76rem;
+}
+
+.thread-reply.is-nested > .thread-children {
+  padding-left: 0.6rem;
+}
+
+/* 就地回复框：点某一层的「回复」时，输入框直接长在那条回帖下面 */
+.reply-inline {
+  margin-top: 0.5rem;
+}
+
+.reply-inline[hidden] {
+  display: none;
+}
+
+.inline-composer {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  background: var(--color-bg);
+}
+
+.inline-comment-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3.4rem;
+  max-height: 200px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  resize: none;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-strong);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  outline: none;
+}
+
+.inline-comment-input:focus {
+  border-color: var(--color-accent);
+}
+
+.inline-composer-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.inline-composer-foot .comment-count {
+  margin-right: auto;
+}
+
+.inline-send {
+  flex: none;
+  padding: 0.32rem 0.95rem;
+  font-size: 0.8rem;
+}
+
+.inline-cancel {
+  flex: none;
+}
+
+/* 再深一层连头像列都不留，回帖对象靠上面的「回覆 @xxx」标出 */
+.thread-reply.is-deep {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0.6rem 0.7rem 0.7rem;
+}
+
+.thread-reply.is-deep > .avatar {
+  display: none;
+}
+
+.thread-reply.is-deep .thread-text {
+  font-size: 0.92rem;
 }

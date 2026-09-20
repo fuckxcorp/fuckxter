@@ -288,6 +288,11 @@ import Header from "../../components/Header.astro";
     block.textContent = blocked ? "已拉黑" : "拉黑";
     block.classList.toggle("is-danger", blocked);
     message.dataset.handle = profile.handle;
+    // 对方的私信权限不允许时，按钮留着但置灰，并用 title 说明原因
+    const dmBlocked =
+      !isOwn && !blocked && !deleted && profile.viewer.canMessage === false;
+    message.disabled = dmBlocked;
+    message.title = dmBlocked ? "对方设置了私信权限，暂时不能给他发私信" : "";
     if (!isOwn) {
       follow.dataset.handle = profile.handle;
       follow.dataset.following = String(profile.viewer.following);

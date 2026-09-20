@@ -245,6 +245,38 @@ export async function loginOrRegister(
   };
 }
 
+/**
+ * 私信权限的取值：
+ * - everyone：所有人都能给我发私信（默认）
+ * - mutual：只有互相关注的人能发
+ * - nobody：谁都不能发（已有会话还能看，但不能发新的）
+ */
+export const DM_POLICIES = ["everyone", "mutual", "nobody"] as const;
+export type DmPolicy = (typeof DM_POLICIES)[number];
+
+export function normalizeDmPolicy(value: unknown): DmPolicy | null {
+  return typeof value === "string" &&
+    (DM_POLICIES as readonly string[]).includes(value)
+    ? (value as DmPolicy)
+    : null;
+}
+
+export async function updateDmPolicy(
+  env: Env,
+  userId: string,
+  value: unknown,
+): Promise<void> {
+  const policy = normalizeDmPolicy(value);
+  if (!policy) {
+    throw new HttpError(400, "INVALID_DM_POLICY", "私信权限取值无效。");
+  }
+  await env.DB.prepare(
+    "UPDATE users SET dm_policy = ?, updated_at = ? WHERE id = ?",
+  )
+    .bind(policy, new Date().toISOString(), userId)
+    .run();
+}
+
 export async function updateProfile(
   env: Env,
   userId: string,

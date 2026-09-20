@@ -26,6 +26,9 @@ interface ProfileRow {
   following_count: number;
   following: number;
   blocked: number;
+  dm_policy: string;
+  is_self: number;
+  follows_viewer: number;
 }
 
 interface UserSummaryRow {
@@ -91,9 +94,20 @@ function publicProfile(row: ProfileRow, headerUrl: string | null) {
     viewer: {
       following: Boolean(row.following),
       blocked: Boolean(row.blocked),
+      canMessage: canMessageFrom(row),
     },
     deleted: Boolean(row.deleted_at),
   };
+}
+
+/** 按对方的私信权限判断「我能不能给他发私信」，主页上的私信按钮据此置灰 */
+function canMessageFrom(row: ProfileRow): boolean {
+  if (row.is_self || row.blocked || row.deleted_at) return false;
+  if (row.dm_policy === "nobody") return false;
+  if (row.dm_policy === "mutual") {
+    return Boolean(row.following && row.follows_viewer);
+  }
+  return true;
 }
 
 export async function getUserProfile(
@@ -129,12 +143,24 @@ export async function getUserProfile(
        EXISTS(
          SELECT 1 FROM blocks vb
          WHERE vb.blocker_id = ? AND vb.blocked_id = u.id
-       ) AS blocked
+       ) AS blocked,
+       u.dm_policy,
+       (u.id = ?) AS is_self,
+       EXISTS(
+         SELECT 1 FROM follows back
+         WHERE back.follower_id = u.id AND back.followee_id = ?
+       ) AS follows_viewer
      FROM users u
      WHERE u.id = ?
      LIMIT 1`,
   )
-    .bind(viewerId ?? "", viewerId ?? "", usernameKey(handle))
+    .bind(
+      viewerId ?? "",
+      viewerId ?? "",
+      viewerId ?? "",
+      viewerId ?? "",
+      usernameKey(handle),
+    )
     .first<ProfileRow>();
   if (!row) return null;
   const header = await env.MEDIA_CACHE.head(headerObjectKey(row.handle));

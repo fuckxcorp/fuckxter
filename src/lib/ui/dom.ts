@@ -210,7 +210,7 @@ export function postHead(post: Post, timeMode: "relative" | "absolute") {
 export function postMedia(post: Post): HTMLElement {
   const media = post.media;
   if (!media) return el("div");
-  const node = el("div", "media");
+  const node = el("div", media.hdr ? "media is-hdr" : "media");
   const image = el("img", "media-image");
   image.src = media.url.startsWith("/") ? apiEndpoint(media.url) : media.url;
   image.alt = media.alt;
@@ -218,6 +218,12 @@ export function postMedia(post: Post): HTMLElement {
   image.decoding = "async";
   image.referrerPolicy = "no-referrer";
   node.append(image);
+  if (media.hdr) {
+    const badge = el("span", "media-hdr-badge");
+    badge.textContent = "HDR";
+    badge.title = "这条图片按 HDR 显示：在支持 HDR 的屏幕上不做 SDR 压暗";
+    node.append(badge);
+  }
   return node;
 }
 

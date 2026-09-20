@@ -1,6 +1,6 @@
 import { navigate } from "astro:transitions/client";
 import { ApiError, apiRequest } from "../core/http";
-import type { FeedUser } from "../core/types";
+import type { DmPolicy, FeedUser } from "../core/types";
 
 export interface Account {
   profile: {
@@ -16,6 +16,8 @@ export interface Account {
   headerUrl: string | null;
   twoFactorEnabled: boolean;
   recoveryCodeCount: number;
+  /** 谁可以给我发私信 */
+  dmPolicy?: DmPolicy;
   createdAt: string;
 }
 
@@ -195,6 +197,17 @@ export async function changeEmail(input: {
     body: JSON.stringify(input),
   });
   if (!response.account) throw new ApiError("邮箱响应中没有账号信息。");
+  const next = normalizeAccount(response.account);
+  setAccount(next);
+  return next;
+}
+
+export async function setDmPolicy(policy: DmPolicy): Promise<Account> {
+  const response = await apiRequest<AccountResponse>("/me/dm-policy", {
+    method: "PATCH",
+    body: JSON.stringify({ policy }),
+  });
+  if (!response.account) throw new ApiError("私信权限响应中没有账号信息。");
   const next = normalizeAccount(response.account);
   setAccount(next);
   return next;

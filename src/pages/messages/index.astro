@@ -17,9 +17,16 @@ import Layout from "../../layouts/Layout.astro";
             <p data-role="threads-summary">正在加载…</p>
           </div>
         </header>
+        <div class="quick-start" data-role="quick-start" hidden>
+          <div class="quick-start-head">
+            <strong>快速发起会话</strong>
+            <small data-role="quick-start-hint"></small>
+          </div>
+          <div class="quick-start-list" data-role="quick-start-list"></div>
+        </div>
         <div class="thread-list" data-role="thread-list"></div>
         <p class="status" data-role="threads-empty" hidden>
-          还没有私信。去别人的主页点「私信」就能开始聊天。
+          还没有私信。上面点一个人，或者去别人主页点「私信」就能开始聊天。
         </p>
       </section>
 
@@ -91,6 +98,7 @@ import Layout from "../../layouts/Layout.astro";
     Conversation,
     DirectMessage,
     FeedUser,
+    MessageSuggestion,
   } from "../../lib/core/types";
   import {
     conversationPath,
@@ -177,6 +185,54 @@ import Layout from "../../layouts/Layout.astro";
     }
   }
 
+  /** 快速发起会话：把互关的人放在最前面，点一下直接开聊 */
+  function renderQuickStart(
+    wrap: HTMLElement,
+    hint: HTMLElement,
+    container: HTMLElement,
+    suggestions: MessageSuggestion[],
+  ): void {
+    container.replaceChildren();
+    const usable = suggestions.filter((person) => person.canDm);
+    if (usable.length === 0) {
+      wrap.hidden = true;
+      return;
+    }
+    const mutual = usable.filter((person) => person.mutual);
+    for (const person of mutual) container.append(quickStartChip(person));
+    for (const person of usable.filter((person) => !person.mutual)) {
+      container.append(quickStartChip(person));
+    }
+    hint.textContent = mutual.length
+      ? `互关 ${mutual.length} 人，其余是你关注的人`
+      : "你关注的人";
+    wrap.hidden = false;
+  }
+
+  function quickStartChip(person: MessageSuggestion): HTMLElement {
+    const chip = el("button", "quick-start-chip");
+    chip.type = "button";
+    if (person.mutual) chip.classList.add("is-mutual");
+    if (person.hasThread) chip.classList.add("is-existing");
+    chip.append(avatarNode(person, "quick-start-avatar"));
+    const name = el("span", "quick-start-name");
+    name.textContent = person.name;
+    chip.append(name);
+    if (person.mutual) {
+      const badge = el("span", "quick-start-badge");
+      badge.textContent = "互关";
+      chip.append(badge);
+    }
+    chip.title = person.hasThread
+      ? `继续和 ${person.name} 的会话`
+      : `给 ${person.name} 发私信`;
+    chip.addEventListener(
+      "click",
+      () => void navigate(conversationPath(person.handle)),
+    );
+    return chip;
+  }
+
   function messageRow(message: DirectMessage): HTMLElement {
     const row = el("div", `chat-row ${message.mine ? "is-mine" : "is-theirs"}`);
     row.dataset.id = message.id;
@@ -253,9 +309,11 @@ import Layout from "../../layouts/Layout.astro";
       status.hidden = !message;
     };
 
+    /** 对方的私信权限不允许时，输入框直接锁掉并说明原因 */
+    let canSend = true;
     const syncSendState = () => {
       const length = [...input.value].length;
-      sendBtn.disabled = length === 0 || length > MAX_CHARS;
+      sendBtn.disabled = !canSend || length === 0 || length > MAX_CHARS;
     };
 
     let sending = false;
@@ -278,10 +336,16 @@ import Layout from "../../layouts/Layout.astro";
       try {
         const page = await getConversation(handle);
         applyConversation(page.user, page.messages);
+        canSend = page.canSend !== false;
+        input.disabled = !canSend;
+        input.placeholder = canSend ? "写点私信…" : "对方设置了私信权限";
+        syncSendState();
         if (page.unread > 0) {
           await markConversationRead(handle);
-          if (!silent) setStatus("");
         }
+        if (!canSend) {
+          setStatus(page.hint ?? "对方设置了私信权限，暂时不能发消息。");
+        } else if (!silent) setStatus("");
       } catch (error) {
         if (!silent) {
           const message =
@@ -325,7 +389,7 @@ import Layout from "../../layouts/Layout.astro";
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       const text = input.value.trim();
-      if (sending || !text) return;
+      if (sending || !text || !canSend) return;
       sending = true;
       sendBtn.disabled = true;
       setStatus("发送中…");
@@ -365,6 +429,15 @@ import Layout from "../../layouts/Layout.astro";
       "[data-role=threads-summary]",
     )!;
     const empty = root.querySelector<HTMLElement>("[data-role=threads-empty]")!;
+    const quickWrap = root.querySelector<HTMLElement>(
+      "[data-role=quick-start]",
+    )!;
+    const quickHint = root.querySelector<HTMLElement>(
+      "[data-role=quick-start-hint]",
+    )!;
+    const quickList = root.querySelector<HTMLElement>(
+      "[data-role=quick-start-list]",
+    )!;
     const backBtn = root.querySelector<HTMLButtonElement>("[data-role=back]")!;
 
     panel.hidden = false;
@@ -374,6 +447,7 @@ import Layout from "../../layouts/Layout.astro";
     try {
       const page = await getConversations();
       renderThreads(list, page.threads);
+      renderQuickStart(quickWrap, quickHint, quickList, page.suggestions ?? []);
       empty.hidden = page.threads.length > 0;
       summary.textContent =
         page.unread > 0

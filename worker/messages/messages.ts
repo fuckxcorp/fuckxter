@@ -98,6 +98,50 @@ async function findThreadId(
   return row?.id ?? null;
 }
 
+/**
+ * 能不能给这个人发私信？按对方的私信权限判断：
+ * everyone 谁都可以、mutual 只有互关可以、nobody 谁都不行。
+ * 顺带把「不行」的原因带上，前端可以直接显示。
+ */
+export async function dmGate(
+  env: Env,
+  fromId: string,
+  toId: string,
+): Promise<{ allowed: boolean; policy: string; reason: string | null }> {
+  const row = await env.DB.prepare(
+    `SELECT
+       u.dm_policy AS policy,
+       EXISTS(
+         SELECT 1 FROM follows f
+         WHERE f.follower_id = ? AND f.followee_id = u.id
+       ) AS viewer_follows,
+       EXISTS(
+         SELECT 1 FROM follows f
+         WHERE f.follower_id = u.id AND f.followee_id = ?
+       ) AS target_follows
+     FROM users u WHERE u.id = ?`,
+  )
+    .bind(fromId, fromId, toId)
+    .first<{
+      policy: string;
+      viewer_follows: number;
+      target_follows: number;
+    }>();
+  const policy = row?.policy ?? "everyone";
+  if (!row) return { allowed: false, policy, reason: "用户不存在。" };
+  if (policy === "nobody") {
+    return { allowed: false, policy, reason: "对方不接收私信。" };
+  }
+  if (policy === "mutual" && !(row.viewer_follows && row.target_follows)) {
+    return {
+      allowed: false,
+      policy,
+      reason: "对方只接收互相关注的人发来的私信。",
+    };
+  }
+  return { allowed: true, policy, reason: null };
+}
+
 interface ThreadContextRow extends PersonRow {
   blocked: number;
   thread_id: string | null;
@@ -187,6 +231,71 @@ export async function listConversations(env: Env, userId: string) {
   }));
 }
 
+/**
+ * 私信页「快速发起会话」的人选：你关注的人。
+ * mutual    = 对方也关注你（互关）
+ * hasThread = 已经有会话了
+ * canDm     = 按对方的私信权限，你现在能不能给他发
+ */
+export async function listMessageSuggestions(
+  env: Env,
+  userId: string,
+  limit = 24,
+) {
+  const rows = await env.DB.prepare(
+    `SELECT
+       ${PERSON_COLUMNS},
+       EXISTS(
+         SELECT 1 FROM follows back
+         WHERE back.follower_id = o.id AND back.followee_id = ?
+       ) AS mutual,
+       EXISTS(
+         SELECT 1 FROM dm_threads t
+         WHERE (t.user_low_id = ? AND t.user_high_id = o.id)
+            OR (t.user_high_id = ? AND t.user_low_id = o.id)
+       ) AS has_thread,
+       (
+         o.dm_policy = 'everyone'
+         OR (
+           o.dm_policy = 'mutual'
+           AND EXISTS(
+             SELECT 1 FROM follows back
+             WHERE back.follower_id = o.id AND back.followee_id = ?
+           )
+         )
+       ) AS can_dm
+     FROM follows f
+     JOIN users o ON o.id = f.followee_id
+     WHERE f.follower_id = ?
+       AND o.deleted_at IS NULL
+       AND NOT EXISTS(
+         SELECT 1 FROM blocks b
+         WHERE (b.blocker_id = ? AND b.blocked_id = o.id)
+            OR (b.blocker_id = o.id AND b.blocked_id = ?)
+       )
+     ORDER BY mutual DESC, has_thread ASC, o.handle ASC
+     LIMIT ?`,
+  )
+    .bind(
+      userId,
+      userId,
+      userId,
+      userId,
+      userId,
+      userId,
+      userId,
+      Math.min(Math.max(limit, 1), 50),
+    )
+    .all<PersonRow & { mutual: number; has_thread: number; can_dm: number }>();
+
+  return (rows.results ?? []).map((row) => ({
+    ...serializePerson(row),
+    mutual: Boolean(row.mutual),
+    hasThread: Boolean(row.has_thread),
+    canDm: Boolean(row.can_dm),
+  }));
+}
+
 export async function getConversation(
   env: Env,
   userId: string,
@@ -202,11 +311,16 @@ export async function getConversation(
   const [low, high] = pairFor(userId, person.id);
   const threadId = await findThreadId(env, low, high);
   const messages = threadId ? await loadMessages(env, threadId, userId) : [];
+  const gate = await dmGate(env, userId, person.id);
 
   return {
     user: serializePerson(person),
     messages,
     unread: messages.filter((message) => !message.mine && !message.read).length,
+    // 对方的私信权限：不行的时候前端把输入框锁掉并显示原因
+    canSend: gate.allowed,
+    dmPolicy: gate.policy,
+    hint: gate.reason,
   };
 }
 
@@ -260,6 +374,14 @@ export async function sendMessage(
   }
   if (blocked) {
     throw new HttpError(403, "BLOCKED", "你们之间存在拉黑关系，无法私信。");
+  }
+  const gate = await dmGate(env, userId, person.id);
+  if (!gate.allowed) {
+    throw new HttpError(
+      403,
+      "DM_NOT_ALLOWED",
+      gate.reason ?? "对方不接收私信。",
+    );
   }
 
   const now = new Date().toISOString();

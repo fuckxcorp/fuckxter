@@ -5,6 +5,7 @@ import {
   confirmTwoFactor,
   deleteAccount,
   generateRecoveryCodes,
+  setDmPolicy,
 } from "../accounts/auth";
 import {
   downloadRecoveryCodes,
@@ -12,6 +13,7 @@ import {
   type SettingsContext,
 } from "./shared";
 import { isValidEmail } from "../core/validation";
+import type { DmPolicy } from "../core/types";
 
 export function mountSecuritySettings(
   root: HTMLElement,
@@ -62,6 +64,38 @@ export function mountSecuritySettings(
     "[data-role=email-form]",
   )!;
   const emailStatus = emailForm.querySelector<HTMLElement>(".form-status")!;
+
+  // 私信权限：改完立刻生效，不用点保存
+  const dmForm = root.querySelector<HTMLElement>("[data-role=dm-policy-form]")!;
+  const dmSelect = dmForm.querySelector<HTMLSelectElement>(
+    "[data-role=dm-policy]",
+  )!;
+  const dmStatus = dmForm.querySelector<HTMLElement>(
+    "[data-role=dm-policy-status]",
+  )!;
+
+  const fillDmPolicy = () => {
+    dmSelect.value = context.getAccount()?.dmPolicy ?? "everyone";
+  };
+
+  dmSelect.addEventListener("change", async () => {
+    if (!context.getAccount()) return;
+    const next = dmSelect.value as DmPolicy;
+    dmSelect.disabled = true;
+    try {
+      const account = await setDmPolicy(next);
+      context.setAccount(account);
+      setStatus(dmStatus, "私信权限已更新 ✓");
+      setTimeout(() => setStatus(dmStatus, ""), 1500);
+    } catch (error) {
+      fillDmPolicy();
+      setStatus(dmStatus, error instanceof Error ? error.message : "更新失败");
+    } finally {
+      dmSelect.disabled = false;
+    }
+  });
+
+  fillDmPolicy();
 
   const fillEmailHint = () => {
     const account = context.getAccount();

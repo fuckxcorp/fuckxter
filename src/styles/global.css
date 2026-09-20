@@ -152,6 +152,17 @@ body {
   width: auto;
 }
 
+/*
+ * 浅色主题顶栏用的是横向字标（深色主题是方形图标），同样 26px 看着会小一号，
+ * 所以浅色下单独放大两像素。
+ * 注意选择器要限定在顶栏 `.brand` 里：这条规则有 3 个类名，如果不限定，
+ * 它会盖掉登录页自己的 `.login-brand-panel .login-logo`（只有 2 个类名），
+ * 浅色登录页的大 logo 就会被压成 28px。
+ */
+[data-theme="light"] .brand .logo-img.logo-light {
+  height: 28px;
+}
+
 .logo-dark {
   display: none;
 }
@@ -436,6 +447,19 @@ body {
 
 .submenu[hidden] {
   display: none;
+}
+
+/*
+ * 子菜单的斜切用的是「固定 24px 水平位移」，位移相同的话越矮的菜单看着越陡：
+ * 「列数」4 行（约 152px 高）是 ~9°，而「主题」只有 3 行（约 116px 高）却有 ~11.7°，
+ * 两个并排的子菜单斜度就对不上了。
+ * 所以按行数等比给位移（每行约 6px）：4 行仍是 24px，3 行改成 18px，斜度就一致了。
+ * 注：发帖区「存储桶」子菜单的行数取决于用户配置了几个桶，保持默认值。
+ */
+[data-role="theme-submenu"],
+[data-role="visibility-menu"] {
+  --slab-left: 18px;
+  --slab-top-right: 18px;
 }
 
 .menu-sep {
@@ -991,6 +1015,7 @@ body {
 }
 
 .media {
+  position: relative;
   display: grid;
   place-items: center;
   margin-top: 0.65rem;
@@ -998,6 +1023,41 @@ body {
   border-radius: 14px;
   max-height: 480px;
   overflow: hidden;
+}
+
+/* 发帖人勾了「HDR 显示」的图片：垫黑底，避免 SDR 边框把观感拉回普通亮度 */
+.media.is-hdr {
+  background: #000;
+}
+
+/*
+ * HDR 内容在支持高动态范围的屏幕上按原样输出，不再被压到 SDR 白点。
+ * 不支持这个属性/媒体查询的浏览器会直接忽略，图片照常显示。
+ */
+@media (dynamic-range: high) {
+  .media.is-hdr .media-image {
+    dynamic-range-limit: no-limit;
+    /*
+     * 需要让图片自己成为一个合成层，否则 WebKit 会把 HDR 压回 SDR 渲染：
+     * 现在点一下帖子会加 transform: scale()，那一瞬间图会突然变亮，就是这个原因。
+     * translateZ(0) 只是把图层提起来，不改变任何观感。
+     */
+    transform: translateZ(0);
+  }
+}
+
+.media-hdr-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  pointer-events: none;
 }
 
 .media-image {
@@ -1220,10 +1280,30 @@ body {
     height: 22px;
   }
 
+  [data-theme="light"] .brand .logo-img.logo-light {
+    height: 24px;
+  }
+
+  /*
+   * 手机端把子菜单摊开在菜单里（占位、把后面的菜单项顶下去），
+   * 不要浮在「列数 / 注销」这些按钮上面：绝对定位时子菜单的盒子会盖住
+   * 下面的按钮，边缘和透明区域点下去很容易误触到下面的项。
+   */
   .submenu {
-    right: 0.4rem;
-    left: 0.4rem;
-    top: calc(100% + 4px);
+    position: static;
+    right: auto;
+    left: auto;
+    top: auto;
+    min-width: 0;
+    margin: 0.1rem 0 0.3rem;
+    padding: 0.15rem 0 0.25rem 0.55rem;
+    border-left: 2px solid var(--menu-line);
+  }
+
+  /* 手机端不需要那块浮起来的斜切底板 */
+  .submenu::before,
+  .submenu::after {
+    display: none;
   }
 
   .post {
@@ -1336,4 +1416,176 @@ body {
   .submenu.is-closing > * {
     animation: none;
   }
+}
+
+/*
+ * 按钮统一成斜切的平行四边形。
+ * 之前只有发帖、回帖、楼中楼操作那几个按钮是斜切的，其它（登录、保存、返回、
+ * 展开其余、关注、更换头像…）还是圆角胶囊，放在一起很跳。这里按「实心」和
+ * 「描边」两类统一成同一种斜切形状，保留主次关系。
+ * 用 html body 提高优先级，覆盖各页面里原先的圆角/填充定义。
+ */
+html body .primary-btn,
+html body .post-btn,
+html body .thread-more,
+html body .notice-more,
+html body .retry-btn,
+html body .saved-remove {
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-text);
+  font-weight: 700;
+}
+
+html body .primary-btn::before,
+html body .post-btn::before,
+html body .thread-more::before,
+html body .notice-more::before,
+html body .retry-btn::before,
+html body .saved-remove::before {
+  content: "";
+  position: absolute;
+  inset: 0.08rem 0.04rem;
+  z-index: -1;
+  background: var(--ink);
+  transform: skewX(-12deg);
+  transition: opacity 150ms ease;
+}
+
+html body .primary-btn:hover:not(:disabled),
+html body .post-btn:hover:not(:disabled),
+html body .thread-more:hover,
+html body .notice-more:hover,
+html body .retry-btn:hover,
+html body .saved-remove:hover {
+  background: none;
+}
+
+html body .primary-btn:hover:not(:disabled)::before,
+html body .post-btn:hover:not(:disabled)::before,
+html body .thread-more:hover::before,
+html body .notice-more:hover::before,
+html body .retry-btn:hover::before,
+html body .saved-remove:hover::before {
+  opacity: 0.84;
+}
+
+html body .primary-btn:disabled,
+html body .post-btn:disabled,
+html body .thread-more:disabled {
+  background: none;
+}
+
+/* 次要按钮：同样是斜切，只画斜边框，保持次级观感 */
+html body .ghost-btn,
+html body .follow-btn,
+html body .back-btn,
+html body .chat-recall,
+html body .search-exit,
+html body .avatar-crop-label,
+html body .header-crop-label {
+  position: relative;
+  isolation: isolate;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+html body .ghost-btn::before,
+html body .follow-btn::before,
+html body .back-btn::before,
+html body .chat-recall::before,
+html body .search-exit::before,
+html body .avatar-crop-label::before,
+html body .header-crop-label::before {
+  content: "";
+  position: absolute;
+  inset: 0.05rem 0.02rem;
+  z-index: -1;
+  border: 1px solid var(--color-border-strong);
+  transform: skewX(-12deg);
+  transition:
+    border-color 150ms ease,
+    opacity 150ms ease;
+}
+
+html body .ghost-btn:hover:not(:disabled),
+html body .follow-btn:hover:not(:disabled),
+html body .back-btn:hover,
+html body .chat-recall:hover,
+html body .search-exit:hover,
+html body .avatar-crop-label:hover,
+html body .header-crop-label:hover {
+  background: none;
+}
+
+html body .ghost-btn:hover:not(:disabled)::before,
+html body .follow-btn:hover:not(:disabled)::before,
+html body .back-btn:hover::before,
+html body .chat-recall:hover::before,
+html body .search-exit:hover::before,
+html body .avatar-crop-label:hover::before,
+html body .header-crop-label:hover::before {
+  border-color: var(--color-accent);
+}
+
+/*
+ * 帖子/回帖下面那排「回帖 · 转发 · 喜欢 · 收藏 · 分享」平时是裸图标，
+ * 只有悬停时出现底色，而底色原本是圆角的——这里也统一成斜切。
+ *
+ * 注意只能限定在「裸图标行」里（.actions / .thread-reply-actions）：
+ * 帖子页右栏「互动」那排按钮是 .post-control-actions 下的 .action，
+ * 它们平时就靠 ::before 的实心色块当按钮本体，如果被下面这条 opacity:0 命中，
+ * 整排按钮在静止状态就彻底看不见了，只有悬停才冒出来。
+ */
+html body :is(.actions, .thread-reply-actions) .action {
+  position: relative;
+  isolation: isolate;
+  border-radius: 0;
+  background: none;
+}
+
+html body :is(.actions, .thread-reply-actions) .action::before {
+  content: "";
+  position: absolute;
+  inset: 0.04rem 0.02rem;
+  z-index: -1;
+  background: var(--color-accent-soft);
+  transform: skewX(-12deg);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+html body :is(.actions, .thread-reply-actions) .action:hover::before {
+  opacity: 1;
+}
+
+html body :is(.actions, .thread-reply-actions) .action:hover,
+html body :is(.actions, .thread-reply-actions) .action.is-liked:hover,
+html body :is(.actions, .thread-reply-actions) .action.is-reposted:hover {
+  background: none;
+}
+
+html body :is(.actions, .thread-reply-actions) .action.is-liked::before {
+  background: color-mix(in srgb, var(--like) 12%, transparent);
+}
+
+html body :is(.actions, .thread-reply-actions) .action.is-reposted::before {
+  background: color-mix(in srgb, var(--repost) 12%, transparent);
+}
+
+html body :is(.actions, .thread-reply-actions) .action.is-saved::before {
+  background: color-mix(in srgb, var(--save, #1d9bf0) 12%, transparent);
+}
+
+/* 右栏「互动」那排是实心色块按钮，悬停时和别的实心按钮一样轻微压暗 */
+html body .post-control-actions .action::before {
+  transition: opacity 150ms ease;
+}
+
+html body .post-control-actions .action:hover::before {
+  opacity: 0.84;
 }

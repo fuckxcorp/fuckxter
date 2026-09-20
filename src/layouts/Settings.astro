@@ -350,6 +350,26 @@ const sectionTitles: Record<SettingsSection, string> = {
             <h3 class="settings-title">访问控制</h3>
 
             <div class="security-forms">
+              <div class="fieldset" data-role="dm-policy-form">
+                <p class="fieldset-title">私信权限</p>
+                <p class="form-hint">
+                  决定谁可以给你发私信。已经存在的会话不受影响，只是对方不能再发新的。
+                </p>
+                <label class="field">
+                  <span class="field-label">谁可以私信我</span>
+                  <select data-role="dm-policy" name="dmPolicy">
+                    <option value="everyone">所有人</option>
+                    <option value="mutual">仅互相关注的人</option>
+                    <option value="nobody">不接收私信</option>
+                  </select>
+                </label>
+                <p
+                  class="form-status"
+                  data-role="dm-policy-status"
+                  aria-live="polite"
+                />
+              </div>
+
               <form class="fieldset" data-role="email-form" novalidate>
                 <p class="fieldset-title">更改邮箱</p>
                 <p class="form-hint">
@@ -682,29 +702,35 @@ const sectionTitles: Record<SettingsSection, string> = {
 <script>
   import { mountSettings } from "../lib/settings";
   import { onPageReady } from "../lib/core/page";
+  import { hidePanel, isPanelOpen, showPanel } from "../lib/ui/dom";
 
   onPageReady(() => {
     const root = document.querySelector<HTMLElement>("[data-settings]");
-    if (!root) return;
+    // 注意别用 settingsMounted：那个标记归 mountSettings() 用，
+    // 这里先占掉的话它一进来就 return，返回键/保存/换头像这些都不会被绑定。
+    if (!root || root.dataset.settingsMenuMounted === "true") return;
+    root.dataset.settingsMenuMounted = "true";
     const menuTrigger = root.querySelector<HTMLButtonElement>(
       "[data-role=settings-menu-trigger]",
     )!;
     const menu = root.querySelector<HTMLElement>("[data-role=settings-menu]")!;
     const closeMenu = () => {
-      menu.hidden = true;
+      // hidePanel 会先挂 is-closing 播完退场动画再 hidden，避免点下去“啪”地消失
+      hidePanel(menu);
       menuTrigger.setAttribute("aria-expanded", "false");
     };
     menuTrigger.addEventListener("click", (event) => {
       event.stopPropagation();
-      const willOpen = menu.hidden;
-      menu.hidden = !willOpen;
+      const willOpen = !isPanelOpen(menu);
+      if (willOpen) showPanel(menu);
+      else hidePanel(menu);
       menuTrigger.setAttribute("aria-expanded", String(willOpen));
     });
     menu.addEventListener("click", closeMenu);
     document.addEventListener("click", (event) => {
       const target = event.target as Node;
       if (
-        !menu.hidden &&
+        isPanelOpen(menu) &&
         !menu.contains(target) &&
         !menuTrigger.contains(target)
       ) {

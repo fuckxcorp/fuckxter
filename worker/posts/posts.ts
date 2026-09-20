@@ -67,6 +67,11 @@ function isPostIdConflict(error: unknown): boolean {
   );
 }
 
+/** 附件是图片、并且发帖人勾了「HDR 显示」才记这个标记。 */
+function isDisplayHdr(contentType: string | null, hdr: boolean): boolean {
+  return Boolean(hdr) && (contentType ?? "").startsWith("image/");
+}
+
 export type PostVisibility = "public" | "mutual" | "private";
 
 export function normalizeVisibility(value: unknown): PostVisibility {
@@ -400,6 +405,7 @@ export async function createPost(
   text: string,
   mediaId?: string,
   visibility: PostVisibility = "public",
+  hdr = false,
 ) {
   const cleanText = text.trim();
   if (!cleanText) throw new HttpError(400, "EMPTY_POST", "帖子内容不能为空。");
@@ -430,6 +436,8 @@ export async function createPost(
       alt: media.original_name,
       contentType: media.content_type,
       byteSize: Number(media.byte_size),
+      // 只有图片才谈得上 HDR 显示（HDR 视频、音频之类以后再说）
+      ...(isDisplayHdr(media.content_type, hdr) ? { hdr: true } : {}),
     });
   }
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -458,6 +466,7 @@ export async function updatePost(
   postId: string,
   text: string,
   visibility?: PostVisibility,
+  hdr?: boolean,
 ) {
   const cleanText = text.trim();
   if (!cleanText) throw new HttpError(400, "EMPTY_POST", "帖子内容不能为空。");
@@ -465,20 +474,48 @@ export async function updatePost(
     throw new HttpError(400, "POST_TOO_LONG", "帖子不能超过 1000 个字符。");
   }
   const post = await env.DB.prepare(
-    "SELECT author_id FROM posts WHERE id = ? AND deleted_at IS NULL",
+    `SELECT author_id, media_json
+     FROM posts WHERE id = ? AND deleted_at IS NULL`,
   )
     .bind(postId)
-    .first<{ author_id: string }>();
+    .first<{ author_id: string; media_json: string | null }>();
   if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
   if (post.author_id !== userId) {
     throw new HttpError(403, "FORBIDDEN", "无法编辑这条帖子。");
   }
+  let mediaJson = post.media_json;
+  if (hdr !== undefined && mediaJson) {
+    try {
+      const media = JSON.parse(mediaJson) as {
+        contentType?: unknown;
+        hdr?: unknown;
+      };
+      const contentType =
+        typeof media.contentType === "string" ? media.contentType : "";
+      if (contentType.startsWith("image/")) {
+        if (isDisplayHdr(contentType, hdr)) media.hdr = true;
+        else delete media.hdr;
+        mediaJson = JSON.stringify(media);
+      }
+    } catch {
+      // media_json 坏了就别动它，编辑正文本身不该因此失败
+    }
+  }
   await env.DB.prepare(
     `UPDATE posts
-     SET text = ?, visibility = COALESCE(?, visibility), updated_at = ?
+     SET text = ?,
+         visibility = COALESCE(?, visibility),
+         media_json = COALESCE(?, media_json),
+         updated_at = ?
      WHERE id = ?`,
   )
-    .bind(cleanText, visibility ?? null, new Date().toISOString(), postId)
+    .bind(
+      cleanText,
+      visibility ?? null,
+      mediaJson,
+      new Date().toISOString(),
+      postId,
+    )
     .run();
   return getPostById(env, userId, postId);
 }
@@ -661,14 +698,15 @@ export async function searchPosts(
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 50`,
     ).bind(
+      // 顺序必须和 SQL 里的占位符一致：POST_SELECT 的四个 -> 可见范围过滤 -> LIKE
       viewerId ?? "",
       viewerId ?? "",
       viewerId ?? "",
       viewerId ?? "",
-      pattern,
-      pattern,
-      pattern,
       ...filter.params,
+      pattern,
+      pattern,
+      pattern,
     ),
   );
   return { query, posts: rows.map((row) => publicPost(row, viewerId)) };

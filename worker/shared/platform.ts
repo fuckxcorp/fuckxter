@@ -128,6 +128,8 @@ export interface UserRow {
   birthday: string;
   avatar_media_id: string | null;
   avatar_key: string | null;
+  /** 私信权限：everyone | mutual | nobody */
+  dm_policy: string;
   totp_secret: string | null;
   two_factor_enabled: number;
   deleted_at: string | null;

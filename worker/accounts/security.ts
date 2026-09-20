@@ -112,6 +112,7 @@ export async function accountFromRow(
     }),
     twoFactorEnabled: Boolean(row.two_factor_enabled),
     recoveryCodeCount: Number(row.recovery_code_count ?? 0),
+    dmPolicy: row.dm_policy ?? "everyone",
     createdAt: row.created_at,
   };
 }

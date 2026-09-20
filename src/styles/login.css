@@ -1,7 +1,19 @@
-.login-page {
+/*
+ * 本页的 CSS 是被内联在 Layout 样式表之前的，全局的 .app
+ * （display:flex; flex-direction:column; height:100dvh）会盖掉这里的
+ * display:grid，于是 place-items 失效、登录卡片就贴在页面顶部了。
+ * 所以用 .app.login-page 提高优先级，并且把 flex 下的居中方式也一起写上；
+ * 外加 height:auto + min-height，窗口很矮时内容能撑开而不是被压扁。
+ */
+.app.login-page {
   display: grid;
   place-items: center;
-  padding: 2rem 1.25rem 3rem;
+  align-content: center;
+  justify-content: center;
+  height: auto;
+  min-height: 100dvh;
+  /* 上下留白对称，卡片才会正好落在视口垂直中心 */
+  padding: 2rem 1.25rem;
 }
 
 .login-split {

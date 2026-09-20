@@ -38,10 +38,11 @@ export function createPost(
   text: string,
   mediaId?: string,
   visibility: Post["visibility"] = "public",
+  hdr = false,
 ): Promise<Post> {
   return apiRequest<Post>("/posts", {
     method: "POST",
-    body: JSON.stringify({ text, mediaId, visibility }),
+    body: JSON.stringify({ text, mediaId, visibility, hdr }),
   });
 }
 
@@ -49,10 +50,11 @@ export function updatePost(
   id: string,
   text: string,
   visibility?: Post["visibility"],
+  hdr?: boolean,
 ): Promise<Post> {
   return apiRequest<Post>(`/posts/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    body: JSON.stringify({ text, visibility }),
+    body: JSON.stringify({ text, visibility, hdr }),
   });
 }
 

@@ -188,6 +188,12 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaPreviewImage = container.querySelector<HTMLImageElement>(
     "[data-role=media-preview-image]",
   )!;
+  const mediaHdrWrap = container.querySelector<HTMLElement>(
+    "[data-role=media-hdr-wrap]",
+  )!;
+  const mediaHdrInput = container.querySelector<HTMLInputElement>(
+    "[data-role=media-hdr]",
+  )!;
   const mediaStorageWrap = container.querySelector<HTMLElement>(
     "[data-role=media-storage-wrap]",
   )!;
@@ -223,10 +229,24 @@ export function mountFeed(container: HTMLElement): FeedControls {
     container.querySelector<HTMLElement>(".composer .avatar")!;
   let selectedMedia: PostMedia | null = null;
 
+  /** HDR 只对图片有意义，别的附件类型一律不给这个选项。 */
+  const canUseHdr = (media: PostMedia | null | undefined): boolean =>
+    Boolean(media?.contentType?.startsWith("image/"));
+
+  const applyHdrPreview = () => {
+    mediaPreview.classList.toggle("is-hdr", mediaHdrInput.checked);
+  };
+
+  const readHdrChoice = (): boolean =>
+    canUseHdr(selectedMedia) && mediaHdrInput.checked;
+
   /** 把已选/已有的图片直接显示在按钮下面，尺寸和帖子里的图片一致 */
   const showMediaPreview = (media: PostMedia | null | undefined) => {
     if (!media) {
       mediaPreview.hidden = true;
+      mediaHdrWrap.hidden = true;
+      mediaHdrInput.checked = false;
+      applyHdrPreview();
       mediaPreviewImage.removeAttribute("src");
       return;
     }
@@ -234,6 +254,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
       ? apiEndpoint(media.url)
       : media.url;
     mediaPreviewImage.alt = media.alt;
+    mediaHdrWrap.hidden = !canUseHdr(media);
+    mediaHdrInput.checked = canUseHdr(media) && media.hdr === true;
+    applyHdrPreview();
     mediaPreview.hidden = false;
   };
   let uploadingMedia = false;
@@ -1021,6 +1044,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     mediaInput.click();
   });
 
+  mediaHdrInput.addEventListener("change", applyHdrPreview);
+
   mediaInput.addEventListener("change", async () => {
     const file = mediaInput.files?.[0];
     if (!file) return;
@@ -1077,9 +1102,19 @@ export function mountFeed(container: HTMLElement): FeedControls {
     mediaStatus.hidden = true;
     try {
       if (editingPostId) {
-        await updatePost(editingPostId, text, selectedVisibility);
+        await updatePost(
+          editingPostId,
+          text,
+          selectedVisibility,
+          readHdrChoice(),
+        );
       } else {
-        await createPost(text, selectedMedia?.id, selectedVisibility);
+        await createPost(
+          text,
+          selectedMedia?.id,
+          selectedVisibility,
+          readHdrChoice(),
+        );
       }
       if (state.search !== null) {
         searchInput.value = "";

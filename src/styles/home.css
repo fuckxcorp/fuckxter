@@ -354,7 +354,6 @@ html.menu-open .main {
   margin-top: 0.7rem;
   width: fit-content;
   max-width: min(100%, 320px);
-  max-height: 190px;
   padding: 0.25rem;
   border-radius: 12px;
   overflow: hidden;
@@ -365,6 +364,17 @@ html.menu-open .main {
   display: none;
 }
 
+.composer-preview.is-hdr {
+  background: #000;
+}
+
+/* 和帖子里的 HDR 图一样，预览也要有自己的合成层，WebKit 才会按 HDR 渲染 */
+@media (dynamic-range: high) {
+  .composer-preview.is-hdr .media-image {
+    transform: translateZ(0);
+  }
+}
+
 .composer-preview .media-image {
   width: auto;
   height: auto;
@@ -372,6 +382,34 @@ html.menu-open .main {
   max-height: 180px;
   border-radius: 10px;
   object-fit: contain;
+}
+
+/* 附件是图片时才出现的 HDR 开关 */
+.hdr-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.15rem 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.hdr-toggle[hidden] {
+  display: none;
+}
+
+.hdr-toggle input {
+  accent-color: var(--color-accent);
+  margin: 0;
+}
+
+.hdr-toggle .hdr-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
 }
 
 .composer-picker[hidden] {
