@@ -12,12 +12,6 @@ jobs:
     name: Esta revolucion no va a la televisiar
     runs-on: ubuntu-latest
     steps:
-      - name: Apply D1 migrations
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: d1 migrations apply DB --remote
-
       - name: Just build, Don't worry
         uses: moaeiou/moaeiou/actions/buildnode@main
         with:

@@ -6,16 +6,16 @@
     "node": ">=24.21.0"
   },
   "scripts": {
-    "api:dev": "wrangler dev --port 8787",
-    "api:deploy": "wrangler deploy",
-    "api:migrate:local": "wrangler d1 migrations apply DB --local",
-    "api:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
     "format": "prettier . --write",
-    "check": "astro check && prettier . --check"
+    "check": "astro check && prettier . --check",
+    "api:dev": "wrangler dev --port 8787",
+    "api:deploy": "wrangler deploy",
+    "api:migrate:local": "wrangler d1 migrations apply DB --local",
+    "api:migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
     "astro": "7.3.3",
@@ -25,7 +25,7 @@
     "@astrojs/check": "^0.9.10",
     "prettier": "^3.9.8",
     "prettier-plugin-astro": "^1.0.1",
-    "wrangler": "^4.135.0"
+    "wrangler": "^4.136.0"
   },
   "packageManager": "pnpm@12.5.1+sha512.e3f305bc784a2bc89f5ad3b6138889470fae8d2af5f36b61216ec91c2c3d64089775f9de38aac331044ea40f245cb0d5666392dfdf65824e1907ef6a2c62de5f"
 }

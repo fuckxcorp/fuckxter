@@ -21,15 +21,15 @@ binding = "IMAGES"
 remote = true
 
 [vars]
-FUCKXTER_ORIGINS = "http://localhost:4321,http://127.0.0.1:4321,https://fuckxter.site,https://www.fuckxter.site"
+FUCKXTER_ORIGINS = "http://localhost:4321,http://127.0.0.1:4321,http://[::1]:4321,https://api.fuckxter.site,https://fuckxter.site,https://www.fuckxter.site"
 
 [[routes]]
-pattern = "fuckxter.site/*"
-zone_name = "fuckxter.site"
+pattern = "fuckxter.site"
+custom_domain = true
 
 [[routes]]
-pattern = "www.fuckxter.site/*"
-zone_name = "fuckxter.site"
+pattern = "www.fuckxter.site"
+custom_domain = true
 
 [[routes]]
 pattern = "api.fuckxter.site"
