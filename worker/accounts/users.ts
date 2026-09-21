@@ -1,7 +1,12 @@
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
 import { usernameKey } from "./usernames";
-import { buildAvatarUrl, buildHeaderUrl, headerObjectKey } from "./avatar";
+import {
+  buildAvatarUrl,
+  buildHeaderUrl,
+  headerExists,
+  headerObjectKey,
+} from "./avatar";
 import {
   createNotification,
   deleteNotification,
@@ -163,13 +168,12 @@ export async function getUserProfile(
     )
     .first<ProfileRow>();
   if (!row) return null;
-  const header = await env.MEDIA_CACHE.head(headerObjectKey(row.handle));
   return publicProfile(
     row,
     buildHeaderUrl({
       handle: row.handle,
       updatedAt: row.updated_at,
-      exists: Boolean(header),
+      exists: await headerExists(env, row.handle),
     }),
   );
 }

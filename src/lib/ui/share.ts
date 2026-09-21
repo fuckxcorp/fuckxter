@@ -1,3 +1,4 @@
+import { hidePanel, showPanel } from "./dom";
 import type { Post } from "../core/types";
 import { postPath } from "../core/urls";
 
@@ -56,7 +57,7 @@ function shareMenuButton(
 ): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "share-menu-item";
+  button.className = "menu-item share-menu-item";
   button.setAttribute("role", "menuitem");
 
   const strong = document.createElement("strong");
@@ -75,10 +76,11 @@ export function openPostShareMenu(
     document.querySelector("[data-share-menu]")?.remove();
 
     const menu = document.createElement("div");
-    menu.className = "share-menu";
+    menu.className = "submenu share-menu";
     menu.dataset.shareMenu = "";
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "分享帖子");
+    menu.hidden = true;
     anchor.setAttribute("aria-expanded", "true");
 
     const canUseSystemShare =
@@ -93,6 +95,7 @@ export function openPostShareMenu(
     const copyLink = shareMenuButton("复制链接", "复制这条帖子的网址");
     menu.append(systemShare, copyLink);
     document.body.append(menu);
+    showPanel(menu);
 
     const placeMenu = () => {
       const rect = anchor.getBoundingClientRect();
@@ -120,8 +123,11 @@ export function openPostShareMenu(
       window.removeEventListener("resize", onViewportChange);
       window.removeEventListener("scroll", onViewportChange, true);
       anchor.removeAttribute("aria-expanded");
-      menu.remove();
-      resolve(result);
+      hidePanel(menu);
+      window.setTimeout(() => {
+        menu.remove();
+        resolve(result);
+      }, 360);
     };
     const onViewportChange = () => finish("cancelled");
     const onPointerDown = (event: PointerEvent) => {

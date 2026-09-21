@@ -148,7 +148,6 @@ function searchUsersSection(result: SearchResult): HTMLElement | null {
 }
 
 export function mountFeed(container: HTMLElement): FeedControls {
-  const scroller = container.querySelector<HTMLElement>(".main")!;
   const feed = container.querySelector<HTMLElement>(".feed")!;
   const sentinel = container.querySelector<HTMLElement>(".sentinel")!;
   const spinner = sentinel.querySelector<HTMLElement>(".spinner")!;
@@ -565,7 +564,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
           });
       }
     },
-    { root: scroller, rootMargin: "0px 0px -10% 0px", threshold: 0.45 },
+    { root: null, rootMargin: "0px 0px -10% 0px", threshold: 0.45 },
   );
 
   const resetFeed = (head?: HTMLElement): void => {
@@ -604,8 +603,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const sentinelReached = (): boolean => {
     const rect = sentinel.getBoundingClientRect();
-    const view = scroller.getBoundingClientRect();
-    return rect.top - view.bottom < 360;
+    return rect.top - window.innerHeight < 360;
   };
 
   const renderError = (retry: () => void) => {
@@ -778,7 +776,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     closeComposerPickers();
   });
 
-  scroller.addEventListener("scroll", closeComposerPickers, { passive: true });
+  window.addEventListener("scroll", closeComposerPickers, { passive: true });
 
   const accountMenuObserver = accountMenu
     ? new MutationObserver(() => {
@@ -815,7 +813,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     (entries) => {
       if (entries.some((entry) => entry.isIntersecting)) void loadPage(false);
     },
-    { root: scroller, rootMargin: "360px" },
+    { root: null, rootMargin: "360px" },
   );
   observer.observe(sentinel);
 
@@ -848,7 +846,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         const query = `#${inlineLink.dataset.hashtag}`;
         searchInput.value = query;
         void doSearch(query);
-        scroller.scrollTo({ top: 0 });
+        window.scrollTo({ top: 0 });
       } else if (inlineLink.dataset.mention) {
         void navigate(userPath(inlineLink.dataset.mention));
       }
@@ -1124,7 +1122,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       state.cursor = null;
       state.done = false;
       resetComposer();
-      scroller.scrollTo({ top: 0 });
+      window.scrollTo({ top: 0 });
       await loadPage(true);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -1162,7 +1160,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       viewObserver.disconnect();
       accountMenuObserver?.disconnect();
       closeComposerPickers();
-      scroller.removeEventListener("scroll", closeComposerPickers);
+      window.removeEventListener("scroll", closeComposerPickers);
       for (const [query] of COLUMN_QUERIES) {
         matchMedia(query).removeEventListener("change", onMediaChange);
       }

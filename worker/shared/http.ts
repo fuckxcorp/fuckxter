@@ -13,12 +13,19 @@ function allowedOrigins(env: Env): string[] {
  */
 function isLoopbackHostname(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  return (
+  if (
     host === "localhost" ||
     host === "::1" ||
     host.endsWith(".localhost") ||
     host.startsWith("127.")
-  );
+  ) {
+    return true;
+  }
+  if (host.startsWith("10.") || host.startsWith("192.168.")) return true;
+  const match = host.match(/^172\.(\d+)\./);
+  if (!match) return false;
+  const second = Number(match[1]);
+  return second >= 16 && second <= 31;
 }
 
 /**
