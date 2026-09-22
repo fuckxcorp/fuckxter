@@ -2,6 +2,12 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Attach to Integrated Browser",
+      "request": "attach",
+      "type": "editor-browser",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
       "command": "./node_modules/.bin/astro dev",
       "name": "Development server",
       "request": "launch",

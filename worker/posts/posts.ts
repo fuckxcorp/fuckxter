@@ -27,7 +27,7 @@ const POST_SELECT = `
     (SELECT COUNT(*) FROM comments c
       WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS reply_count,
     (SELECT COUNT(*) FROM reposts rp WHERE rp.post_id = p.id) AS repost_count,
-    (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+    p.like_count,
     EXISTS(
       SELECT 1 FROM likes vl
       WHERE vl.post_id = p.id AND vl.user_id = ?
@@ -210,7 +210,7 @@ export async function getTimeline(
   // 推荐流没有算法：按点赞量排序，点赞数相同就按时间。
   // 每个赞的分量一样，新帖在 0 赞档里也能靠时间拿到曝光。
   const byLikes = resolved === "foryou";
-  const likeCount = "(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)";
+  const likeCount = "p.like_count";
 
   if (resolved === "following") {
     if (!viewerId) {

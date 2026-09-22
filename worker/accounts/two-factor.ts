@@ -6,6 +6,17 @@ import {
   type Bytes,
 } from "../shared/crypto";
 import type { Env } from "../shared/platform";
+import { HttpError } from "../shared/http";
+
+async function credentialId(env: Env, userId: string): Promise<string> {
+  const user = await env.DB.prepare(
+    "SELECT credential_id FROM users WHERE id = ?",
+  )
+    .bind(userId)
+    .first<{ credential_id: string }>();
+  if (!user) throw new HttpError(401, "UNAUTHORIZED", "请先登录。");
+  return user.credential_id;
+}
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const TOTP_PERIOD_SECONDS = 30;
@@ -110,7 +121,7 @@ export function randomRecoveryCode(): string {
  * 恢复码的存储哈希：HMAC(派生密钥, 用户 id + 规范化后的码)。
  * 绑定用户后，同一个码属于不同用户会得到不同哈希，跨用户碰撞不再有意义。
  */
-export function recoveryCodeHash(
+export async function recoveryCodeHash(
   env: Env,
   userId: string,
   code: string,
@@ -118,12 +129,12 @@ export function recoveryCodeHash(
   return hmacSha256(
     env,
     KEY_PURPOSE_RECOVERY_CODE,
-    `${userId}:${normalizeRecoveryCode(code)}`,
+    `${await credentialId(env, userId)}:${normalizeRecoveryCode(code)}`,
   );
 }
 
 /** 校验时把所有候选主密钥的哈希都算出来，换过主密钥的老恢复码也还算数。 */
-export function recoveryCodeHashes(
+export async function recoveryCodeHashes(
   env: Env,
   userId: string,
   code: string,
@@ -131,7 +142,7 @@ export function recoveryCodeHashes(
   return hmacSha256All(
     env,
     KEY_PURPOSE_RECOVERY_CODE,
-    `${userId}:${normalizeRecoveryCode(code)}`,
+    `${await credentialId(env, userId)}:${normalizeRecoveryCode(code)}`,
   );
 }
 
@@ -145,16 +156,12 @@ export async function consumeRecoveryCode(
 ): Promise<boolean> {
   const hashes = await recoveryCodeHashes(env, userId, code);
   const row = await env.DB.prepare(
-    `SELECT id FROM recovery_codes
+    `UPDATE recovery_codes SET used_at = ?
      WHERE user_id = ? AND code_hash IN (${hashes.map(() => "?").join(", ")})
        AND used_at IS NULL
-     LIMIT 1`,
+     RETURNING id`,
   )
-    .bind(userId, ...hashes)
+    .bind(new Date().toISOString(), userId, ...hashes)
     .first<{ id: string }>();
-  if (!row) return false;
-  await env.DB.prepare("UPDATE recovery_codes SET used_at = ? WHERE id = ?")
-    .bind(new Date().toISOString(), row.id)
-    .run();
-  return true;
+  return Boolean(row);
 }

@@ -159,7 +159,7 @@ export async function loginOrRegister(
         const secret = await decryptSecret(
           user.totp_secret ?? "",
           env,
-          `user:${user.id}:totp`,
+          `user:${user.credential_id}:totp`,
         );
         if (!(await verifyTotp(secret, code.trim()))) {
           throw new HttpError(401, "INVALID_TOTP", "动态验证码不正确。");
@@ -194,12 +194,13 @@ export async function loginOrRegister(
     try {
       await env.DB.prepare(
         `INSERT INTO users (
-           id, handle, email, password_hash, password_salt, name, verified,
+           id, credential_id, handle, email, password_hash, password_salt, name, verified,
            bio, region, gender, birthday, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, 0, '', '', '', '', ?, ?)`,
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, '', '', '', '', ?, ?)`,
       )
         .bind(
           handleKey,
+          randomId(),
           handle,
           email,
           passwordValue.hash,
@@ -402,6 +403,12 @@ export async function changePassword(
 }
 
 export async function beginTwoFactor(env: Env, userId: string) {
+  const user = await env.DB.prepare(
+    "SELECT credential_id FROM users WHERE id = ?",
+  )
+    .bind(userId)
+    .first<{ credential_id: string }>();
+  if (!user) throw new HttpError(401, "UNAUTHORIZED", "请先登录。");
   const secret = generateTotpSecret();
   await env.DB.prepare(
     `UPDATE users
@@ -409,7 +416,7 @@ export async function beginTwoFactor(env: Env, userId: string) {
      WHERE id = ?`,
   )
     .bind(
-      await encryptSecret(secret, env, `user:${userId}:totp`),
+      await encryptSecret(secret, env, `user:${user.credential_id}:totp`),
       new Date().toISOString(),
       userId,
     )
@@ -427,7 +434,7 @@ export async function confirmTwoFactor(env: Env, userId: string, code: string) {
   const secret = await decryptSecret(
     user.totp_secret,
     env,
-    `user:${userId}:totp`,
+    `user:${user.credential_id}:totp`,
   );
   if (!(await verifyTotp(secret, code.trim()))) {
     throw new HttpError(400, "INVALID_TOTP", "动态验证码不正确。");

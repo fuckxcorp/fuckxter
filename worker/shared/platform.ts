@@ -110,12 +110,14 @@ export interface Env {
   KV: KVStore;
   JOBS: QueueProducer<Job>;
   FUCKXTER_ORIGINS: string;
+  FUCKXTER_DEV?: string;
   /** 可选：加密 TOTP 密钥的主密钥。不配就用 D1 里自动生成的那把。 */
   FUCKXTER_SECRET?: string;
 }
 
 export interface UserRow {
   id: string;
+  credential_id: string;
   handle: string;
   email: string;
   password_hash: string;

@@ -14,11 +14,13 @@ import Header from "../../components/Header.astro";
         <section class="user-head" data-role="user-head" aria-label="用户资料">
           <section class="user-head-card" data-role="user-card">
             <div class="user-row">
-              <a
-                class="user-avatar avatar-link"
+              <button
+                type="button"
+                class="user-avatar"
                 data-role="user-avatar"
-                href="#"
-                aria-label="用户主页"
+                aria-label="放大头像"
+                aria-haspopup="dialog"
+                disabled
               >
                 <span class="avatar-fallback" data-role="user-avatar-fallback">
                   ?
@@ -30,7 +32,7 @@ import Header from "../../components/Header.astro";
                   loading="eager"
                   decoding="async"
                 />
-              </a>
+              </button>
 
               <div class="user-who">
                 <div class="user-name-line">
@@ -176,6 +178,18 @@ import Header from "../../components/Header.astro";
       </div>
     </div>
   </div>
+  <dialog class="avatar-dialog" data-avatar-dialog aria-label="头像大图">
+    <button
+      type="button"
+      class="avatar-dialog-close"
+      aria-label="关闭"
+      title="关闭"
+      autofocus
+    >
+      &times;
+    </button>
+    <img alt="" />
+  </dialog>
 </Layout>
 
 <script>
@@ -233,7 +247,7 @@ import Header from "../../components/Header.astro";
   ): void {
     const role = <T extends Element>(name: string): T =>
       card.querySelector<T>(`[data-role=user-${name}]`)!;
-    const avatar = role<HTMLAnchorElement>("avatar");
+    const avatar = role<HTMLButtonElement>("avatar");
     const avatarFallback = role<HTMLSpanElement>("avatar-fallback");
     const avatarImage = role<HTMLImageElement>("avatar-image");
     const verified = role<HTMLElement>("verified");
@@ -245,12 +259,12 @@ import Header from "../../components/Header.astro";
     const followingChip = role<HTMLAnchorElement>("chip-following");
     const deleted = Boolean(profile.deleted);
 
-    avatar.href = userPath(profile.handle);
+    avatar.disabled = false;
     avatar.dataset.handle = profile.handle;
-    avatar.title = profile.name;
+    avatar.title = "放大头像";
     avatar.setAttribute(
       "aria-label",
-      `查看 ${profile.name}（@${profile.handle}）的主页`,
+      `放大 ${profile.name}（@${profile.handle}）的头像`,
     );
     avatar.setAttribute("style", avatarGradient(profile.handle));
     avatarFallback.textContent =
@@ -469,6 +483,34 @@ import Header from "../../components/Header.astro";
       );
 
     const card = container.querySelector<HTMLElement>("[data-role=user-card]")!;
+    const avatar = card.querySelector<HTMLButtonElement>(
+      "[data-role=user-avatar]",
+    )!;
+    const avatarImage = card.querySelector<HTMLImageElement>(
+      "[data-role=user-avatar-image]",
+    )!;
+    const avatarDialog = document.querySelector<HTMLDialogElement>(
+      "[data-avatar-dialog]",
+    )!;
+    const enlargedAvatar = avatarDialog.querySelector<HTMLImageElement>("img")!;
+    avatar.addEventListener("click", () => {
+      enlargedAvatar.src = avatarImage.currentSrc || avatarImage.src;
+      enlargedAvatar.alt = avatarImage.alt;
+      avatarDialog.showModal();
+    });
+    avatarDialog
+      .querySelector("button")!
+      .addEventListener("click", () => avatarDialog.close());
+    avatarDialog.addEventListener("click", (event) => {
+      if (event.target === avatarDialog) avatarDialog.close();
+    });
+    enlargedAvatar.addEventListener("error", () => {
+      avatarDialog.close();
+      showToast("头像加载失败，请重试");
+    });
+    document.addEventListener("astro:before-swap", () => avatarDialog.close(), {
+      once: true,
+    });
     const userStatus = container.querySelector<HTMLElement>(
       "[data-role=user-status]",
     )!;
