@@ -1033,7 +1033,9 @@ html.menu-open body {
   margin-top: 0.65rem;
   border: 1px solid var(--color-border);
   border-radius: 14px;
-  max-height: 480px;
+  width: fit-content;
+  max-width: min(100%, 260px);
+  max-height: 400px;
   overflow: hidden;
 }
 
@@ -1074,9 +1076,9 @@ html.menu-open body {
 
 .media-image {
   display: block;
-  /* 按图片自身比例自适应，宽高都不超过帖子本体 */
-  max-width: 100%;
-  max-height: 480px;
+  /* 默认限制 260 × 400px，仍按图片自身比例展示。 */
+  max-width: min(100%, 260px);
+  max-height: 400px;
   width: auto;
   height: auto;
   object-fit: contain;

@@ -634,6 +634,25 @@
   line-height: 1.45;
 }
 
+/* 楼中楼与主回复使用同一套输入控件，只保留所在卡片的外层间距差异。 */
+.inline-composer .reply-composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  min-height: 2.8rem;
+  max-height: 360px;
+  padding: 0.4rem 0 1rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.inline-composer .reply-composer-input:focus {
+  border-color: transparent;
+}
+
 .thread-composer .side-comment-input:focus {
   border-color: transparent;
 }
@@ -937,59 +956,26 @@
 }
 
 .inline-composer {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.55rem 0.65rem 0.5rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 10px;
-  background: var(--color-bg);
+  padding: 0.45rem 0 0;
 }
 
-.inline-comment-input {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 3.4rem;
-  max-height: 200px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  resize: none;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg-subtle);
-  color: var(--color-text-strong);
-  font: inherit;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  outline: none;
-}
-
-.inline-comment-input:focus {
-  border-color: var(--color-accent);
-}
-
-.inline-composer-foot {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  justify-content: flex-end;
-}
-
-.inline-composer-foot .comment-count {
+.inline-composer .reply-composer-actions .comment-count {
   margin-right: auto;
 }
 
-.inline-send {
+.inline-composer .comment-submit {
   flex: none;
-  padding: 0.32rem 0.95rem;
-  font-size: 0.8rem;
+  border-radius: 0;
+  padding: 0.5rem 1.15rem;
+  background: none;
+  color: var(--ink-text);
 }
 
 .inline-cancel {
   flex: none;
 }
 
-/* 再深一层连头像列都不留，回帖对象靠上面的「回覆 @xxx」标出 */
+/* 再深一层连头像列都不留，回帖对象靠上面的「回复 @xxx」标出 */
 .thread-reply.is-deep {
   grid-template-columns: minmax(0, 1fr);
   padding: 0.6rem 0.7rem 0.7rem;

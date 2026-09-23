@@ -120,7 +120,7 @@ function renderComment(
   const handle = escapeHtml(comment.author.handle);
   const replies = children.get(comment.id) ?? [];
   const parent = comment.parent
-    ? `<div class="reply-quote"><strong>回覆 @${escapeHtml(comment.parent.handle)}</strong><span>：${escapeHtml(excerpt(comment.parent.text, 40))}</span></div>`
+    ? `<div class="reply-quote"><strong>回复 @${escapeHtml(comment.parent.handle)}</strong><span>：${escapeHtml(excerpt(comment.parent.text, 40))}</span></div>`
     : "";
   const nested = replies.length
     ? `<div class="thread-children">${replies.map((reply) => renderComment(reply, children)).join("")}</div>`

@@ -301,7 +301,7 @@ html:has(.avatar-dialog[open]) {
   opacity: 0.45;
 }
 
-/* 已拉黑是「可以按回解除」的狀態，用偏紅的深色底跟其他按鈕區隔。 */
+/* 已拉黑是「可以按回解除」的状态，用偏红的深色底和其他按钮区隔。 */
 .user-actions .block-btn.is-danger {
   background: color-mix(in srgb, var(--like) 55%, var(--ink));
 }

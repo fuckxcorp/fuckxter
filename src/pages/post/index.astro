@@ -408,12 +408,12 @@ import Header from "../../components/Header.astro";
         who.textContent = `↳ @${comment.parent.handle}`;
         quote.append(who);
       } else {
-        who.textContent = `回覆 @${comment.parent.handle}`;
+        who.textContent = `回复 @${comment.parent.handle}`;
         const snippet = el("span");
         snippet.textContent = `：${parentText.slice(0, 40)}`;
         quote.append(who, snippet);
       }
-      quote.title = `回覆 @${comment.parent.handle}：${parentText}`;
+      quote.title = `回复 @${comment.parent.handle}：${parentText}`;
       quote.addEventListener("click", () => {
         // 父回帖可能被折叠在楼中楼里，先展开再滚过去
         scrollToComment(
@@ -556,21 +556,36 @@ import Header from "../../components/Header.astro";
     }
 
     const me = getAccount();
-    const input = el(
-      "textarea",
-      "comment-input side-comment-input",
-    ) as HTMLTextAreaElement;
-    input.rows = 2;
-    input.placeholder = me ? "写下你的回帖" : "登录后才能回帖";
+    // 主回复和楼中楼共用同一套输入框布局与控件，避免两处越改越不一致。
+    const createReplyFields = (placeholder: string, ariaLabel: string) => {
+      const input = el(
+        "textarea",
+        "comment-input side-comment-input reply-composer-input",
+      ) as HTMLTextAreaElement;
+      input.rows = 2;
+      input.maxLength = MAX_COMMENT_CHARS;
+      input.placeholder = placeholder;
+      input.setAttribute("aria-label", ariaLabel);
+      const count = el("span", "comment-count");
+      count.textContent = `0 / ${MAX_COMMENT_CHARS}`;
+      const submit = el("button", "primary-btn comment-submit reply-submit");
+      submit.type = "button";
+      submit.textContent = "回复";
+      const actions = el(
+        "div",
+        "thread-composer-actions reply-composer-actions",
+      );
+      actions.append(count, submit);
+      return { input, count, submit, actions };
+    };
+    const {
+      input,
+      count,
+      submit,
+      actions: composerActions,
+    } = createReplyFields(me ? "写下你的回复" : "登录后才能回复", "回复内容");
     input.disabled = !me;
-    const submit = el("button", "primary-btn comment-submit");
-    submit.type = "button";
-    submit.textContent = "回帖";
     submit.disabled = !me;
-    const count = el("span", "comment-count");
-    count.textContent = `0 / ${MAX_COMMENT_CHARS}`;
-    const composerActions = el("div", "thread-composer-actions");
-    composerActions.append(count, submit);
     const composer = el("section", "thread-composer shard");
     composer.dataset.shard = postShard(`${post.id}:composer`);
     const composerAvatar = me
@@ -682,21 +697,17 @@ import Header from "../../components/Header.astro";
 
       const handle = comment.author.handle;
       const box = el("div", "inline-composer");
-      const input = el("textarea", "inline-comment-input");
-      input.rows = 2;
-      input.maxLength = MAX_COMMENT_CHARS;
-      input.placeholder = `回覆 @${handle}…`;
-      input.setAttribute("aria-label", `回覆 @${handle}`);
-      const foot = el("div", "inline-composer-foot");
-      const hint = el("span", "comment-count");
+      const {
+        input,
+        count: hint,
+        submit: send,
+        actions: foot,
+      } = createReplyFields(`回复 @${handle}…`, `回复 @${handle}`);
       const cancel = el("button", "thread-link-btn inline-cancel");
       cancel.type = "button";
       cancel.textContent = "取消";
-      const send = el("button", "primary-btn inline-send");
-      send.type = "button";
-      send.textContent = "回覆";
       send.disabled = true;
-      foot.append(hint, cancel, send);
+      foot.insertBefore(cancel, send);
       box.append(input, foot);
       host.replaceChildren(box);
       host.hidden = false;
@@ -721,7 +732,7 @@ import Header from "../../components/Header.astro";
         const text = input.value.trim();
         if (!text || send.dataset.busy === "true") return;
         send.dataset.busy = "true";
-        send.textContent = "回覆中…";
+        send.textContent = "回复中…";
         sync();
         try {
           const created = await createComment(post.id, text, comment.id);
@@ -733,7 +744,7 @@ import Header from "../../components/Header.astro";
             error instanceof Error ? error.message : "回帖失败";
         } finally {
           delete send.dataset.busy;
-          send.textContent = "回覆";
+          send.textContent = "回复";
           sync();
         }
       };
