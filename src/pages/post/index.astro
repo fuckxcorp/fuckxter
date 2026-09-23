@@ -110,12 +110,6 @@ import Header from "../../components/Header.astro";
       timeStyle: "short",
     });
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   const MAX_COMMENT_CHARS = 1000;
 
   function renderPostInfo(post: Post): HTMLElement {
@@ -153,14 +147,6 @@ import Header from "../../components/Header.astro";
       "互动数据",
       `${post.stats.replies} 回帖 · ${post.stats.reposts} 转发 · ${post.stats.likes} 喜欢 · ${fmtCount(post.stats.views ?? 0)} 次浏览`,
     );
-    row(
-      "媒体文件",
-      post.media
-        ? `${post.media.contentType.replace("image/", "").toUpperCase()} · ${formatBytes(post.media.byteSize)}`
-        : "无",
-    );
-    if (post.media?.alt) row("媒体描述", post.media.alt);
-
     box.append(title, author, rows);
     return box;
   }
@@ -937,7 +923,7 @@ import Header from "../../components/Header.astro";
       if (!text || !me || [...input.value].length > MAX_COMMENT_CHARS) return;
       submit.dataset.busy = "true";
       submit.disabled = true;
-      submit.textContent = "回帖中…";
+      submit.textContent = "回复中…";
       try {
         const created = await createComment(post.id, text);
         input.value = "";
@@ -951,7 +937,7 @@ import Header from "../../components/Header.astro";
           error instanceof Error ? error.message : "回帖失败";
       } finally {
         delete submit.dataset.busy;
-        submit.textContent = "回帖";
+        submit.textContent = "回复";
         syncCommentSubmit();
       }
     });
@@ -971,8 +957,8 @@ import Header from "../../components/Header.astro";
         input.focus();
       });
     }
-    // 没有边缘预渲染（例如开发时直接打开 Astro）才退回 API 加载。
-    if (!initialReplies) void refreshComments();
+    // 静态 HTML 先立即显示；随后只水合回帖列表，补齐回复、喜欢等交互。
+    void refreshComments();
     return { thread, composer };
   }
 
