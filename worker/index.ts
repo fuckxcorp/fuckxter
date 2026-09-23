@@ -68,6 +68,8 @@ import {
 } from "./posts/posts";
 import { withPostPageHtml } from "./posts/post-page";
 import { withHomePageHtml } from "./posts/home-page";
+import { withConnectionsPageHtml } from "./accounts/connections-page";
+import { withMessagesPageHtml } from "./messages/messages-page";
 import { testStorageConnection } from "./accounts/s3";
 import {
   accountFromRow,
@@ -1066,6 +1068,12 @@ export default {
         }
         if (assetPath === "/" && url.pathname === "/") {
           return await withHomePageHtml(request, env, response);
+        }
+        if (assetPath === "/connections/") {
+          return await withConnectionsPageHtml(request, env, url, response);
+        }
+        if (assetPath === "/messages/" && url.pathname === "/messages") {
+          return await withMessagesPageHtml(request, env, response);
         }
         return response;
       }

@@ -67,6 +67,7 @@ export interface QueueProducer<T> {
 /** HTMLRewriter 的最小类型（项目没有装 workers-types，手写一份够用的）。 */
 export interface HtmlElement {
   setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
   setInnerContent(content: string, options?: { html?: boolean }): void;
   append(content: string, options?: { html?: boolean }): void;
   replace(content: string, options?: { html?: boolean }): void;

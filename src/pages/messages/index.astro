@@ -447,7 +447,8 @@ import Layout from "../../layouts/Layout.astro";
 
     try {
       const page = await getConversations();
-      renderThreads(list, page.threads);
+      if (list.dataset.ssr !== "true") renderThreads(list, page.threads);
+      delete list.dataset.ssr;
       renderQuickStart(quickWrap, quickHint, quickList, page.suggestions ?? []);
       empty.hidden = page.threads.length > 0;
       summary.textContent =

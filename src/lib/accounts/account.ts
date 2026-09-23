@@ -185,8 +185,6 @@ export function mountAccountControls(
       signoutItems.hidden = false;
       accountBtn.setAttribute("aria-label", "账号菜单");
       accountBtn.title = "账号菜单";
-      void refreshUnreadNotifications(account.profile.handle);
-      void refreshUnreadMessages(account.profile.handle);
     } else {
       unreadRequestId += 1;
       messageRequestId += 1;
@@ -231,6 +229,10 @@ export function mountAccountControls(
   accountBtn.addEventListener("click", () => {
     if (!isPanelOpen(accountMenu)) {
       renderAccountUI();
+      if (account) {
+        void refreshUnreadNotifications(account.profile.handle);
+        void refreshUnreadMessages(account.profile.handle);
+      }
       showPanel(accountMenu);
       setPeeled(true);
       accountBtn.setAttribute("aria-expanded", "true");
@@ -306,20 +308,6 @@ export function mountAccountControls(
 
   renderAccountUI();
 
-  const onVisibilityChange = () => {
-    if (document.visibilityState === "visible" && account) {
-      void refreshUnreadNotifications(account.profile.handle);
-      void refreshUnreadMessages(account.profile.handle);
-    }
-  };
-  const unreadInterval = window.setInterval(() => {
-    if (document.visibilityState === "visible" && account) {
-      void refreshUnreadNotifications(account.profile.handle);
-      void refreshUnreadMessages(account.profile.handle);
-    }
-  }, 30_000);
-  document.addEventListener("visibilitychange", onVisibilityChange);
-
   return {
     sync: () => {
       account = getAccount();
@@ -329,8 +317,6 @@ export function mountAccountControls(
       setPeeled(false);
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("keydown", onMenuKeydown, true);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.clearInterval(unreadInterval);
     },
   };
 }

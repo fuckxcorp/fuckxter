@@ -238,13 +238,22 @@ const { columns = false } = Astro.props;
     if (!account || !container || account.dataset.mounted === "true") return;
     account.dataset.mounted = "true";
 
-    const controls = mountAccountControls(container, {
-      onAccountChange: () =>
-        document.dispatchEvent(new Event("fuckxter:account-change")),
-    });
-    void hydrateSession().then(controls.sync);
-    document.addEventListener("astro:before-swap", controls.dispose, {
-      once: true,
+    let disposed = false;
+    let controls: ReturnType<typeof mountAccountControls> | undefined;
+    document.addEventListener(
+      "astro:before-swap",
+      () => {
+        disposed = true;
+        controls?.dispose();
+      },
+      { once: true },
+    );
+    void hydrateSession().then(() => {
+      if (disposed || !account.isConnected) return;
+      controls = mountAccountControls(container, {
+        onAccountChange: () =>
+          document.dispatchEvent(new Event("fuckxter:account-change")),
+      });
     });
   };
 

@@ -187,11 +187,15 @@ import Layout from "../../layouts/Layout.astro";
 
     const render = () => {
       recoveryField.hidden = secondFactor !== "recovery";
-      codeField.hidden = secondFactor !== "totp" || !codeRequested;
+      codeField.hidden =
+        secondFactor !== "totp" ||
+        !codeRequested ||
+        !isValidEmail(identifier.value.trim()) ||
+        !password.value;
       // 恢复码代替密码使用，所以这个模式下不显示密码输入框
       passwordField.hidden = secondFactor === "recovery";
       recoveryToggle.textContent =
-        secondFactor === "recovery" ? "改用动态验证码" : "用恢复码登录";
+        secondFactor === "recovery" ? "改用密码登录" : "用恢复码登录";
       submit.textContent =
         secondFactor === "recovery"
           ? "用恢复码登录"
@@ -225,10 +229,24 @@ import Layout from "../../layouts/Layout.astro";
 
     recoveryToggle.addEventListener("click", () => {
       secondFactor = secondFactor === "recovery" ? "totp" : "recovery";
-      if (secondFactor === "recovery") codeRequested = true;
+      codeRequested = false;
+      codeInput.value = "";
       setStatus("");
       render();
-      (secondFactor === "recovery" ? recoveryInput : identifier).focus();
+      (secondFactor === "recovery" ? recoveryInput : password).focus();
+    });
+
+    identifier.addEventListener("input", () => {
+      codeRequested = false;
+      codeInput.value = "";
+      render();
+    });
+    password.addEventListener("input", () => {
+      if (!password.value) {
+        codeRequested = false;
+        codeInput.value = "";
+      }
+      render();
     });
 
     // 已经登录过就直接回目标页
@@ -247,6 +265,12 @@ import Layout from "../../layouts/Layout.astro";
         return;
       }
       identifier.removeAttribute("aria-invalid");
+
+      if (secondFactor === "totp" && !password.value) {
+        setStatus("请输入密码");
+        password.focus();
+        return;
+      }
 
       const code = codeInput.value.trim();
       const recoveryCode = recoveryInput.value.trim();

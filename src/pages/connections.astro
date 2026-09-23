@@ -5,13 +5,13 @@ import Header from "../components/Header.astro";
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="关注关系">
+<Layout title="用户关系">
   <div class="app subpage" data-connections>
     <Header />
     <main class="connections-main">
       <section class="connections-panel">
         <header class="connections-head">
-          <h1 data-role="connections-title">关注关系</h1>
+          <h1 data-role="connections-title">用户关系</h1>
           <p data-role="connections-summary">正在加载…</p>
         </header>
         <div class="user-list" data-role="connections-list"></div>
@@ -104,6 +104,7 @@ import Layout from "../layouts/Layout.astro";
     const kind = match[2].toLowerCase() as "followers" | "following";
     title.textContent = kind === "followers" ? "粉丝" : "关注";
     document.title = `${title.textContent} · @${handle} | FuckXter`;
+    if (list.dataset.ssr === "true") return;
 
     void getUserList(handle, kind)
       .then((users) => {

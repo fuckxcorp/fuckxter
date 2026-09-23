@@ -24,6 +24,17 @@
   width: min(980px, 100%);
 }
 
+.login-page.is-forgot .login-split {
+  grid-template-columns: minmax(0, 480px);
+  justify-content: center;
+  gap: 1.75rem;
+  width: 100%;
+}
+
+.login-page.is-forgot .login-card {
+  width: 100%;
+}
+
 .login-brand-panel {
   display: flex;
   justify-content: center;
