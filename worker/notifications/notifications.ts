@@ -1,7 +1,7 @@
 import { buildAvatarUrl } from "../accounts/avatar";
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
-import { randomId } from "../shared/crypto";
+import { randomID } from "../shared/crypto";
 
 export type NotificationType =
   "reply" | "like" | "repost" | "follow" | "system";
@@ -119,7 +119,7 @@ export async function createNotification(
        data_json = excluded.data_json`,
   )
     .bind(
-      randomId(),
+      randomID(),
       input.recipientId,
       input.actorId ?? null,
       input.type,

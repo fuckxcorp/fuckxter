@@ -111,7 +111,8 @@ export function renderRichText(value: string): DocumentFragment {
 
     let token = match[0];
     // 句尾标点不应成为 URL 的一部分，例如“见 https://example.com。”
-    const trailing = token.match(/[.,!?;:，。！？；：)}\]》]+$/u)?.[0] ?? "";
+    const trailing =
+      token.match(/[.,!?;:，。！？；：)}\]》”’"']+$/u)?.[0] ?? "";
     if (trailing) token = token.slice(0, -trailing.length);
     if (!token) {
       fragment.append(document.createTextNode(match[0]));
@@ -230,24 +231,26 @@ export function postHead(post: Post, timeMode: "relative" | "absolute") {
 }
 
 export function postMedia(post: Post): HTMLElement {
-  const media = post.media;
-  if (!media) return el("div");
-  const node = el("div", media.hdr ? "media is-hdr" : "media");
-  const image = el("img", "media-image");
-  image.src = media.url.startsWith("/") ? apiEndpoint(media.url) : media.url;
-  image.alt = media.alt;
-  image.loading = "lazy";
-  image.decoding = "async";
-  image.fetchPriority = "low";
-  image.referrerPolicy = "no-referrer";
-  node.append(image);
-  if (media.hdr) {
-    const badge = el("span", "media-hdr-badge");
-    badge.textContent = "HDR";
-    badge.title = "这条图片按 HDR 显示：在支持 HDR 的屏幕上不做 SDR 压暗";
-    node.append(badge);
+  const list = el("div", "media-list");
+  for (const media of post.media ?? []) {
+    const node = el("div", media.hdr ? "media is-hdr" : "media");
+    const image = el("img", "media-image");
+    image.src = media.url.startsWith("/") ? apiEndpoint(media.url) : media.url;
+    image.alt = media.alt;
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.fetchPriority = "low";
+    image.referrerPolicy = "no-referrer";
+    node.append(image);
+    if (media.hdr) {
+      const badge = el("span", "media-hdr-badge");
+      badge.textContent = "HDR";
+      badge.title = "这条图片按 HDR 显示：在支持 HDR 的屏幕上不做 SDR 压暗";
+      node.append(badge);
+    }
+    list.append(node);
   }
-  return node;
+  return list;
 }
 
 export function authorAvatar(
@@ -305,7 +308,7 @@ export function renderPost(post: Post): HTMLElement {
   text.append(renderRichText(post.text));
   body.append(text);
 
-  if (post.media) body.append(postMedia(post));
+  if (post.media?.length) body.append(postMedia(post));
 
   const actions = el("footer", "actions");
   actions.append(

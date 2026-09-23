@@ -151,6 +151,7 @@ function searchUsersSection(result: SearchResult): HTMLElement | null {
 
 export function mountFeed(container: HTMLElement): FeedControls {
   const feed = container.querySelector<HTMLElement>(".feed")!;
+  dismissHomeSplash();
   const sentinel = container.querySelector<HTMLElement>(".sentinel")!;
   const spinner = sentinel.querySelector<HTMLElement>(".spinner")!;
   const tabs = [...container.querySelectorAll<HTMLButtonElement>(".tab")];
@@ -186,8 +187,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaPreview = container.querySelector<HTMLElement>(
     "[data-role=media-preview]",
   )!;
-  const mediaPreviewImage = container.querySelector<HTMLImageElement>(
-    "[data-role=media-preview-image]",
+  const mediaPreviewImages = container.querySelector<HTMLElement>(
+    "[data-role=media-preview-images]",
   )!;
   const mediaHdrWrap = container.querySelector<HTMLElement>(
     "[data-role=media-hdr-wrap]",
@@ -228,7 +229,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     container.querySelector<HTMLInputElement>(".search-input")!;
   const composerAvatar =
     container.querySelector<HTMLElement>(".composer .avatar")!;
-  let selectedMedia: PostMedia | null = null;
+  let selectedMedia: PostMedia[] = [];
   const draftCookie = "fk-post-draft";
   const draftCookieOptions = () =>
     `Path=/; Max-Age=604800; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
@@ -262,8 +263,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
 
   /** HDR 只对图片有意义，别的附件类型一律不给这个选项。 */
-  const canUseHdr = (media: PostMedia | null | undefined): boolean =>
-    Boolean(media?.contentType?.startsWith("image/"));
+  const canUseHdr = (media: PostMedia[] | undefined): boolean =>
+    Boolean(media?.some((item) => item.contentType.startsWith("image/")));
 
   const applyHdrPreview = () => {
     mediaPreview.classList.toggle("is-hdr", mediaHdrInput.checked);
@@ -273,25 +274,30 @@ export function mountFeed(container: HTMLElement): FeedControls {
     canUseHdr(selectedMedia) && mediaHdrInput.checked;
 
   /** 把已选/已有的图片直接显示在按钮下面，尺寸和帖子里的图片一致 */
-  const showMediaPreview = (media: PostMedia | null | undefined) => {
-    if (!media) {
+  const showMediaPreview = (media: PostMedia[] | undefined) => {
+    if (!media?.length) {
       mediaPreview.hidden = true;
       mediaHdrWrap.hidden = true;
       mediaHdrInput.checked = false;
       applyHdrPreview();
-      mediaPreviewImage.removeAttribute("src");
+      mediaPreviewImages.replaceChildren();
       return;
     }
-    mediaPreviewImage.src = media.url.startsWith("/")
-      ? apiEndpoint(media.url)
-      : media.url;
-    mediaPreviewImage.alt = media.alt;
+    mediaPreviewImages.replaceChildren(
+      ...media.map((item) => {
+        const image = el("img", "media-image");
+        image.src = item.url.startsWith("/") ? apiEndpoint(item.url) : item.url;
+        image.alt = item.alt;
+        return image;
+      }),
+    );
     mediaHdrWrap.hidden = !canUseHdr(media);
-    mediaHdrInput.checked = canUseHdr(media) && media.hdr === true;
+    mediaHdrInput.checked = media.some((item) => item.hdr === true);
     applyHdrPreview();
     mediaPreview.hidden = false;
   };
   let uploadingMedia = false;
+  let failedMedia: File[] = [];
   let editingPostId: string | null = null;
   let storageOptions: StorageOption[] | null = null;
   let storageOptionsPromise: Promise<void> | null = null;
@@ -486,10 +492,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
     if (!account) {
       editingPostId = null;
-      selectedMedia = null;
+      selectedMedia = [];
       mediaInput.value = "";
       mediaStatus.hidden = true;
-      showMediaPreview(null);
+      showMediaPreview([]);
     }
   };
   syncComposerUser();
@@ -1004,7 +1010,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
       composer.hidden = false;
       composerInput.value = post.text;
       setVisibility(post.visibility ?? "public");
-      showMediaPreview(post.media);
+      selectedMedia = post.media ?? [];
+      showMediaPreview(selectedMedia);
       composerInput.style.height = "auto";
       composerInput.style.height = `${composerInput.scrollHeight}px`;
       composerBtn.textContent = "保存";
@@ -1055,11 +1062,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const resetComposer = () => {
     editingPostId = null;
-    showMediaPreview(null);
+    showMediaPreview([]);
     composerInput.value = "";
     clearDraft();
     composerInput.style.height = "";
-    selectedMedia = null;
+    selectedMedia = [];
     mediaStatus.textContent = "";
     mediaStatus.hidden = true;
     composerBtn.textContent = getAccount() ? "发帖" : "注册后发帖";
@@ -1106,40 +1113,87 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   mediaHdrInput.addEventListener("change", applyHdrPreview);
 
-  mediaInput.addEventListener("change", async () => {
-    const file = mediaInput.files?.[0];
-    if (!file) return;
+  const uploadFiles = async (files: File[], keep: boolean) => {
     uploadingMedia = true;
     attachMediaBtn.disabled = true;
     mediaStatus.textContent = "上传中…";
     mediaStatus.hidden = false;
     syncComposer();
-    try {
-      selectedMedia = await uploadMedia(
-        file,
-        selectedStorageId || undefined,
-        (percent) => {
-          mediaStatus.textContent = `上传中 ${percent}%`;
-        },
-        localStorage.getItem("fk-upload-mode") === "direct"
-          ? "direct"
-          : "proxy",
-      );
-      mediaStatus.textContent = `已添加：${file.name}`;
-      showMediaPreview(selectedMedia);
-    } catch (error) {
-      selectedMedia = null;
-      showMediaPreview(null);
-      mediaStatus.textContent =
+    if (!keep) selectedMedia = [];
+    failedMedia = [];
+    const progress = files.map(() => 0);
+    const mode =
+      localStorage.getItem("fk-upload-mode") === "direct" ? "direct" : "proxy";
+    const results = await Promise.allSettled(
+      files.map((file, index) =>
+        uploadMedia(
+          file,
+          selectedStorageId || undefined,
+          (percent) => {
+            progress[index] = percent;
+            const total = Math.round(
+              progress.reduce((sum, value) => sum + value, 0) / files.length,
+            );
+            mediaStatus.textContent = `上传中 ${total}%`;
+          },
+          mode,
+        ),
+      ),
+    );
+    const errors: unknown[] = [];
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") selectedMedia.push(result.value);
+      else {
+        failedMedia.push(files[index]);
+        errors.push(result.reason);
+      }
+    });
+    showMediaPreview(selectedMedia);
+    if (failedMedia.length) {
+      const error = errors[0];
+      const message =
         error instanceof ApiError && error.code === "STORAGE_REQUIRED"
-          ? "请先在设置中配置 S3 对象存储。"
-          : error instanceof Error
-            ? error.message
-            : "图片上传失败";
+          ? "请先在设置中配置自定义存储。"
+          : `${failedMedia.length} 张图片上传失败`;
+      const retry = el("button", "media-retry");
+      retry.type = "button";
+      retry.textContent = "重试";
+      retry.addEventListener("click", () => {
+        const pending = failedMedia;
+        void uploadFiles(pending, true);
+      });
+      mediaStatus.replaceChildren(
+        document.createTextNode(`${message} · `),
+        retry,
+      );
+      mediaStatus.hidden = false;
       if (error instanceof ApiError && error.status === 401) {
         requestAuthentication();
       }
-    } finally {
+    } else {
+      mediaStatus.hidden = true;
+    }
+    uploadingMedia = false;
+    attachMediaBtn.disabled = false;
+    mediaInput.value = "";
+    syncComposer();
+  };
+
+  mediaInput.addEventListener("change", async () => {
+    const selected = [...(mediaInput.files ?? [])];
+    if (selected.length > 3) {
+      mediaStatus.textContent = "每条帖子最多上传 3 张图片。";
+      mediaStatus.hidden = false;
+      mediaInput.value = "";
+      return;
+    }
+    const files = selected;
+    if (!files.length) return;
+    try {
+      await uploadFiles(files, false);
+    } catch (error) {
+      mediaStatus.textContent =
+        error instanceof Error ? error.message : "图片上传失败";
       uploadingMedia = false;
       attachMediaBtn.disabled = false;
       mediaInput.value = "";
@@ -1172,7 +1226,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       } else {
         created = await createPost(
           text,
-          selectedMedia?.id,
+          selectedMedia.map((media) => media.id),
           selectedVisibility,
           readHdrChoice(),
         );

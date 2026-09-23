@@ -8,7 +8,7 @@ import {
 import type { Env } from "../shared/platform";
 import { HttpError } from "../shared/http";
 
-async function credentialId(env: Env, userId: string): Promise<string> {
+async function credentialID(env: Env, userId: string): Promise<string> {
   const user = await env.DB.prepare(
     "SELECT credential_id FROM users WHERE id = ?",
   )
@@ -129,7 +129,7 @@ export async function recoveryCodeHash(
   return hmacSha256(
     env,
     KEY_PURPOSE_RECOVERY_CODE,
-    `${await credentialId(env, userId)}:${normalizeRecoveryCode(code)}`,
+    `${await credentialID(env, userId)}:${normalizeRecoveryCode(code)}`,
   );
 }
 
@@ -142,7 +142,7 @@ export async function recoveryCodeHashes(
   return hmacSha256All(
     env,
     KEY_PURPOSE_RECOVERY_CODE,
-    `${await credentialId(env, userId)}:${normalizeRecoveryCode(code)}`,
+    `${await credentialID(env, userId)}:${normalizeRecoveryCode(code)}`,
   );
 }
 

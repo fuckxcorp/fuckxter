@@ -1,7 +1,7 @@
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
 import type { S3Config } from "../accounts/s3";
-import { decryptSecret, encryptSecret, randomId } from "../shared/crypto";
+import { decryptSecret, encryptSecret, randomID } from "../shared/crypto";
 
 interface StorageRow {
   id: string;
@@ -98,7 +98,7 @@ export async function saveStorageConfig(
   userId: string,
   input: S3Config,
 ): Promise<S3Config> {
-  const id = input.id?.trim() || randomId();
+  const id = input.id?.trim() || randomID();
   const name = input.name?.trim() || input.bucket?.trim() || "S3";
   const endpoint = input.endpoint?.trim() ?? "";
   const region = input.region?.trim() || "auto";

@@ -5,7 +5,7 @@ import {
   presignS3Request,
   signedS3Request,
 } from "../accounts/s3";
-import { randomId, randomToken } from "../shared/crypto";
+import { randomID, randomToken } from "../shared/crypto";
 import { getStorageConfig } from "./storage";
 import { usernameKey } from "../accounts/usernames";
 import { headerObjectKey } from "../accounts/avatar";
@@ -186,7 +186,7 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
     httpMetadata: { contentType },
   });
 
-  const id = randomId();
+  const id = randomID();
   const now = new Date().toISOString();
   await env.DB.prepare(
     `INSERT INTO media_objects (
@@ -293,7 +293,7 @@ export async function finalizeMediaUpload(
     input.storageConfigId ?? undefined,
   );
   if (!config) {
-    throw new HttpError(400, "STORAGE_REQUIRED", "请先配置 S3 存储。");
+    throw new HttpError(400, "STORAGE_REQUIRED", "请先配置自定义存储。");
   }
 
   const existing = await env.DB.prepare(
@@ -322,7 +322,7 @@ export async function finalizeMediaUpload(
     );
   }
 
-  const id = randomId();
+  const id = randomID();
   const now = new Date().toISOString();
   const sha256 = await sha256Hex(
     new TextEncoder().encode(`${config.id ?? "storage"}:${objectKey}`),

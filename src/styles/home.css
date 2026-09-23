@@ -351,17 +351,29 @@ html.menu-open .main {
   display: none;
 }
 
+.media-retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
 /* 发帖时的图片预览：放在「上传图片」那一行下面，按缩略图大小显示 */
 .composer-preview {
-  display: grid;
-  place-items: start;
   margin-top: 0.7rem;
-  width: fit-content;
-  max-width: min(100%, 320px);
+  width: 100%;
+  max-width: 100%;
   padding: 0.25rem;
   border-radius: 12px;
   overflow: hidden;
   background: var(--color-bg-subtle);
+}
+
+.composer-preview > [data-role="media-preview-images"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .composer-preview[hidden] {
@@ -382,7 +394,7 @@ html.menu-open .main {
 .composer-preview .media-image {
   width: auto;
   height: auto;
-  max-width: 100%;
+  max-width: min(100%, 260px);
   max-height: 180px;
   border-radius: 10px;
   object-fit: contain;
@@ -480,6 +492,69 @@ html.menu-open .main {
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+.feed-skeleton {
+  pointer-events: none;
+}
+
+.feed-skeleton-avatar,
+.feed-skeleton-line,
+.feed-skeleton-actions {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(
+    105deg,
+    var(--color-bg-subtle) 18%,
+    var(--color-bg-hover) 42%,
+    var(--color-bg-subtle) 66%
+  );
+  background-size: 220% 100%;
+  animation: feed-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.feed-skeleton-avatar {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+}
+
+.feed-skeleton-line {
+  width: 100%;
+  height: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.feed-skeleton-line.is-short {
+  width: 38%;
+}
+
+.feed-skeleton-line.is-medium {
+  width: 72%;
+}
+
+.feed-skeleton-actions {
+  width: 100%;
+  height: 1.6rem;
+  margin-top: 1.2rem;
+  border-radius: 0;
+}
+
+@keyframes feed-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feed-skeleton-avatar,
+  .feed-skeleton-line,
+  .feed-skeleton-actions {
+    animation: none;
+  }
 }
 
 .feed-columns.is-masonry {
@@ -632,7 +707,17 @@ html.menu-open .main {
   animation: spin 0.7s linear infinite;
 }
 
+@media (max-width: 699px) {
+  .feed-loading .feed-col:nth-child(2) {
+    display: none;
+  }
+}
+
 @media (max-width: 640px) {
+  .app[data-app] {
+    --topbar-height: 92px;
+  }
+
   .tabs {
     order: 3;
     flex: 1 1 100%;

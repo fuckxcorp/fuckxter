@@ -3,7 +3,7 @@ import {
   createPasswordHash,
   decryptSecret,
   encryptSecret,
-  randomId,
+  randomID,
   randomBytes,
   verifyPassword,
 } from "../shared/crypto";
@@ -200,7 +200,7 @@ export async function loginOrRegister(
       )
         .bind(
           handleKey,
-          randomId(),
+          randomID(),
           handle,
           email,
           passwordValue.hash,
@@ -469,7 +469,7 @@ export async function replaceRecoveryCodes(env: Env, userId: string) {
       env.DB.prepare(
         `INSERT INTO recovery_codes (id, user_id, code_hash, created_at)
            VALUES (?, ?, ?, ?)`,
-      ).bind(randomId(), userId, hashes[index], now),
+      ).bind(randomID(), userId, hashes[index], now),
     ),
   ]);
   return { codes, recoveryCodeCount: codes.length };

@@ -1,4 +1,4 @@
-import { randomId, randomToken, sha256 } from "../shared/crypto";
+import { randomID, randomToken, sha256 } from "../shared/crypto";
 import { HttpError } from "../shared/http";
 import type { Env, SessionUserRow, UserRow } from "../shared/platform";
 import { buildAvatarUrl, buildHeaderUrl, headerExists } from "./avatar";
@@ -44,7 +44,7 @@ export async function createSession(
     `INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
      VALUES (?, ?, ?, ?, ?)`,
   )
-    .bind(randomId(), userId, tokenHash, now + SESSION_TTL_SECONDS * 1000, now)
+    .bind(randomID(), userId, tokenHash, now + SESSION_TTL_SECONDS * 1000, now)
     .run();
   return sessionCookie(request, token);
 }

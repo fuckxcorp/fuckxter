@@ -1,4 +1,4 @@
-import { FUCKXTER_API_URL } from "../accounts/config";
+import { API_URL } from "../accounts/config";
 
 interface ApiErrorBody {
   error?: {
@@ -21,7 +21,7 @@ export class ApiError extends Error {
 }
 
 export function apiEndpoint(path: string): string {
-  return `${FUCKXTER_API_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  return `${API_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 const inFlightRequests = new Map<string, Promise<unknown>>();

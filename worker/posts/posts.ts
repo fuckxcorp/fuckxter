@@ -1,6 +1,6 @@
 import { HttpError } from "../shared/http";
 import type { D1PreparedStatement, Env, PostRow } from "../shared/platform";
-import { randomId } from "../shared/crypto";
+import { randomID } from "../shared/crypto";
 import { usernameKey } from "../accounts/usernames";
 import { buildAvatarUrl } from "../accounts/avatar";
 import {
@@ -8,7 +8,7 @@ import {
   deleteNotification,
 } from "../notifications/notifications";
 
-const POST_SELECT = `
+const postSelect = (viewerID: string | null) => `
   SELECT
     p.id,
     p.slug,
@@ -28,27 +28,76 @@ const POST_SELECT = `
       WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS reply_count,
     (SELECT COUNT(*) FROM reposts rp WHERE rp.post_id = p.id) AS repost_count,
     p.like_count,
-    EXISTS(
+    ${
+      viewerID
+        ? `EXISTS(
       SELECT 1 FROM likes vl
       WHERE vl.post_id = p.id AND vl.user_id = ?
-    ) AS liked,
-    EXISTS(
+    )`
+        : "0"
+    } AS liked,
+    ${
+      viewerID
+        ? `EXISTS(
       SELECT 1 FROM reposts vr
       WHERE vr.post_id = p.id AND vr.user_id = ?
-    ) AS reposted,
-    EXISTS(
+    )`
+        : "0"
+    } AS reposted,
+    ${
+      viewerID
+        ? `EXISTS(
       SELECT 1 FROM bookmarks vb
       WHERE vb.post_id = p.id AND vb.user_id = ?
-    ) AS saved,
-    EXISTS(
+    )`
+        : "0"
+    } AS saved,
+    ${
+      viewerID
+        ? `EXISTS(
       SELECT 1 FROM follows vf
       WHERE vf.follower_id = ? AND vf.followee_id = p.author_id
-    ) AS author_following
+    )`
+        : "0"
+    } AS author_following
   FROM posts p
   JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
 `;
 
-async function createPostId(env: Env): Promise<string> {
+const viewerSelectParams = (viewerID: string | null): string[] =>
+  viewerID ? [viewerID, viewerID, viewerID, viewerID] : [];
+
+interface StoredMedia {
+  id: string;
+  url: string;
+  alt: string;
+  contentType: string;
+  byteSize: number;
+  hdr?: boolean;
+}
+
+function parseMedia(value: string | null): StoredMedia[] | undefined {
+  if (!value) return undefined;
+  try {
+    const media = JSON.parse(value) as StoredMedia | StoredMedia[] | null;
+    if (!media) return undefined;
+    const items = Array.isArray(media) ? media : [media];
+    const valid = items.filter(
+      (item): item is StoredMedia =>
+        Boolean(item) &&
+        typeof item.id === "string" &&
+        typeof item.url === "string" &&
+        typeof item.alt === "string" &&
+        typeof item.contentType === "string" &&
+        typeof item.byteSize === "number",
+    );
+    return valid.length ? valid.slice(0, 3) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function createPostID(env: Env): Promise<string> {
   const result = await env.DB.prepare(
     "INSERT INTO post_sequence DEFAULT VALUES",
   ).run();
@@ -145,6 +194,7 @@ function decodeCursor(cursor: string): string[] {
 }
 
 function publicPost(row: PostRow, viewerId: string | null) {
+  const storedMedia = parseMedia(row.media_json);
   return {
     id: row.id,
     slug: row.slug,
@@ -169,7 +219,7 @@ function publicPost(row: PostRow, viewerId: string | null) {
       likes: Number(row.like_count),
       views: Number(row.view_count ?? 0),
     },
-    media: row.media_json ? JSON.parse(row.media_json) : undefined,
+    media: storedMedia,
     viewer: {
       liked: Boolean(row.liked),
       reposted: Boolean(row.reposted),
@@ -201,10 +251,9 @@ export async function getTimeline(
   cursor: string | null,
   limitValue: string | null,
 ) {
-  const viewer = viewerId ?? "";
   const filter = viewerFilter(viewerId);
   const limit = Math.min(Math.max(Number(limitValue ?? 10) || 10, 1), 30);
-  const params: unknown[] = [viewer, viewer, viewer, viewer, ...filter.params];
+  const params: unknown[] = [...viewerSelectParams(viewerId), ...filter.params];
   const conditions = ["p.deleted_at IS NULL", filter.condition];
   const resolved = timelineTab(tab);
   // 推荐流没有算法：按点赞量排序，点赞数相同就按时间。
@@ -242,7 +291,7 @@ export async function getTimeline(
   params.push(limit + 1);
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
-      `${POST_SELECT}
+      `${postSelect(viewerId)}
        WHERE ${conditions.join(" AND ")}
        ORDER BY ${
          byLikes
@@ -324,25 +373,18 @@ export async function recordPostView(
   return { id: postId, views: Number(row?.view_count ?? 0), counted };
 }
 
-export async function getPostById(
+export async function getPostByID(
   env: Env,
   viewerId: string | null,
   id: string,
 ) {
   const filter = viewerFilter(viewerId);
   const row = await env.DB.prepare(
-    `${POST_SELECT}
+    `${postSelect(viewerId)}
      WHERE p.id = ? AND p.deleted_at IS NULL AND ${filter.condition}
      LIMIT 1`,
   )
-    .bind(
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
-      id,
-      ...filter.params,
-    )
+    .bind(...viewerSelectParams(viewerId), id, ...filter.params)
     .first<PostRow>();
   return row ? publicPost(row, viewerId) : null;
 }
@@ -355,17 +397,14 @@ export async function getPostByPath(
 ) {
   const filter = viewerFilter(viewerId);
   const row = await env.DB.prepare(
-    `${POST_SELECT}
+    `${postSelect(viewerId)}
      WHERE p.slug = ? AND u.id = ?
        AND p.deleted_at IS NULL
        AND ${filter.condition}
      LIMIT 1`,
   )
     .bind(
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
+      ...viewerSelectParams(viewerId),
       slug,
       usernameKey(handle),
       ...filter.params,
@@ -382,16 +421,13 @@ export async function getPostsByUser(
   const filter = viewerFilter(viewerId);
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
-      `${POST_SELECT}
+      `${postSelect(viewerId)}
        WHERE u.id = ? AND p.deleted_at IS NULL
          AND ${filter.condition}
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 100`,
     ).bind(
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
+      ...viewerSelectParams(viewerId),
       usernameKey(handle),
       ...filter.params,
     ),
@@ -403,7 +439,7 @@ export async function createPost(
   env: Env,
   authorId: string,
   text: string,
-  mediaId?: string,
+  mediaIDs: string[] = [],
   visibility: PostVisibility = "public",
   hdr = false,
 ) {
@@ -414,34 +450,42 @@ export async function createPost(
   }
   const now = new Date().toISOString();
   let mediaJson: string | null = null;
-  if (mediaId) {
-    const media = await env.DB.prepare(
-      `SELECT id, original_name, content_type, byte_size
+  if (mediaIDs.length > 3) {
+    throw new HttpError(400, "TOO_MANY_MEDIA", "每条帖子最多上传 3 张图片。");
+  }
+  if (mediaIDs.length) {
+    const media = await Promise.all(
+      mediaIDs.map((mediaID) =>
+        env.DB.prepare(
+          `SELECT id, original_name, content_type, byte_size
        FROM media_objects
        WHERE id = ? AND owner_id = ? AND status = 'ready'`,
-    )
-      .bind(mediaId, authorId)
-      .first<{
-        id: string;
-        original_name: string;
-        content_type: string;
-        byte_size: number;
-      }>();
-    if (!media) {
+        )
+          .bind(mediaID, authorId)
+          .first<{
+            id: string;
+            original_name: string;
+            content_type: string;
+            byte_size: number;
+          }>(),
+      ),
+    );
+    if (media.some((item) => !item)) {
       throw new HttpError(400, "INVALID_MEDIA", "媒体不存在或不属于该用户。");
     }
-    mediaJson = JSON.stringify({
-      id: media.id,
-      url: `/media/${encodeURIComponent(media.id)}`,
-      alt: media.original_name,
-      contentType: media.content_type,
-      byteSize: Number(media.byte_size),
-      // 只有图片才谈得上 HDR 显示（HDR 视频、音频之类以后再说）
-      ...(isDisplayHdr(media.content_type, hdr) ? { hdr: true } : {}),
-    });
+    mediaJson = JSON.stringify(
+      media.map((item) => ({
+        id: item!.id,
+        url: `/media/${encodeURIComponent(item!.id)}`,
+        alt: item!.original_name,
+        contentType: item!.content_type,
+        byteSize: Number(item!.byte_size),
+        ...(isDisplayHdr(item!.content_type, hdr) ? { hdr: true } : {}),
+      })),
+    );
   }
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const id = await createPostId(env);
+    const id = await createPostID(env);
     try {
       await env.DB.prepare(
         `INSERT INTO posts (
@@ -451,7 +495,7 @@ export async function createPost(
       )
         .bind(id, id, authorId, cleanText, mediaJson, visibility, now, now)
         .run();
-      return getPostById(env, authorId, id);
+      return getPostByID(env, authorId, id);
     } catch (error) {
       if (!isPostIdConflict(error) || attempt === 4) throw error;
     }
@@ -486,17 +530,21 @@ export async function updatePost(
   let mediaJson = post.media_json;
   if (hdr !== undefined && mediaJson) {
     try {
-      const media = JSON.parse(mediaJson) as {
-        contentType?: unknown;
-        hdr?: unknown;
-      };
-      const contentType =
-        typeof media.contentType === "string" ? media.contentType : "";
-      if (contentType.startsWith("image/")) {
-        if (isDisplayHdr(contentType, hdr)) media.hdr = true;
-        else delete media.hdr;
-        mediaJson = JSON.stringify(media);
+      const stored = JSON.parse(mediaJson) as
+        | {
+            contentType?: unknown;
+            hdr?: unknown;
+          }
+        | { contentType?: unknown; hdr?: unknown }[];
+      const media = Array.isArray(stored) ? stored : [stored];
+      for (const item of media) {
+        const contentType =
+          typeof item.contentType === "string" ? item.contentType : "";
+        if (!contentType.startsWith("image/")) continue;
+        if (isDisplayHdr(contentType, hdr)) item.hdr = true;
+        else delete item.hdr;
       }
+      mediaJson = JSON.stringify(Array.isArray(stored) ? media : media[0]);
     } catch {
       // media_json 坏了就别动它，编辑正文本身不该因此失败
     }
@@ -517,7 +565,7 @@ export async function updatePost(
       postId,
     )
     .run();
-  return getPostById(env, userId, postId);
+  return getPostByID(env, userId, postId);
 }
 
 export async function deletePost(
@@ -639,13 +687,13 @@ export async function getSavedPosts(env: Env, userId: string) {
   const filter = viewerFilter(userId);
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
-      `${POST_SELECT}
+      `${postSelect(userId)}
        JOIN bookmarks saved ON saved.post_id = p.id
        WHERE saved.user_id = ? AND p.deleted_at IS NULL
          AND ${filter.condition}
        ORDER BY saved.created_at DESC
        LIMIT 200`,
-    ).bind(userId, userId, userId, userId, userId, ...filter.params),
+    ).bind(...viewerSelectParams(userId), userId, ...filter.params),
   );
   return rows.map((row) => publicPost(row, userId));
 }
@@ -691,18 +739,14 @@ export async function searchPosts(
   const pattern = `%${query}%`;
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
-      `${POST_SELECT}
+      `${postSelect(viewerId)}
        WHERE p.deleted_at IS NULL
          AND ${filter.condition}
          AND (p.text LIKE ? OR u.name LIKE ? OR u.handle LIKE ?)
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 50`,
     ).bind(
-      // 顺序必须和 SQL 里的占位符一致：POST_SELECT 的四个 -> 可见范围过滤 -> LIKE
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
-      viewerId ?? "",
+      ...viewerSelectParams(viewerId),
       ...filter.params,
       pattern,
       pattern,
@@ -896,7 +940,7 @@ export async function createComment(
     }
   }
 
-  const id = randomId();
+  const id = randomID();
   const now = new Date().toISOString();
   await env.DB.prepare(
     `INSERT INTO comments (id, post_id, author_id, text, parent_id, created_at)

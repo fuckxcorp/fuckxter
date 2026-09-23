@@ -339,24 +339,26 @@ import Header from "../../components/Header.astro";
     const text = el("p", "thread-text");
     text.append(renderRichText(post.text));
     body.append(text);
-    if (post.media) {
-      const media = el("div", post.media.hdr ? "media is-hdr" : "media");
-      const image = el("img", "media-image");
-      image.src = post.media.url.startsWith("/")
-        ? apiEndpoint(post.media.url)
-        : post.media.url;
-      image.alt = post.media.alt;
-      image.loading = "eager";
-      image.decoding = "async";
-      image.referrerPolicy = "no-referrer";
-      media.append(image);
-      if (post.media.hdr) {
-        const badge = el("span", "media-hdr-badge");
-        badge.textContent = "HDR";
-        badge.title = "这条图片按 HDR 显示：在支持 HDR 的屏幕上不做 SDR 压暗";
-        media.append(badge);
+    if (post.media?.length) {
+      const list = el("div", "media-list is-detail");
+      for (const item of post.media) {
+        const media = el("div", item.hdr ? "media is-hdr" : "media");
+        const image = el("img", "media-image");
+        image.src = item.url.startsWith("/") ? apiEndpoint(item.url) : item.url;
+        image.alt = item.alt;
+        image.loading = "eager";
+        image.decoding = "async";
+        image.referrerPolicy = "no-referrer";
+        media.append(image);
+        if (item.hdr) {
+          const badge = el("span", "media-hdr-badge");
+          badge.textContent = "HDR";
+          badge.title = "这条图片按 HDR 显示：在支持 HDR 的屏幕上不做 SDR 压暗";
+          media.append(badge);
+        }
+        list.append(media);
       }
-      body.append(media);
+      body.append(list);
     }
     article.append(kind, avatar, body);
     return article;

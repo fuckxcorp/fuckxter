@@ -24,17 +24,6 @@
   width: min(980px, 100%);
 }
 
-.login-page.is-forgot .login-split {
-  grid-template-columns: minmax(0, 480px);
-  justify-content: center;
-  gap: 1.75rem;
-  width: 100%;
-}
-
-.login-page.is-forgot .login-card {
-  width: 100%;
-}
-
 .login-brand-panel {
   display: flex;
   justify-content: center;
@@ -70,6 +59,25 @@
 
 .login-card .primary-btn {
   width: 100%;
+}
+
+.login-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+}
+
+.login-code-row .ghost-btn {
+  white-space: nowrap;
+}
+
+[data-role="forgot-code-field"] {
+  display: grid;
+  gap: 0.65rem;
+}
+
+[data-role="forgot-code-field"][hidden] {
+  display: none;
 }
 
 .login-links {

@@ -37,7 +37,7 @@ export interface Post {
 
   visibility?: "public" | "mutual" | "private";
   stats: PostStats;
-  media?: PostMedia;
+  media?: PostMedia[];
   viewer?: {
     liked: boolean;
     reposted: boolean;

@@ -52,7 +52,7 @@ import {
   deleteComment,
   deletePost,
   getComments,
-  getPostById,
+  getPostByID,
   getPostByPath,
   getPostsByUser,
   getSavedPosts,
@@ -67,7 +67,6 @@ import {
   updatePost,
 } from "./posts/posts";
 import { withPostPageHtml } from "./posts/post-page";
-import { withHomePageHtml } from "./posts/home-page";
 import { withConnectionsPageHtml } from "./accounts/connections-page";
 import { withMessagesPageHtml } from "./messages/messages-page";
 import { testStorageConnection } from "./accounts/s3";
@@ -119,7 +118,6 @@ const CONNECTIONS_ASSET_PATH = /^\/user\/([^/]+)\/(followers|following)\/?$/i;
 const PRETTY_ASSET_PATHS = new Set([
   "/connections",
   "/login",
-  "/login/forgot",
   "/notice",
   "/saved",
   "/settings",
@@ -752,13 +750,18 @@ async function route(
   if (parts[1] === "posts") {
     if (parts.length === 2 && method === "POST") {
       const user = await requireUser(request, env);
-      const body = await readJson<{ text?: unknown; mediaId?: unknown }>(
+      const body = await readJson<{ text?: unknown; mediaIDs?: unknown }>(
         request,
       );
       if (typeof body.text !== "string") {
         throw new HttpError(400, "INVALID_POST", "帖子内容不能为空。");
       }
-      if (body.mediaId !== undefined && typeof body.mediaId !== "string") {
+      if (
+        body.mediaIDs !== undefined &&
+        (!Array.isArray(body.mediaIDs) ||
+          body.mediaIDs.length > 3 ||
+          body.mediaIDs.some((id) => typeof id !== "string"))
+      ) {
         throw new HttpError(400, "INVALID_MEDIA", "图片引用无效。");
       }
       const payload = body as { visibility?: unknown };
@@ -767,7 +770,7 @@ async function route(
           env,
           user.id,
           body.text,
-          body.mediaId,
+          body.mediaIDs as string[] | undefined,
           normalizeVisibility(payload.visibility),
           (body as { hdr?: unknown }).hdr === true,
         ),
@@ -782,7 +785,7 @@ async function route(
       const user = await getOptionalUser(request, env);
 
       if (method === "GET") {
-        const post = await getPostById(env, user?.id ?? null, postId);
+        const post = await getPostByID(env, user?.id ?? null, postId);
         if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
         return json(post, request, env);
       }
@@ -1065,9 +1068,6 @@ export default {
         // 帖子页补上 og:*，Telegram 之类的爬虫才抓得到内容
         if (assetPath === "/post/") {
           return await withPostPageHtml(request, env, url, response);
-        }
-        if (assetPath === "/" && url.pathname === "/") {
-          return await withHomePageHtml(request, env, response);
         }
         if (assetPath === "/connections/") {
           return await withConnectionsPageHtml(request, env, url, response);

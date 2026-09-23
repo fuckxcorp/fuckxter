@@ -141,6 +141,7 @@ import Account from "../layouts/Account.astro";
               class="media-input"
               data-role="media-input"
               type="file"
+              multiple
               accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
               hidden
             />
@@ -246,8 +247,12 @@ import Account from "../layouts/Account.astro";
               发帖
             </button>
           </div>
-          <div class="media composer-preview" data-role="media-preview" hidden>
-            <img class="media-image" data-role="media-preview-image" alt="" />
+          <div
+            class="media-list composer-preview"
+            data-role="media-preview"
+            hidden
+          >
+            <div data-role="media-preview-images"></div>
             <label
               class="hdr-toggle"
               data-role="media-hdr-wrap"
@@ -264,7 +269,25 @@ import Account from "../layouts/Account.astro";
         </div>
       </section>
 
-      <section class="feed" aria-label="信息流"></section>
+      <section class="feed" aria-label="信息流">
+        <div class="feed-columns is-masonry feed-loading" aria-hidden="true">
+          {[0, 1].map(() => (
+            <div class="feed-col">
+              {[0, 1].map(() => (
+                <article class="post feed-skeleton">
+                  <span class="feed-skeleton-avatar"></span>
+                  <div class="post-body">
+                    <span class="feed-skeleton-line is-short"></span>
+                    <span class="feed-skeleton-line"></span>
+                    <span class="feed-skeleton-line is-medium"></span>
+                    <span class="feed-skeleton-actions"></span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div class="sentinel">
         <span class="spinner" aria-hidden="true"></span>

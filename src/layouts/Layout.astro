@@ -45,7 +45,7 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
           target.matches(".media-image")
         ) {
           event.preventDefault();
-          event.stopPropagation();
+          event.stopImmediatePropagation();
           const image = viewer.querySelector("img");
           image.src = target.currentSrc || target.src;
           image.alt = target.alt;

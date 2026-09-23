@@ -49,6 +49,40 @@ import Layout from "../../layouts/Layout.astro";
                 required
               />
             </label>
+            <div class="field" data-role="forgot-code-field" hidden>
+              <span class="field-label">邮箱验证码</span>
+              <div class="login-code-row">
+                <input
+                  name="forgotCode"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  placeholder="6 位验证码"
+                />
+                <button
+                  class="ghost-btn"
+                  type="button"
+                  data-role="send-forgot-code"
+                >
+                  发送验证码
+                </button>
+              </div>
+              <input
+                name="newPassword"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                placeholder="新密码"
+              />
+              <input
+                name="confirmPassword"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                placeholder="确认新密码"
+              />
+            </div>
             <label class="field" data-role="code-field" hidden>
               <span class="field-label">动态验证码</span>
               <input
@@ -81,7 +115,9 @@ import Layout from "../../layouts/Layout.astro";
           </form>
 
           <div class="login-links">
-            <a href="/login/forgot">忘记密码</a>
+            <button type="button" data-role="use-forgot">
+              忘记密码
+            </button>
             <button type="button" data-role="use-recovery">
               用恢复码登录
             </button>
@@ -144,6 +180,19 @@ import Layout from "../../layouts/Layout.astro";
     const passwordField = root.querySelector<HTMLElement>(
       "[data-role=password-field]",
     )!;
+    const forgotCodeField = root.querySelector<HTMLElement>(
+      "[data-role=forgot-code-field]",
+    )!;
+    const forgotCodeInput =
+      forgotCodeField.querySelector<HTMLInputElement>("[name=forgotCode]")!;
+    const newPassword =
+      forgotCodeField.querySelector<HTMLInputElement>("[name=newPassword]")!;
+    const confirmPassword = forgotCodeField.querySelector<HTMLInputElement>(
+      "[name=confirmPassword]",
+    )!;
+    const sendForgotCode = root.querySelector<HTMLButtonElement>(
+      "[data-role=send-forgot-code]",
+    )!;
     const codeField = root.querySelector<HTMLElement>(
       "[data-role=code-field]",
     )!;
@@ -160,6 +209,9 @@ import Layout from "../../layouts/Layout.astro";
     )!;
     const recoveryToggle = root.querySelector<HTMLButtonElement>(
       "[data-role=use-recovery]",
+    )!;
+    const forgotToggle = root.querySelector<HTMLButtonElement>(
+      "[data-role=use-forgot]",
     )!;
     const loginBody = root.querySelector<HTMLElement>(
       "[data-role=login-body]",
@@ -182,22 +234,28 @@ import Layout from "../../layouts/Layout.astro";
 
     /** totp：密码 + 动态验证码；recovery：密码 + 恢复码。 */
     let secondFactor: "totp" | "recovery" = "totp";
+    let forgot = false;
     /** 只有密码验证通过、服务端要求 2FA 之后才显示验证码输入框。 */
     let codeRequested = false;
 
     const render = () => {
-      recoveryField.hidden = secondFactor !== "recovery";
+      recoveryField.hidden = forgot || secondFactor !== "recovery";
+      forgotCodeField.hidden = !forgot;
       codeField.hidden =
+        forgot ||
         secondFactor !== "totp" ||
         !codeRequested ||
         !isValidEmail(identifier.value.trim()) ||
         !password.value;
       // 恢复码代替密码使用，所以这个模式下不显示密码输入框
-      passwordField.hidden = secondFactor === "recovery";
+      passwordField.hidden = forgot || secondFactor === "recovery";
+      recoveryToggle.hidden = forgot;
+      forgotToggle.textContent = forgot ? "返回密码登录" : "忘记密码";
       recoveryToggle.textContent =
         secondFactor === "recovery" ? "改用密码登录" : "用恢复码登录";
-      submit.textContent =
-        secondFactor === "recovery"
+      submit.textContent = forgot
+        ? "重置密码"
+        : secondFactor === "recovery"
           ? "用恢复码登录"
           : codeRequested
             ? "验证并登录"
@@ -236,6 +294,30 @@ import Layout from "../../layouts/Layout.astro";
       (secondFactor === "recovery" ? recoveryInput : password).focus();
     });
 
+    forgotToggle.addEventListener("click", () => {
+      forgot = !forgot;
+      secondFactor = "totp";
+      codeRequested = false;
+      codeInput.value = "";
+      forgotCodeInput.value = "";
+      newPassword.value = "";
+      confirmPassword.value = "";
+      setStatus("");
+      render();
+      if (forgot && !isValidEmail(identifier.value.trim())) identifier.focus();
+      else (forgot ? forgotCodeInput : password).focus();
+    });
+
+    sendForgotCode.addEventListener("click", () => {
+      const email = identifier.value.trim();
+      if (!isValidEmail(email)) {
+        setStatus("请先输入有效的邮箱地址");
+        identifier.focus();
+        return;
+      }
+      setStatus("验证码发送功能即将开放");
+    });
+
     identifier.addEventListener("input", () => {
       codeRequested = false;
       codeInput.value = "";
@@ -265,6 +347,26 @@ import Layout from "../../layouts/Layout.astro";
         return;
       }
       identifier.removeAttribute("aria-invalid");
+
+      if (forgot) {
+        if (!forgotCodeInput.value.trim()) {
+          setStatus("请输入邮箱验证码");
+          forgotCodeInput.focus();
+          return;
+        }
+        if (newPassword.value.length < 8) {
+          setStatus("新密码至少需要 8 个字符");
+          newPassword.focus();
+          return;
+        }
+        if (newPassword.value !== confirmPassword.value) {
+          setStatus("两次输入的新密码不一致");
+          confirmPassword.focus();
+          return;
+        }
+        setStatus("密码重置功能即将开放");
+        return;
+      }
 
       if (secondFactor === "totp" && !password.value) {
         setStatus("请输入密码");

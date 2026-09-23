@@ -47,7 +47,7 @@ export function randomBytes(length: number): Bytes {
   return crypto.getRandomValues(new Uint8Array(length));
 }
 
-export function randomId(): string {
+export function randomID(): string {
   return bytesToBase64Url(randomBytes(16));
 }
 

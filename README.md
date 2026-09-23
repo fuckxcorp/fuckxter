@@ -31,15 +31,17 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ## 🔧 对于开发者
 
-### 部署配置
+### 本地开发
 
-- `FUCKXTER_SECRET`（可选）：加密 TOTP 密钥和恢复码用的主密钥，用
-  `wrangler secret put FUCKXTER_SECRET` 配置。不配置时 Worker 会在第一次用到加密时
-  自动生成一把随机密钥存进 D1 的 `app_secrets` 表，双重验证开箱可用。
-  设置过之后不要随便换值，否则已经保存的 TOTP 密钥会解不开。
-- `PUBLIC_FUCKXTER_API_URL`（可选）：前端请求 API 的地址。默认和页面同源
-  （Worker 本身同时提供页面和 API），同源请求不会被广告拦截器、隐私工具或者
-  只允许主域的 DNS 过滤器拦掉。只有把 API 单独部署到别的域名时才需要设置。
+如果希望在本地开发FuckXter 您可能会需要加载帖子部分以查看UI
+
+执行下列命令（windows除外）即可
+
+```bash
+cat <<'EOF'> ./.env.development
+API_URL=http://127.0.0.1:8787
+EOF
+```
 
 ## ⚖️ 条款与授权
 

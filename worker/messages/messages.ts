@@ -1,7 +1,7 @@
 import { buildAvatarUrl } from "../accounts/avatar";
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
-import { randomId } from "../shared/crypto";
+import { randomID } from "../shared/crypto";
 import { usernameKey } from "../accounts/usernames";
 import { isBlockedBetween } from "../accounts/users";
 
@@ -85,7 +85,7 @@ async function findPerson(env: Env, handle: string) {
   return person;
 }
 
-async function findThreadId(
+async function findThreadID(
   env: Env,
   lowId: string,
   highId: string,
@@ -309,7 +309,7 @@ export async function getConversation(
     throw new HttpError(403, "BLOCKED", "你们之间存在拉黑关系，无法私信。");
   }
   const [low, high] = pairFor(userId, person.id);
-  const threadId = await findThreadId(env, low, high);
+  const threadId = await findThreadID(env, low, high);
   const messages = threadId ? await loadMessages(env, threadId, userId) : [];
   const gate = await dmGate(env, userId, person.id);
 
@@ -388,7 +388,7 @@ export async function sendMessage(
   let threadId = existingThreadId;
   if (!threadId) {
     const [low, high] = pairFor(userId, person.id);
-    const candidate = randomId();
+    const candidate = randomID();
     const created = await env.DB.prepare(
       `INSERT INTO dm_threads (id, user_low_id, user_high_id, created_at, last_message_at)
        VALUES (?, ?, ?, ?, ?)
@@ -400,7 +400,7 @@ export async function sendMessage(
     threadId =
       Number(created.meta?.changes ?? 0) > 0
         ? candidate
-        : ((await findThreadId(env, low, high)) ?? candidate);
+        : ((await findThreadID(env, low, high)) ?? candidate);
   }
 
   // 插消息 + 更新会话时间，一次往返
@@ -408,7 +408,7 @@ export async function sendMessage(
     env.DB.prepare(
       `INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)
        VALUES (?, ?, ?, ?, ?)`,
-    ).bind(randomId(), threadId, userId, body, now),
+    ).bind(randomID(), threadId, userId, body, now),
     env.DB.prepare(
       "UPDATE dm_threads SET last_message_at = ? WHERE id = ?",
     ).bind(now, threadId),
@@ -429,7 +429,7 @@ export async function markConversationRead(
 ): Promise<void> {
   const person = await findPerson(env, handle);
   const [low, high] = pairFor(userId, person.id);
-  const threadId = await findThreadId(env, low, high);
+  const threadId = await findThreadID(env, low, high);
   if (!threadId) return;
   await env.DB.prepare(
     `UPDATE dm_messages SET read_at = ?

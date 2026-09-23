@@ -36,13 +36,13 @@ export function getTimeline(
 
 export function createPost(
   text: string,
-  mediaId?: string,
+  mediaIDs?: string[],
   visibility: Post["visibility"] = "public",
   hdr = false,
 ): Promise<Post> {
   return apiRequest<Post>("/posts", {
     method: "POST",
-    body: JSON.stringify({ text, mediaId, visibility, hdr }),
+    body: JSON.stringify({ text, mediaIDs, visibility, hdr }),
   });
 }
 

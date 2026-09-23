@@ -12,7 +12,7 @@ const { section } = Astro.props;
 const sectionTitles: Record<SettingsSection, string> = {
   profile: "个人资料",
   security: "访问控制",
-  storage: "S3 存储",
+  storage: "自定义存储",
 };
 ---
 
@@ -70,7 +70,7 @@ const sectionTitles: Record<SettingsSection, string> = {
         ]}
         href="/settings/storage"
       >
-        S3 存储
+        自定义存储
       </a>
     </nav>
 
@@ -104,7 +104,7 @@ const sectionTitles: Record<SettingsSection, string> = {
           href="/settings/storage"
           aria-current={section === "storage" ? "page" : undefined}
         >
-          S3 存储
+          自定义存储
         </a>
       </nav>
 
@@ -582,7 +582,7 @@ const sectionTitles: Record<SettingsSection, string> = {
 
         {section === "storage" && (
           <section data-settings-pane="storage">
-            <h3 class="settings-title">S3 兼容存储</h3>
+            <h3 class="settings-title">自定义存储</h3>
             <p class="form-hint">
               连接你自己的对象存储（S3 API
               兼容），媒体文件将直接上传到你的桶中，存储成本完全由你掌控。

@@ -1,5 +1,5 @@
 import type { Env, HtmlRewriterConstructor } from "../shared/platform";
-import { getComments, getPostByPath } from "./posts";
+import { getPostByPath } from "./posts";
 
 declare const HTMLRewriter: HtmlRewriterConstructor;
 
@@ -32,7 +32,8 @@ function renderPostText(value: string): string {
     const index = match.index ?? 0;
     html += escapeHtml(value.slice(lastIndex, index));
     let token = match[0];
-    const trailing = token.match(/[.,!?;:，。！？；：)}\]》]+$/u)?.[0] ?? "";
+    const trailing =
+      token.match(/[.,!?;:，。！？；：)}\]》”’"']+$/u)?.[0] ?? "";
     if (trailing) token = token.slice(0, -trailing.length);
     if (token.startsWith("fk://")) {
       html += escapeHtml(token.slice("fk://".length));
@@ -82,7 +83,6 @@ function formatTime(iso: string): string {
 }
 
 type Post = NonNullable<Awaited<ReturnType<typeof getPostByPath>>>;
-type Comment = Awaited<ReturnType<typeof getComments>>["comments"][number];
 
 /**
  * 边缘渲染帖子正文。
@@ -94,8 +94,13 @@ function renderOriginPost(post: Post, origin: string): string {
   const initial = [...post.author.name.trim()][0]?.toLocaleUpperCase() ?? "?";
   const handle = escapeHtml(post.author.handle);
 
-  const media = post.media
-    ? `<div class="media"><img class="media-image" src="${escapeHtml(absolute(origin, post.media.url) ?? post.media.url)}" alt="${escapeHtml(post.media.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>`
+  const media = post.media?.length
+    ? `<div class="media-list is-detail">${post.media
+        .map(
+          (item) =>
+            `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(absolute(origin, item.url) ?? item.url)}" alt="${escapeHtml(item.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`,
+        )
+        .join("")}</div>`
     : "";
 
   return [
@@ -130,7 +135,7 @@ function renderReplyComposer(post: Post): string {
     `<section class="thread-composer shard" data-shard="${postShard(`${post.id}:composer`)}" aria-busy="true">`,
     `<span class="avatar" aria-hidden="true"></span>`,
     `<div class="composer-body">`,
-    `<textarea id="${escapeHtml(inputId)}" name="reply" class="comment-input side-comment-input reply-composer-input" rows="2" maxlength="1000" placeholder="加载后即可回复" aria-label="回复内容" autocomplete="off" disabled></textarea>`,
+    `<textarea id="${escapeHtml(inputId)}" name="reply" class="comment-input side-comment-input reply-composer-input" rows="2" maxlength="1000" placeholder="正在加载" aria-label="回复内容" autocomplete="off" disabled></textarea>`,
     `<p class="thread-status" aria-live="polite"></p>`,
     `<div class="thread-composer-actions reply-composer-actions"><span class="comment-count">0 / 1000</span><button type="button" class="primary-btn comment-submit reply-submit" disabled>回复</button></div>`,
     `</div>`,
@@ -138,61 +143,35 @@ function renderReplyComposer(post: Post): string {
   ].join("");
 }
 
-function renderComment(
-  comment: Comment,
-  children: Map<string, Comment[]>,
-): string {
-  const avatar = comment.author.avatarUrl ?? AVATAR_FALLBACK;
-  const initial =
-    [...comment.author.name.trim()][0]?.toLocaleUpperCase() ?? "?";
-  const handle = escapeHtml(comment.author.handle);
-  const replies = children.get(comment.id) ?? [];
-  const parent = comment.parent
-    ? `<div class="reply-quote"><strong>回复 @${escapeHtml(comment.parent.handle)}</strong><span>：${escapeHtml(excerpt(comment.parent.text, 40))}</span></div>`
-    : "";
-  const nested = replies.length
-    ? `<div class="thread-children">${replies.map((reply) => renderComment(reply, children)).join("")}</div>`
-    : "";
+const SIDE_ICONS = {
+  reply:
+    '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3.5 3.5h16v11H10.5L5.5 20.5v-6h-2z"></path></svg>',
+  repost:
+    '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M16 2.5 21 7.5 16 12.5"></path><path d="M3.5 10.5V6.5h17.5"></path><path d="M8 21.5 3 16.5 8 11.5"></path><path d="M20.5 13.5v4H3"></path></svg>',
+  like: '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20.5 3.5 12 3.5 7.2 8 3.5 12 7.2 16 3.5 20.5 7.2 20.5 12Z"></path></svg>',
+  share:
+    '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M16 6l-4-4-4 4"></path><path d="M12 2v13"></path></svg>',
+};
+
+function renderSide(post: Post, origin: string): string {
+  const avatar = absolute(origin, post.author.avatarUrl) ?? AVATAR_FALLBACK;
+  const initial = [...post.author.name.trim()][0]?.toLocaleUpperCase() ?? "?";
+  const count = (value: number) =>
+    value > 0
+      ? `<span class="action-count">${value}</span>`
+      : '<span class="action-count"></span>';
+  const action = (name: keyof typeof SIDE_ICONS, label: string, value = 0) =>
+    `<button type="button" class="action" data-action="${name}" data-count="${value}" aria-label="${label}" title="${label}">${SIDE_ICONS[name]}${count(value)}</button>`;
 
   return [
-    `<article id="comment-${escapeHtml(comment.id)}" class="thread-post thread-reply shard" data-shard="${postShard(comment.id)}" data-comment-author="${handle}">`,
-    `<span class="thread-kind">回帖</span>`,
-    `<a class="avatar avatar-link" data-handle="${handle}" href="/user/${encodeURIComponent(comment.author.handle)}" title="查看 @${handle} 的主页">`,
-    `<span class="avatar-fallback">${escapeHtml(initial)}</span>`,
-    `<img class="avatar-image" src="${escapeHtml(avatar)}" alt="${escapeHtml(comment.author.name)}" loading="lazy" decoding="async" fetchpriority="low">`,
-    `</a>`,
-    `<div class="thread-body">`,
-    `<header class="thread-meta"><div class="thread-who"><strong>${escapeHtml(comment.author.name)}</strong><span class="thread-handle">@${handle}</span></div><time datetime="${escapeHtml(comment.createdAt)}">${escapeHtml(formatTime(comment.createdAt))}</time></header>`,
-    parent,
-    `<p class="thread-text">${renderPostText(comment.text)}</p>`,
-    `<footer class="thread-reply-actions"><button type="button" class="thread-link-btn" data-static-reply data-comment-id="${escapeHtml(comment.id)}" data-comment-handle="${handle}">回复</button><button type="button" class="thread-link-btn is-danger" data-static-delete data-comment-id="${escapeHtml(comment.id)}" hidden>删除</button></footer>`,
-    `<div class="reply-inline" hidden></div>`,
-    `</div>`,
-    nested,
-    `</article>`,
+    `<section class="post-info shard" data-shard="${postShard(`${post.id}:info`)}">`,
+    `<h4 class="post-info-title">详情</h4>`,
+    `<div class="post-info-author"><a class="avatar avatar-link" data-handle="${escapeHtml(post.author.handle)}" href="/user/${encodeURIComponent(post.author.handle)}"><span class="avatar-fallback">${escapeHtml(initial)}</span><img class="avatar-image" src="${escapeHtml(avatar)}" alt="${escapeHtml(post.author.name)}" loading="lazy" decoding="async"></a><div><strong>${escapeHtml(post.author.name)}</strong><small>@${escapeHtml(post.author.handle)}</small></div><button type="button" class="follow-btn" data-handle="${escapeHtml(post.author.handle)}" data-following="false">关注</button></div>`,
+    `<dl class="post-info-rows"><dt>发布时间</dt><dd>${escapeHtml(formatTime(post.createdAt))}</dd><dt>帖子 ID</dt><dd>${escapeHtml(post.id)}</dd><dt>正文字数</dt><dd>${[...post.text].length} 字</dd><dt>互动数据</dt><dd>${post.stats.replies} 回帖 · ${post.stats.reposts} 转发 · ${post.stats.likes} 喜欢 · ${post.stats.views} 次浏览</dd></dl>`,
+    `</section>`,
+    `<section class="post-controls shard" data-shard="${postShard(`${post.id}:controls`)}"><h4 class="post-controls-title">互动</h4><div class="post-control-actions">${action("reply", "回帖", post.stats.replies)}${action("repost", "转发", post.stats.reposts)}${action("like", "喜欢", post.stats.likes)}${action("share", "分享")}</div></section>`,
+    `<section class="hot-posts shard" data-shard="${postShard(`${post.id}:hot`)}"><h4 class="hot-title">热门帖子</h4><p class="hot-hint">按浏览热度排序</p><div class="hot-list"><div class="status">正在加载…</div></div></section>`,
   ].join("");
-}
-
-function renderComments(comments: Comment[], total: number): string {
-  const byId = new Map(comments.map((comment) => [comment.id, comment]));
-  const children = new Map<string, Comment[]>();
-  const roots: Comment[] = [];
-  for (const comment of comments) {
-    const parentId = comment.parent?.id;
-    if (!parentId || !byId.has(parentId)) {
-      roots.push(comment);
-      continue;
-    }
-    const bucket = children.get(parentId) ?? [];
-    bucket.push(comment);
-    children.set(parentId, bucket);
-  }
-  const count =
-    total > comments.length ? `${comments.length}/${total}` : String(total);
-  const content = roots.length
-    ? roots.map((comment) => renderComment(comment, children)).join("")
-    : `<div class="comments-empty"><strong>还没有回帖</strong><span>来发布第一条回帖吧。</span></div>`;
-  return `<section class="thread-replies"><header class="replies-head"><h2>回帖</h2><span>${count}</span></header><div class="comments-list thread-list">${content}</div></section>`;
 }
 
 /**
@@ -224,18 +203,17 @@ export async function withPostPageHtml(
     const post = await getPostByPath(env, null, handle, slug);
     if (!post) return response;
 
-    const comments = await getComments(env, null, post.id);
     const origin = url.origin;
     const mediaOrigin = apiOrigin(url);
     const title = `${post.author.name}：${excerpt(post.text, TITLE_EXCERPT) || "查看这条帖子"}`;
     const description =
       excerpt(post.text, DESCRIPTION_EXCERPT) || "查看这条帖子";
     const image =
-      absolute(mediaOrigin, post.media?.url) ??
+      absolute(mediaOrigin, post.media?.[0]?.url) ??
       absolute(origin, post.author.avatarUrl) ??
       `${origin}${FALLBACK_IMAGE}`;
     const canonical = `${origin}${url.pathname}`;
-    const card = post.media ? "summary_large_image" : "summary";
+    const card = post.media?.length ? "summary_large_image" : "summary";
 
     const tags = [
       `<meta property="og:type" content="article">`,
@@ -277,9 +255,9 @@ export async function withPostPageHtml(
             );
           },
         })
-        .on(".thread-replies", {
+        .on(".post-side", {
           element(element) {
-            element.replace(renderComments(comments.comments, comments.total), {
+            element.setInnerContent(renderSide(post, mediaOrigin), {
               html: true,
             });
           },

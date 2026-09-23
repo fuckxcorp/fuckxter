@@ -11,7 +11,7 @@ enabled = true
 [assets]
 directory = "./dist"
 binding = "ASSETS"
-run_worker_first = ["/messages", "/messages/*", "/notice", "/post/*"]
+run_worker_first = ["/", "/messages", "/messages/*", "/notice", "/post/*", "/user/*/followers", "/user/*/following"]
 
 [observability]
 enabled = true

@@ -63,18 +63,12 @@
   }
 }
 
-.thread,
-.post-side {
+.thread {
   animation: post-enter 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.post-side {
-  animation-delay: 70ms;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .thread,
-  .post-side {
+  .thread {
     animation: none;
   }
 }
