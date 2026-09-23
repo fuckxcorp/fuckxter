@@ -45,4 +45,4 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 FuckXter的代码基于[MoPL](https://867678.xyz/docs/mopl)开源
 
-FuckXter平台内的内容基于[FuckXter规则](https://fuckxter.site/rules)处理和授权
+FuckXter平台内的内容将完全自由 除非Cloudflare封禁我的账号
