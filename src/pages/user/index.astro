@@ -340,7 +340,19 @@ import Header from "../../components/Header.astro";
     root.replaceChildren(
       ...(posts.length === 0
         ? [statusRow("还没有发过帖子。")]
-        : posts.map((post) => renderPost(post))),
+        : posts.map((post) => {
+            const article = renderPost(post);
+            article.classList.add("user-post-link");
+            article.tabIndex = 0;
+            article.setAttribute("role", "link");
+            article.setAttribute("aria-label", "打开这条帖子");
+            const link = document.createElement("a");
+            link.className = "user-post-open-link";
+            link.href = postPath(post);
+            link.textContent = "查看帖子";
+            article.querySelector<HTMLElement>(".actions")?.before(link);
+            return article;
+          })),
     );
 
     if (root.dataset.postListBound === "true") return;
@@ -355,6 +367,9 @@ import Header from "../../components/Header.astro";
         navigate(userPath(avatarLink.dataset.handle));
         return;
       }
+
+      // 详情链接保留浏览器原生跳转能力（新标签、复制链接等）。
+      if (target.closest(".user-post-open-link")) return;
 
       const followButton = target.closest<HTMLButtonElement>(".follow-btn");
       if (followButton?.dataset.handle) {
@@ -466,6 +481,24 @@ import Header from "../../components/Header.astro";
         if (result === "shared") showToast("已分享");
         if (result === "failed") showToast("分享失败");
       }
+    });
+
+    root.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      if (
+        (event.target as HTMLElement).closest(
+          "button, a, input, textarea, select",
+        )
+      )
+        return;
+      const article = (event.target as HTMLElement).closest<HTMLElement>(
+        ".user-post-link",
+      );
+      const id = article?.dataset.postId;
+      const post = postList.posts.find((item) => item.id === id);
+      if (!post) return;
+      event.preventDefault();
+      navigate(postPath(post));
     });
   }
 

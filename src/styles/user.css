@@ -409,6 +409,30 @@ html:has(.avatar-dialog[open]) {
   background: var(--color-bg-raised);
 }
 
+.user-posts .user-post-link {
+  cursor: pointer;
+}
+
+.user-post-open-link {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.6rem;
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.user-post-open-link:hover,
+.user-post-open-link:focus-visible {
+  text-decoration: underline;
+}
+
+.user-post-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
 .user-post-skeleton {
   pointer-events: none;
 }
