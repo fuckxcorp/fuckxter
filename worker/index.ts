@@ -1032,6 +1032,14 @@ export default {
       hostname === "api.fuckxter.site" ||
       isDedicatedApiPath ||
       isOverlappingApiPath;
+    // API 根地址也必须是 JSON，不能回退到同一 Worker 承载的前端首页。
+    if (hostname === "api.fuckxter.site" && pathname === "/") {
+      return json(
+        { ok: true, service: "fuckxter-api", version: "v1" },
+        request,
+        env,
+      );
+    }
     if (!isApiHost) {
       const assetPath = assetPagePath(url.pathname);
       const mode = isHashedAsset(url.pathname) ? "immutable" : "revalidate";

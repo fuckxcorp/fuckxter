@@ -111,6 +111,11 @@ import Notice from "../layouts/Notice.astro";
     const container = document.querySelector<HTMLElement>("[data-notice]");
     if (!container || container.dataset.noticeMounted === "true") return;
     container.dataset.noticeMounted = "true";
+    container
+      .querySelector<HTMLButtonElement>("[data-role=back]")!
+      .addEventListener("click", () =>
+        history.length > 1 ? history.back() : navigate("/"),
+      );
 
     const list = container.querySelector<HTMLElement>(
       "[data-role=notice-list]",

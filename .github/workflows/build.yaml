@@ -1,7 +1,7 @@
 name: Cuanto por una tarta de queso
 
 on:
-  push:
+  #push:
   workflow_dispatch:
 
 permissions:
