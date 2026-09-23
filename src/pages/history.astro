@@ -1,0 +1,95 @@
+---
+import "../styles/notice.css";
+import Notice from "../layouts/Notice.astro";
+---
+
+<Notice
+  title="历史浏览"
+  root="data-history"
+  subtitle="最近打开的帖子 · 仅保存在此浏览器，最多 200 条"
+>
+  <button slot="actions" type="button" class="ghost-btn" data-clear-history>
+    清空历史
+  </button>
+  <div class="history-list" data-history-list></div>
+</Notice>
+
+<style>
+  .history-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .history-list :global(a) {
+    display: grid;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .history-list :global(a:hover) {
+    border-color: var(--ink);
+  }
+  .history-list :global(time) {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+  }
+</style>
+
+<script>
+  import { hydrateSession } from "../lib/accounts/auth";
+  import { onPageReady } from "../lib/core/page";
+  import { clearHistory, readHistory } from "../lib/feed/history";
+  import { el, statusRow, showToast } from "../lib/ui/dom";
+
+  onPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-history]");
+    if (!root || root.dataset.mounted) return;
+    root.dataset.mounted = "true";
+    const list = root.querySelector<HTMLElement>("[data-history-list]")!;
+    const clear = root.querySelector<HTMLButtonElement>(
+      "[data-clear-history]",
+    )!;
+    const render = () => {
+      const visits = readHistory();
+      clear.disabled = !visits.length;
+      list.replaceChildren(
+        ...visits.map((visit) => {
+          const link = el("a");
+          link.href = visit.path;
+          const author = el("strong");
+          author.textContent = visit.name;
+          const text = el("span");
+          text.textContent = visit.text;
+          const time = el("time");
+          time.dateTime = visit.at;
+          time.textContent = `浏览于 ${new Date(visit.at).toLocaleString("zh-CN")}`;
+          link.append(author, text, time);
+          return link;
+        }),
+      );
+      if (!visits.length)
+        list.append(statusRow("还没有浏览记录，打开帖子后会显示在这里。"));
+    };
+    root
+      .querySelector("[data-role=back]")!
+      .addEventListener("click", () =>
+        history.length > 1 ? history.back() : location.assign("/"),
+      );
+    clear.addEventListener("click", () => {
+      if (!confirm("清空此账号在本浏览器中的浏览历史？")) return;
+      try {
+        clearHistory();
+        render();
+      } catch {
+        showToast("清空失败，请重试");
+      }
+    });
+    document.addEventListener("fuckxter:account-change", render);
+    document.addEventListener("astro:before-swap", () => {
+      document.removeEventListener("fuckxter:account-change", render);
+    }, { once: true });
+    void hydrateSession().then(() => { if (root.isConnected) render(); });
+  });
+</script>

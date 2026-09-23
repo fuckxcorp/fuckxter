@@ -1,0 +1,200 @@
+---
+import "../styles/notice.css";
+import Notice from "../layouts/Notice.astro";
+---
+
+<Notice
+  title="编辑帖子"
+  root="data-edit"
+  subtitle="修改内容后保存，返回帖子查看结果"
+>
+  <p role="status" data-edit-status>
+    正在加载帖子…
+  </p>
+  <form class="edit-form" hidden>
+    <label for="edit-text">帖子内容</label>
+    <textarea
+      id="edit-text"
+      rows="8"
+      required
+      aria-describedby="edit-count"
+    ></textarea>
+    <span id="edit-count"></span>
+    <div class="media-list" data-edit-media></div>
+    <label for="edit-visibility">可见范围</label>
+    <select id="edit-visibility">
+      <option value="public">公开可见</option>
+      <option value="mutual">互相关注可见</option>
+      <option value="private">仅自己可见</option>
+    </select>
+    <label data-edit-hdr hidden>
+      <input type="checkbox" /> 开启 HDR 显示
+    </label>
+    <footer>
+      <a class="ghost-btn" data-edit-cancel href="/">
+        取消
+      </a>
+      <button class="primary-btn" type="submit">
+        保存修改
+      </button>
+    </footer>
+  </form>
+</Notice>
+
+<style>
+  .edit-form {
+    display: grid;
+    gap: 0.8rem;
+    max-width: 760px;
+  }
+  .edit-form[hidden],
+  .edit-form [hidden] {
+    display: none;
+  }
+  textarea,
+  select {
+    padding: 0.8rem;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-strong);
+  }
+  textarea {
+    width: 100%;
+    resize: vertical;
+    line-height: 1.6;
+  }
+  footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+  }
+  footer a {
+    text-decoration: none;
+  }
+  #edit-count {
+    color: var(--color-text-muted);
+  }
+</style>
+
+<script>
+  import { navigate } from "astro:transitions/client";
+  import { getPostByPath, updatePost } from "../lib/accounts/api";
+  import { hydrateSession, requestAuthentication } from "../lib/accounts/auth";
+  import { onPageReady } from "../lib/core/page";
+  import { parsePostPath, postPath } from "../lib/core/urls";
+  import { apiEndpoint } from "../lib/core/http";
+  import { isHdrImage } from "../lib/core/hdr";
+  import { el } from "../lib/ui/dom";
+  import type { Post } from "../lib/core/types";
+
+  onPageReady(() => {
+    const root = document.querySelector<HTMLElement>("[data-edit]");
+    if (!root || root.dataset.mounted) return;
+    root.dataset.mounted = "true";
+    const status = root.querySelector<HTMLElement>("[data-edit-status]")!;
+    const form = root.querySelector<HTMLFormElement>("form")!;
+    const input = root.querySelector<HTMLTextAreaElement>("#edit-text")!;
+    const count = root.querySelector<HTMLElement>("#edit-count")!;
+    const visibility = root.querySelector<HTMLSelectElement>("select")!;
+    const hdrWrap = root.querySelector<HTMLElement>("[data-edit-hdr]")!;
+    const hdrInput = hdrWrap.querySelector<HTMLInputElement>("input")!;
+    const save = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    let post: Post | null = null;
+    let busy = false;
+    let hdrChanged = false;
+    const sync = () => {
+      const length = [...input.value].length;
+      count.textContent = `${length} / 1000`;
+      save.disabled = busy || !input.value.trim() || length > 1000;
+    };
+    root
+      .querySelector("[data-role=back]")!
+      .addEventListener("click", () =>
+        history.length > 1 ? history.back() : location.assign("/"),
+      );
+    input.addEventListener("input", sync);
+    hdrInput.addEventListener("change", () => {
+      hdrChanged = true;
+    });
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!post || save.disabled) return;
+      busy = true;
+      save.textContent = "保存中…";
+      status.textContent = "";
+      sync();
+      try {
+        const updated = await updatePost(
+          post.id,
+          input.value.trim(),
+          visibility.value as Post["visibility"],
+          hdrChanged ? hdrInput.checked : undefined,
+        );
+        await navigate(postPath(updated));
+      } catch (error) {
+        status.textContent =
+          error instanceof Error ? error.message : "保存失败，请重试。";
+      } finally {
+        busy = false;
+        save.textContent = "保存修改";
+        sync();
+      }
+    });
+    void (async () => {
+      try {
+        const parsed = parsePostPath(
+          new URL(location.href).searchParams.get("post") ?? "",
+        );
+        if (!parsed)
+          throw new Error("帖子链接无效，请从帖子上的编辑按钮进入。");
+        const account = await hydrateSession();
+        if (!account) {
+          status.textContent = "请登录后编辑帖子。";
+          const login = el("button", "primary-btn");
+          login.textContent = "登录";
+          login.addEventListener("click", requestAuthentication);
+          status.append(login);
+          return;
+        }
+        post = await getPostByPath(parsed.handle, parsed.slug);
+        if (!post?.viewer?.isAuthor)
+          throw new Error("只能编辑自己发布的帖子。");
+        input.value = post.text;
+        visibility.value = post.visibility ?? "public";
+        root.querySelector<HTMLAnchorElement>("[data-edit-cancel]")!.href =
+          postPath(post);
+        const media = post.media ?? [];
+        const host = root.querySelector<HTMLElement>("[data-edit-media]")!;
+        for (const item of media) {
+          const image = el("img", "media-image");
+          image.src = item.url.startsWith("/")
+            ? apiEndpoint(item.url)
+            : item.url;
+          image.alt = item.alt;
+          host.append(image);
+        }
+        hdrInput.checked = media.some((item) => item.hdr);
+        status.textContent = "";
+        form.hidden = false;
+        sync();
+        const detected = await Promise.all(
+          media.map(async (item) => {
+            try {
+              const response = await fetch(
+                item.url.startsWith("/") ? apiEndpoint(item.url) : item.url,
+                { credentials: "include" },
+              );
+              return response.ok && (await isHdrImage(await response.blob()));
+            } catch {
+              return false;
+            }
+          }),
+        );
+        hdrWrap.hidden = !detected.some(Boolean);
+      } catch (error) {
+        status.textContent =
+          error instanceof Error ? error.message : "帖子加载失败。";
+      }
+    })();
+  });
+</script>

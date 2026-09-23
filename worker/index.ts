@@ -120,6 +120,8 @@ const PRETTY_ASSET_PATHS = new Set([
   "/login",
   "/notice",
   "/saved",
+  "/history",
+  "/edit",
   "/settings",
   "/settings/profile",
   "/settings/security",

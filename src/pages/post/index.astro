@@ -7,7 +7,7 @@ import Header from "../../components/Header.astro";
 
 <Layout title="详情">
   <div class="app subpage" data-post>
-    <Header />
+    <Header search />
 
     <div class="post-layout">
       <div class="post-main">
@@ -100,6 +100,7 @@ import Header from "../../components/Header.astro";
   } from "../../lib/ui/dom";
   import { ApiError, apiEndpoint } from "../../lib/core/http";
   import { onPageReady } from "../../lib/core/page";
+  import { rememberPost } from "../../lib/feed/history";
   import { openPostShareMenu } from "../../lib/ui/share";
   import type { Comment, Post } from "../../lib/core/types";
   import { parsePostPath, postPath, userPath } from "../../lib/core/urls";
@@ -214,6 +215,7 @@ import Header from "../../components/Header.astro";
     );
 
     if (post.viewer?.isAuthor) {
+      actions.append(actionButton("edit", ICONS.edit, "编辑", 0));
       const remove = actionButton("delete", ICONS.trash, "删除", 0);
       remove.classList.add("is-danger");
       actions.append(remove);
@@ -273,6 +275,11 @@ import Header from "../../components/Header.astro";
           setCount(btn, current);
           btn.classList.toggle(activeClass, !willActive);
         }
+        return;
+      }
+
+      if (action === "edit") {
+        void navigate(`/edit?post=${encodeURIComponent(postPath(post))}`);
         return;
       }
 
@@ -966,6 +973,7 @@ import Header from "../../components/Header.astro";
     const refreshComments = async () => {
       try {
         const page = await getComments(post.id);
+        status.textContent = "";
         renderList(page.comments, page.total);
         if (location.hash.startsWith("#comment-")) {
           scrollToComment(
@@ -973,7 +981,11 @@ import Header from "../../components/Header.astro";
           );
         }
       } catch (error) {
-        renderList([], 0);
+        repliesCount!.textContent = "加载失败";
+        const retry = el("button", "retry-btn");
+        retry.textContent = "重新加载回帖";
+        retry.addEventListener("click", () => void refreshComments());
+        if (!list.childElementCount) list.append(retry);
         status.textContent =
           error instanceof Error ? error.message : "回帖加载失败";
       }
@@ -1018,8 +1030,7 @@ import Header from "../../components/Header.astro";
         input.focus();
       });
     }
-    // 静态 HTML 已包含楼中楼和回复入口；新增、删除后才重新拉取列表。
-    if (!initialReplies) void refreshComments();
+    void refreshComments();
     return { thread, composer };
   }
 
@@ -1089,6 +1100,7 @@ import Header from "../../components/Header.astro";
           history.replaceState(null, "", postPath(post));
         }
         document.title = `${post.author.name}：${post.text.slice(0, 30)} | FuckXter`;
+        rememberPost(post);
         const controls = renderPostControls(post);
         const initialReplies =
           host.querySelector<HTMLElement>(".thread-replies");

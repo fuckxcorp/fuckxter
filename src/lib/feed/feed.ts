@@ -10,7 +10,6 @@ import {
   toggleLike,
   toggleRepost,
   toggleSave,
-  updatePost,
   uploadMedia,
 } from "../accounts/api";
 import {
@@ -42,6 +41,7 @@ import type {
   SearchResult,
   StorageOption,
 } from "../core/types";
+import { isHdrImage } from "../core/hdr";
 import { dismissHomeSplash } from "../ui/splash";
 import { postPath, userPath } from "../core/urls";
 
@@ -262,9 +262,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
   };
 
-  /** HDR 只对图片有意义，别的附件类型一律不给这个选项。 */
+  const hdrMedia = new Set<string>();
   const canUseHdr = (media: PostMedia[] | undefined): boolean =>
-    Boolean(media?.some((item) => item.contentType.startsWith("image/")));
+    Boolean(media?.some((item) => hdrMedia.has(item.id)));
 
   const applyHdrPreview = () => {
     mediaPreview.classList.toggle("is-hdr", mediaHdrInput.checked);
@@ -298,7 +298,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
   let uploadingMedia = false;
   let failedMedia: File[] = [];
-  let editingPostId: string | null = null;
   let storageOptions: StorageOption[] | null = null;
   let storageOptionsPromise: Promise<void> | null = null;
   let storageOwner: string | null = null;
@@ -491,7 +490,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
       renderStorageMenu([]);
     }
     if (!account) {
-      editingPostId = null;
       selectedMedia = [];
       mediaInput.value = "";
       mediaStatus.hidden = true;
@@ -1006,20 +1004,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
     if (action === "edit") {
       if (!post.viewer?.isAuthor) return;
-      editingPostId = post.id;
-      composer.hidden = false;
-      composerInput.value = post.text;
-      setVisibility(post.visibility ?? "public");
-      selectedMedia = post.media ?? [];
-      showMediaPreview(selectedMedia);
-      composerInput.style.height = "auto";
-      composerInput.style.height = `${composerInput.scrollHeight}px`;
-      composerBtn.textContent = "保存";
-      mediaStatus.textContent = "正在编辑这条帖子";
-      mediaStatus.hidden = false;
-      composerInput.focus();
-      composerInput.scrollIntoView({ behavior: "smooth", block: "center" });
-      syncComposer();
+      void navigate(`/edit?post=${encodeURIComponent(postPath(post))}`);
       return;
     }
 
@@ -1061,7 +1046,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
 
   const resetComposer = () => {
-    editingPostId = null;
     showMediaPreview([]);
     composerInput.value = "";
     clearDraft();
@@ -1088,10 +1072,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
   composerInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeComposerPickers();
-      if (editingPostId) {
-        event.preventDefault();
-        resetComposer();
-      }
       return;
     }
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
@@ -1119,14 +1099,18 @@ export function mountFeed(container: HTMLElement): FeedControls {
     mediaStatus.textContent = "上传中…";
     mediaStatus.hidden = false;
     syncComposer();
-    if (!keep) selectedMedia = [];
+    if (!keep) {
+      selectedMedia = [];
+      hdrMedia.clear();
+    }
     failedMedia = [];
     const progress = files.map(() => 0);
     const mode =
       localStorage.getItem("fk-upload-mode") === "direct" ? "direct" : "proxy";
     const results = await Promise.allSettled(
-      files.map((file, index) =>
-        uploadMedia(
+      files.map(async (file, index) => {
+        const hdr = await isHdrImage(file);
+        const media = await uploadMedia(
           file,
           selectedStorageId || undefined,
           (percent) => {
@@ -1137,8 +1121,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
             mediaStatus.textContent = `上传中 ${total}%`;
           },
           mode,
-        ),
-      ),
+        );
+        if (hdr) hdrMedia.add(media.id);
+        return media;
+      }),
     );
     const errors: unknown[] = [];
     results.forEach((result, index) => {
@@ -1208,29 +1194,19 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
     const text = composerInput.value.trim();
     if (!text) return;
-    const editing = editingPostId !== null;
     const label = composerBtn.textContent;
     composerBtn.disabled = true;
-    composerBtn.textContent = editing ? "保存中…" : "发送中…";
+    composerBtn.textContent = "发送中…";
     mediaStatus.textContent = "";
     mediaStatus.hidden = true;
     try {
       let created: Post | null = null;
-      if (editingPostId) {
-        await updatePost(
-          editingPostId,
-          text,
-          selectedVisibility,
-          readHdrChoice(),
-        );
-      } else {
-        created = await createPost(
-          text,
-          selectedMedia.map((media) => media.id),
-          selectedVisibility,
-          readHdrChoice(),
-        );
-      }
+      created = await createPost(
+        text,
+        selectedMedia.map((media) => media.id),
+        selectedVisibility,
+        readHdrChoice(),
+      );
       if (state.search !== null) {
         searchInput.value = "";
         state.search = null;

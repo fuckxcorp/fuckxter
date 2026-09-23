@@ -819,9 +819,20 @@ body {
     opacity 120ms ease;
 }
 
-.menu-item:hover {
-  background: var(--menu-soft);
-  color: var(--menu-text);
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: none;
+  color: var(--menu-select-text);
+}
+
+.menu-item:hover::before,
+.menu-item:focus-visible::before {
+  transform: skewX(-12deg) scaleX(1);
+  opacity: 1;
+}
+
+.menu-item:is(:hover, :focus-visible) .menu-arrow {
+  color: inherit;
 }
 
 .menu-item .menu-check {

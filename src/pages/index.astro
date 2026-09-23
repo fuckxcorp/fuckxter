@@ -256,13 +256,13 @@ import Account from "../layouts/Account.astro";
             <label
               class="hdr-toggle"
               data-role="media-hdr-wrap"
-              title="普通 SDR 图片本身没有超过 SDR 白的亮度，勾了也不会有变化；只有本身带 HDR 信息的图片（HDR gain map、PQ/BT.2020）才会看出区别。"
+              title="检测到 HDR 图片，可在支持 HDR 的屏幕上开启高动态范围显示。"
               hidden
             >
               <input type="checkbox" data-role="media-hdr" />
-              <span>HDR 显示</span>
+              <span>开启 HDR 显示</span>
               <small class="hdr-hint">
-                只对带 HDR 信息的图（gain map / PQ）有区别
+                已检测到 HDR 图片
               </small>
             </label>
           </div>

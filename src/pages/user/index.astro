@@ -399,6 +399,11 @@ import Header from "../../components/Header.astro";
       }
       const action = btn.dataset.action;
 
+      if (action === "edit" && post.viewer?.isAuthor) {
+        void navigate(`/edit?post=${encodeURIComponent(postPath(post))}`);
+        return;
+      }
+
       if (action === "save") {
         const willSave = !btn.classList.contains("is-saved");
         btn.classList.toggle("is-saved", willSave);

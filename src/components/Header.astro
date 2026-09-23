@@ -4,9 +4,10 @@ import Account from "../layouts/Account.astro";
 interface Props {
   label?: string;
   showRefresh?: boolean;
+  search?: boolean;
 }
 
-const { label = "← 返回", showRefresh = false } = Astro.props;
+const { label = "← 返回", showRefresh = false, search = false } = Astro.props;
 ---
 
 <header class="topbar">
@@ -21,7 +22,7 @@ const { label = "← 返回", showRefresh = false } = Astro.props;
     />
     <img
       class="logo-img logo-dark"
-      src="/fuckxter_logo.avif"
+      src="/fuckxter_wh.avif"
       alt="FuckXter"
       width="514"
       height="514"
@@ -56,6 +57,18 @@ const { label = "← 返回", showRefresh = false } = Astro.props;
         <path d="M17.9 15a7 7 0 0 1-11.2 2.6L4 15" />
       </svg>
     </button>
+  )}
+  {search && (
+    <form class="search" action="/" role="search">
+      <input
+        class="search-input"
+        name="q"
+        type="search"
+        placeholder="搜索 FuckXter"
+        aria-label="搜索 FuckXter"
+        autocomplete="off"
+      />
+    </form>
   )}
   <Account />
 </header>

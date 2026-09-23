@@ -270,7 +270,10 @@ export function mountAccountControls(
     }
     const open = target.closest<HTMLButtonElement>("[data-account-open]");
     if (open) {
-      if (open.dataset.accountOpen === "profile" && account) {
+      if (open.dataset.accountOpen === "history") {
+        closeAccountMenu();
+        navigate("/history");
+      } else if (open.dataset.accountOpen === "profile" && account) {
         closeAccountMenu();
         navigate(userPath(account.profile.handle));
       } else if (open.dataset.accountOpen === "notice" && account) {
