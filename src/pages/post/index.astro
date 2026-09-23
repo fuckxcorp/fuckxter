@@ -111,6 +111,20 @@ import Header from "../../components/Header.astro";
     });
 
   const MAX_COMMENT_CHARS = 1000;
+  const hotPostLimit = (side: HTMLElement): number => {
+    // 移动端右栏回到普通文档流，不能拿无限高度来填充。
+    if (matchMedia("(max-width: 900px)").matches) return 2;
+    const infoHeight =
+      side.querySelector<HTMLElement>(".post-info")?.offsetHeight ?? 0;
+    const controlsHeight =
+      side.querySelector<HTMLElement>(".post-controls")?.offsetHeight ?? 0;
+    const available = Math.max(
+      0,
+      side.clientHeight - infoHeight - controlsHeight - 56,
+    );
+    // 一条热门帖约占 92px；依照实际剩余空间计算，而非预设屏幕高度档位。
+    return Math.max(1, Math.floor(available / 92));
+  };
 
   function renderPostInfo(post: Post): HTMLElement {
     const box = el("section", "post-info shard");
@@ -154,6 +168,7 @@ import Header from "../../components/Header.astro";
   function renderHotPosts(
     posts: Post[] | null,
     currentId: string,
+    side?: HTMLElement,
   ): HTMLElement {
     const box = el("section", "hot-posts shard");
     box.dataset.shard = postShard(`${currentId}:hot`);
@@ -166,7 +181,9 @@ import Header from "../../components/Header.astro";
     if (posts === null) {
       list.append(statusRow("正在加载…"));
     } else {
-      const items = posts.filter((item) => item.id !== currentId).slice(0, 5);
+      const items = posts
+        .filter((item) => item.id !== currentId)
+        .slice(0, side ? hotPostLimit(side) : 1);
       if (items.length === 0) {
         list.append(statusRow("暂时没有其他热门帖子。"));
       }
@@ -1090,15 +1107,32 @@ import Header from "../../components/Header.astro";
           initialReplies ?? undefined,
         );
         host.replaceChildren(thread);
-        const hot = renderHotPosts(null, post.id);
+        let hot = renderHotPosts(null, post.id);
         side.replaceChildren(renderPostInfo(post), controls, hot);
         side.hidden = false;
+        let hotPosts: Post[] | null = null;
+        const refreshHotPosts = () => {
+          const next = renderHotPosts(hotPosts, post.id, side);
+          hot.replaceWith(next);
+          hot = next;
+        };
+        const hotSizeObserver = new ResizeObserver(() => {
+          if (hotPosts) refreshHotPosts();
+        });
+        hotSizeObserver.observe(side);
+        document.addEventListener(
+          "astro:before-swap",
+          () => hotSizeObserver.disconnect(),
+          { once: true },
+        );
         void getTimeline("foryou", null)
           .then((page) => {
-            hot.replaceWith(renderHotPosts(page.posts, post.id));
+            hotPosts = page.posts;
+            refreshHotPosts();
           })
           .catch(() => {
-            hot.replaceWith(renderHotPosts([], post.id));
+            hotPosts = [];
+            refreshHotPosts();
           });
         void recordPostView(post.id)
           .then((result) => {

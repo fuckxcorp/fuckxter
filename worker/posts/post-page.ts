@@ -110,6 +110,24 @@ function renderOriginPost(post: Post): string {
   ].join("");
 }
 
+/**
+ * 首屏先给出完整的回复区域轮廓；客户端拿到会话后会接管成可提交的输入框。
+ * 这样详情页不再先出现正文、过一会儿才突然插入回复框。
+ */
+function renderReplyComposer(post: Post): string {
+  const inputId = `reply-${encodeURIComponent(post.id)}`;
+  return [
+    `<section class="thread-composer shard" data-shard="${postShard(`${post.id}:composer`)}" aria-busy="true">`,
+    `<span class="avatar" aria-hidden="true"></span>`,
+    `<div class="composer-body">`,
+    `<textarea id="${escapeHtml(inputId)}" name="reply" class="comment-input side-comment-input reply-composer-input" rows="2" maxlength="1000" placeholder="加载后即可回复" aria-label="回复内容" autocomplete="off" disabled></textarea>`,
+    `<p class="thread-status" aria-live="polite"></p>`,
+    `<div class="thread-composer-actions reply-composer-actions"><span class="comment-count">0 / 1000</span><button type="button" class="primary-btn comment-submit reply-submit" disabled>回复</button></div>`,
+    `</div>`,
+    `</section>`,
+  ].join("");
+}
+
 function renderComment(
   comment: Comment,
   children: Map<string, Comment[]>,
@@ -240,7 +258,12 @@ export async function withPostPageHtml(
         // 骨架文章 → 真实帖子
         .on("article.post-skeleton", {
           element(element) {
-            element.replace(renderOriginPost(post), { html: true });
+            element.replace(
+              `${renderOriginPost(post)}${renderReplyComposer(post)}`,
+              {
+                html: true,
+              },
+            );
           },
         })
         .on(".thread-replies", {
