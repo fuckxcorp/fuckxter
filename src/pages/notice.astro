@@ -24,6 +24,7 @@ import Notice from "../layouts/Notice.astro";
 </Notice>
 
 <script>
+  import { navigate } from "astro:transitions/client";
   import { getNotifications, markNotificationsRead } from "../lib/accounts/api";
   import { hydrateSession } from "../lib/accounts/auth";
   import { avatarGradient, el, ICONS, relativeTime } from "../lib/ui/dom";

@@ -1,4 +1,6 @@
 ---
+import Account from "../layouts/Account.astro";
+
 interface Props {
   label?: string;
   showRefresh?: boolean;
@@ -55,86 +57,5 @@ const { label = "← 返回", showRefresh = false } = Astro.props;
       </svg>
     </button>
   )}
-  <button
-    type="button"
-    class="topbar-global-account"
-    data-role="global-account"
-    aria-label="登录或注册"
-    title="登录或注册"
-  >
-    <span class="account-avatar" data-role="global-account-avatar" hidden></span>
-    <svg
-      class="account-icon"
-      data-role="global-account-icon"
-      viewBox="0 0 24 24"
-      width="21"
-      height="21"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.8"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="8" r="4"></circle>
-      <path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"></path>
-    </svg>
-  </button>
+  <Account />
 </header>
-
-<script>
-  import { navigate } from "astro:transitions/client";
-  import { getAccount, hydrateSession } from "../lib/accounts/auth";
-  import { apiEndpoint } from "../lib/core/http";
-  import { onPageReady } from "../lib/core/page";
-  import { avatarGradient } from "../lib/ui/dom";
-  import { userPath } from "../lib/core/urls";
-
-  const mountGlobalAccount = () => {
-    const button = document.querySelector<HTMLButtonElement>(
-      "[data-role=global-account]",
-    );
-    if (!button || button.dataset.mounted === "true") return;
-    button.dataset.mounted = "true";
-    const avatar = button.querySelector<HTMLElement>(
-      "[data-role=global-account-avatar]",
-    )!;
-    const icon = button.querySelector<SVGElement>(
-      "[data-role=global-account-icon]",
-    )!;
-    const sync = () => {
-      const account = getAccount();
-      if (!account) {
-        avatar.hidden = true;
-        avatar.replaceChildren();
-        icon.hidden = false;
-        button.setAttribute("aria-label", "登录或注册");
-        button.title = "登录或注册";
-        return;
-      }
-      avatar.hidden = false;
-      avatar.setAttribute("style", avatarGradient(account.profile.handle));
-      const image = document.createElement("img");
-      image.className = "account-image";
-      image.src = account.avatarUrl
-        ? account.avatarUrl.startsWith("/")
-          ? apiEndpoint(account.avatarUrl)
-          : account.avatarUrl
-        : "/user.avif";
-      image.alt = "";
-      image.decoding = "async";
-      avatar.replaceChildren(image);
-      icon.hidden = true;
-      button.setAttribute("aria-label", "进入我的主页");
-      button.title = "进入我的主页";
-    };
-    button.addEventListener("click", () => {
-      const account = getAccount();
-      navigate(account ? userPath(account.profile.handle) : "/login");
-    });
-    sync();
-    void hydrateSession().then(sync);
-  };
-
-  onPageReady(mountGlobalAccount);
-</script>

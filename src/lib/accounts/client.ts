@@ -1,5 +1,3 @@
-import { mountAccountControls } from "./account";
-import { hydrateSession } from "./auth";
 import { mountFeed } from "../feed/feed";
 
 function mountApp(container: HTMLElement): void {
@@ -7,19 +5,15 @@ function mountApp(container: HTMLElement): void {
   container.dataset.mounted = "true";
 
   const feed = mountFeed(container);
-  const account = mountAccountControls(container, {
-    onAccountChange: feed.syncUser,
-  });
-  void hydrateSession().then(() => {
-    feed.syncUser();
-    account.sync();
-  });
+  const syncUser = () => feed.syncUser();
+  document.addEventListener("fuckxter:account-change", syncUser);
+  feed.syncUser();
 
   document.addEventListener(
     "astro:before-swap",
     () => {
       feed.dispose();
-      account.dispose();
+      document.removeEventListener("fuckxter:account-change", syncUser);
     },
     { once: true },
   );

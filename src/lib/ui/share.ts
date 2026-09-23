@@ -10,19 +10,8 @@ function postUrl(post: Post): string {
 }
 
 async function copyText(value: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
-  const input = document.createElement("textarea");
-  input.value = value;
-  input.style.position = "fixed";
-  input.style.opacity = "0";
-  document.body.append(input);
-  input.select();
-  const copied = document.execCommand("copy");
-  input.remove();
-  if (!copied) throw new Error("剪贴板不可用。");
+  if (!navigator.clipboard?.writeText) throw new Error("剪贴板不可用。");
+  await navigator.clipboard.writeText(value);
 }
 
 export async function copyPostLink(post: Post): Promise<"copied"> {
