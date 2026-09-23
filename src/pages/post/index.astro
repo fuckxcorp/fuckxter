@@ -530,6 +530,7 @@ import Header from "../../components/Header.astro";
     post: Post,
     canModerate: boolean,
     onReplyCountChange: (count: number) => void,
+    initialReplies?: HTMLElement,
   ): { thread: HTMLElement; composer: HTMLElement } {
     const thread = el("section", "thread");
     const head = el("header", "thread-head");
@@ -539,13 +540,20 @@ import Header from "../../components/Header.astro";
     hint.textContent = "发起与回帖按时间排列";
     head.append(title, hint);
 
-    const replies = el("section", "thread-replies");
-    const repliesHead = el("header", "replies-head");
-    const repliesTitle = el("h2");
-    repliesTitle.textContent = "回帖";
-    const repliesCount = el("span");
-    repliesCount.textContent = "0";
-    repliesHead.append(repliesTitle, repliesCount);
+    // 直达帖子页时，Worker 已将回帖渲染进 HTML。复用该节点而不是
+    // 再请求一次并替换它，首屏内容便始终是静态 HTML，不会闪成 JS 加载。
+    const replies = initialReplies ?? el("section", "thread-replies");
+    let repliesHead = replies.querySelector<HTMLElement>(".replies-head");
+    let repliesCount = repliesHead?.querySelector<HTMLElement>("span");
+    if (!repliesHead || !repliesCount) {
+      repliesHead = el("header", "replies-head");
+      const repliesTitle = el("h2");
+      repliesTitle.textContent = "回帖";
+      repliesCount = el("span");
+      repliesCount.textContent = "0";
+      repliesHead.append(repliesTitle, repliesCount);
+      replies.prepend(repliesHead);
+    }
 
     const me = getAccount();
     const input = el(
@@ -573,7 +581,9 @@ import Header from "../../components/Header.astro";
 
     const status = el("p", "thread-status");
     status.setAttribute("aria-live", "polite");
-    const list = el("div", "comments-list thread-list");
+    const list =
+      replies.querySelector<HTMLElement>(".comments-list.thread-list") ??
+      el("div", "comments-list thread-list");
 
     composerBody.append(status, composerActions);
     composer.append(composerAvatar, composerBody);
@@ -942,7 +952,7 @@ import Header from "../../components/Header.astro";
     syncCommentSubmit();
     requestAnimationFrame(resizeCommentInput);
 
-    replies.append(repliesHead, list);
+    if (!list.isConnected) replies.append(list);
     thread.append(head, renderOriginPost(post), composer, replies);
     if (location.hash === "#reply" && me) {
       requestAnimationFrame(() => {
@@ -950,7 +960,8 @@ import Header from "../../components/Header.astro";
         input.focus();
       });
     }
-    void refreshComments();
+    // 没有边缘预渲染（例如开发时直接打开 Astro）才退回 API 加载。
+    if (!initialReplies) void refreshComments();
     return { thread, composer };
   }
 
@@ -1021,6 +1032,8 @@ import Header from "../../components/Header.astro";
         }
         document.title = `${post.author.name}：${post.text.slice(0, 30)} | FuckXter`;
         const controls = renderPostControls(post);
+        const initialReplies =
+          host.querySelector<HTMLElement>(".thread-replies");
         const { thread } = renderThread(
           post,
           getAccount()?.profile.handle === post.author.handle,
@@ -1034,6 +1047,7 @@ import Header from "../../components/Header.astro";
             reply.querySelector<HTMLElement>(".action-count")!.textContent =
               count > 0 ? fmtCount(count) : "";
           },
+          initialReplies ?? undefined,
         );
         host.replaceChildren(thread);
         const hot = renderHotPosts(null, post.id);

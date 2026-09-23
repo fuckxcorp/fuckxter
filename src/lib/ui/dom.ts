@@ -97,7 +97,10 @@ export function hidePanel(panel: HTMLElement): void {
 
 export function renderRichText(value: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
-  const pattern = /(@[a-z0-9_]{2,20}|#[\p{L}\p{N}_]{1,50})/giu;
+  // fk:// 是发帖时用来禁止自动链接的转义前缀：
+  // fk://https://example.com 会展示为 https://example.com，但保持纯文本。
+  const pattern =
+    /(fk:\/\/https?:\/\/[^\s<>"']+|https?:\/\/[^\s<>"']+|@[a-z0-9_]{2,20}|#[\p{L}\p{N}_]{1,50})/giu;
   let lastIndex = 0;
 
   for (const match of value.matchAll(pattern)) {
@@ -106,9 +109,27 @@ export function renderRichText(value: string): DocumentFragment {
       fragment.append(document.createTextNode(value.slice(lastIndex, index)));
     }
 
-    const token = match[0];
+    let token = match[0];
+    // 句尾标点不应成为 URL 的一部分，例如“见 https://example.com。”
+    const trailing = token.match(/[.,!?;:，。！？；：)}\]》]+$/u)?.[0] ?? "";
+    if (trailing) token = token.slice(0, -trailing.length);
+    if (!token) {
+      fragment.append(document.createTextNode(match[0]));
+      lastIndex = index + match[0].length;
+      continue;
+    }
+
+    if (token.startsWith("fk://")) {
+      fragment.append(document.createTextNode(token.slice("fk://".length)));
+      if (trailing) fragment.append(document.createTextNode(trailing));
+      lastIndex = index + match[0].length;
+      continue;
+    }
+
     const link = el("a", "inline-link");
-    if (token.startsWith("@")) {
+    if (token.startsWith("http://") || token.startsWith("https://")) {
+      link.href = token;
+    } else if (token.startsWith("@")) {
       const handle = token.slice(1);
       link.href = `/user/${encodeURIComponent(handle)}`;
       link.dataset.mention = handle;
@@ -119,7 +140,8 @@ export function renderRichText(value: string): DocumentFragment {
     }
     link.textContent = token;
     fragment.append(link);
-    lastIndex = index + token.length;
+    if (trailing) fragment.append(document.createTextNode(trailing));
+    lastIndex = index + match[0].length;
   }
 
   if (lastIndex < value.length) {

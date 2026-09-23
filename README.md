@@ -25,6 +25,10 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 于是 我就想能否自行开发一个类似的社交平台 然后 这就是成品
 
+那么FuckXter messages呢 没错 就在今天我的Telegram也被列为限制账户了
+
+死因是我给别人发了小广告或者某些夸大事实的事情 我自查发现根本没有 我已提交申诉 他要不解 那我用FuckXter Messages
+
 ## 🔧 对于开发者
 
 ### 部署配置

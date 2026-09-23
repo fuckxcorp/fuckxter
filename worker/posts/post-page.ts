@@ -23,6 +23,28 @@ function excerpt(value: string, max: number): string {
   return [...flat].slice(0, max).join("");
 }
 
+/** 首屏 HTML 和客户端 renderRichText 使用同一套链接规则。 */
+function renderPostText(value: string): string {
+  const pattern = /(fk:\/\/https?:\/\/[^\s<>"']+|https?:\/\/[^\s<>"']+)/giu;
+  let lastIndex = 0;
+  let html = "";
+  for (const match of value.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    html += escapeHtml(value.slice(lastIndex, index));
+    let token = match[0];
+    const trailing = token.match(/[.,!?;:，。！？；：)}\]》]+$/u)?.[0] ?? "";
+    if (trailing) token = token.slice(0, -trailing.length);
+    if (token.startsWith("fk://")) {
+      html += escapeHtml(token.slice("fk://".length));
+    } else {
+      html += `<a class="inline-link" href="${escapeHtml(token)}">${escapeHtml(token)}</a>`;
+    }
+    html += escapeHtml(trailing);
+    lastIndex = index + match[0].length;
+  }
+  return html + escapeHtml(value.slice(lastIndex));
+}
+
 function absolute(origin: string, value: string | null | undefined) {
   if (!value) return null;
   return value.startsWith("/") ? `${origin}${value}` : value;
@@ -81,7 +103,7 @@ function renderOriginPost(post: Post): string {
     `</div>`,
     `<time datetime="${escapeHtml(post.createdAt)}">${escapeHtml(formatTime(post.createdAt))}</time>`,
     `</header>`,
-    `<p class="thread-text">${escapeHtml(post.text)}</p>`,
+    `<p class="thread-text">${renderPostText(post.text)}</p>`,
     media,
     `</div>`,
     `</article>`,
@@ -114,7 +136,7 @@ function renderComment(
     `<div class="thread-body">`,
     `<header class="thread-meta"><div class="thread-who"><strong>${escapeHtml(comment.author.name)}</strong><span class="thread-handle">@${handle}</span></div><time datetime="${escapeHtml(comment.createdAt)}">${escapeHtml(formatTime(comment.createdAt))}</time></header>`,
     parent,
-    `<p class="thread-text">${escapeHtml(comment.text)}</p>`,
+    `<p class="thread-text">${renderPostText(comment.text)}</p>`,
     `</div>`,
     nested,
     `</article>`,

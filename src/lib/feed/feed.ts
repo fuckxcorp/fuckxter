@@ -77,7 +77,9 @@ function readColumnChoice(): ColumnChoice {
     }
   } catch {}
 
-  return matchMedia("(min-width: 700px)").matches ? "2" : "1";
+  // 未保存偏好时始终采用自适应列数；具体列数再由 autoColumnCount
+  // 按当前视口决定，不能把首次访问固化成 1 列或 2 列偏好。
+  return "auto";
 }
 
 function storeColumnChoice(choice: ColumnChoice): void {
@@ -227,6 +229,37 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const composerAvatar =
     container.querySelector<HTMLElement>(".composer .avatar")!;
   let selectedMedia: PostMedia | null = null;
+  const draftCookie = "fk-post-draft";
+  const draftCookieOptions = () =>
+    `Path=/; Max-Age=604800; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
+  const clearDraft = () => {
+    document.cookie = `${draftCookie}=; Path=/; Max-Age=0; SameSite=Lax`;
+  };
+  const saveDraft = (text: string) => {
+    if (!text) {
+      clearDraft();
+      return;
+    }
+    // Cookie 有约 4 KB 上限；保留能安全放入 Cookie 的最长前缀。
+    let draft = text;
+    while (draft && encodeURIComponent(draft).length > 3500) {
+      draft = [...draft].slice(0, -1).join("");
+    }
+    document.cookie = `${draftCookie}=${encodeURIComponent(draft)}; ${draftCookieOptions()}`;
+  };
+  const readDraft = () => {
+    const value = document.cookie
+      .split("; ")
+      .find((part) => part.startsWith(`${draftCookie}=`))
+      ?.slice(draftCookie.length + 1);
+    if (!value) return "";
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      clearDraft();
+      return "";
+    }
+  };
 
   /** HDR 只对图片有意义，别的附件类型一律不给这个选项。 */
   const canUseHdr = (media: PostMedia | null | undefined): boolean =>
@@ -592,6 +625,27 @@ export function mountFeed(container: HTMLElement): FeedControls {
         ? columns[orderedPosts.length - 1]
         : shortestColumn();
     column.append(node);
+    viewObserver.observe(node);
+    return node;
+  };
+
+  /**
+   * 用户刚发出的帖子优先留在本机信息流顶部。不要立刻重拉首页，
+   * 否则服务端的时间/热度排序可能会把它挪走；刷新后再以服务器排序为准。
+   */
+  const addPostAtStart = (post: Post): HTMLElement => {
+    feed.querySelectorAll(".status").forEach((node) => node.remove());
+    const node = renderPost(post);
+    if (post.viewer?.saved) {
+      node
+        .querySelector<HTMLElement>('.action[data-action="save"]')
+        ?.classList.add("is-saved");
+    }
+    orderedPosts.unshift(node);
+    postsById.set(post.id, post);
+    // 多列布局也按照新的数组顺序重新分栏，确保视觉上的第一条就是新帖。
+    activeColumnCount = 0;
+    ensureLayout();
     viewObserver.observe(node);
     return node;
   };
@@ -1003,6 +1057,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     editingPostId = null;
     showMediaPreview(null);
     composerInput.value = "";
+    clearDraft();
     composerInput.style.height = "";
     selectedMedia = null;
     mediaStatus.textContent = "";
@@ -1012,10 +1067,17 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
 
   composerInput.addEventListener("input", () => {
+    saveDraft(composerInput.value);
     syncComposer();
     composerInput.style.height = "auto";
     composerInput.style.height = `${composerInput.scrollHeight}px`;
   });
+  const draft = readDraft();
+  if (draft) {
+    composerInput.value = draft;
+    composerInput.style.height = "auto";
+    composerInput.style.height = `${composerInput.scrollHeight}px`;
+  }
   composerInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closeComposerPickers();
@@ -1099,6 +1161,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     mediaStatus.textContent = "";
     mediaStatus.hidden = true;
     try {
+      let created: Post | null = null;
       if (editingPostId) {
         await updatePost(
           editingPostId,
@@ -1107,7 +1170,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
           readHdrChoice(),
         );
       } else {
-        await createPost(
+        created = await createPost(
           text,
           selectedMedia?.id,
           selectedVisibility,
@@ -1119,11 +1182,16 @@ export function mountFeed(container: HTMLElement): FeedControls {
         state.search = null;
       }
       composer.hidden = false;
-      state.cursor = null;
-      state.done = false;
       resetComposer();
       window.scrollTo({ top: 0 });
-      await loadPage(true);
+      if (created) {
+        addPostAtStart(created);
+      } else {
+        // 编辑已有帖子仍以服务端结果更新当前列表。
+        state.cursor = null;
+        state.done = false;
+        await loadPage(true);
+      }
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         composerBtn.textContent = "注册后发帖";
