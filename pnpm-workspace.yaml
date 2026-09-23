@@ -4,9 +4,9 @@ allowBuilds:
   workerd: false
 minimumReleaseAgeExclude:
   - prettier@3.9.8
-  - astro@7.3.3
+  - astro@7.3.4
   - "@astrojs/internal-helpers@0.11.0"
-  - "@astrojs/markdown-satteri@0.4.1"
+  - "@astrojs/markdown-satteri@0.4.2"
   - "@bruits/satteri-darwin-arm64@0.10.5"
   - "@bruits/satteri-darwin-x64@0.10.5"
   - "@bruits/satteri-linux-arm64-gnu@0.10.5"
@@ -16,7 +16,7 @@ minimumReleaseAgeExclude:
   - "@bruits/satteri-wasm32-wasi@0.10.5"
   - "@bruits/satteri-win32-arm64-msvc@0.10.5"
   - "@bruits/satteri-win32-x64-msvc@0.10.5"
-  - wrangler@4.136.1
+  - wrangler@4.136.3
   - miniflare@5.20260921.0-alpha
   - satteri@0.10.5
   - workerd@1.20260921.1
