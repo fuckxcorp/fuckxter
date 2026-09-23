@@ -1,6 +1,6 @@
-const MIN_MS = 720;
-const EXIT_MS = 560;
-const SAFETY_MS = 4000;
+const MIN_MS = 180;
+const EXIT_MS = 220;
+const SAFETY_MS = 1500;
 
 /**
  * 首页里那段内联脚本靠 sessionStorage 判断「这个会话已经播过开屏」，

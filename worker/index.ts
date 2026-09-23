@@ -192,10 +192,18 @@ async function fetchAsset(
     });
   }
 
-  let response = await env.ASSETS.fetch(new Request(assetUrl, request));
+  const devOrigin = env.FUCKXTER_DEV_ASSET_ORIGIN;
+  const target = devOrigin
+    ? new URL(`${assetUrl.pathname}${assetUrl.search}`, devOrigin)
+    : assetUrl;
+  const fetchSource = () => {
+    const assetRequest = new Request(target, request);
+    return env.ASSETS ? env.ASSETS.fetch(assetRequest) : fetch(assetRequest);
+  };
+  let response = await fetchSource();
   if (response.status === 503) {
     await new Promise((resolve) => setTimeout(resolve, 50));
-    response = await env.ASSETS.fetch(new Request(assetUrl, request));
+    response = await fetchSource();
   }
   if (!response.ok || (request.method !== "GET" && request.method !== "HEAD")) {
     if ((response.headers.get("Content-Type") ?? "").includes("text/html")) {
@@ -998,13 +1006,6 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
     const hostname = url.hostname.toLowerCase();
-    const isLocalDev =
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "::1" ||
-      hostname.endsWith(".localhost") ||
-      hostname.endsWith(".local") ||
-      url.port === "8787";
     const pathname = url.pathname.toLowerCase();
     const isDedicatedApiPath =
       pathname === "/health" ||
@@ -1029,7 +1030,6 @@ export default {
       (wantsJson || (request.method !== "GET" && request.method !== "HEAD"));
     const isApiHost =
       hostname === "api.fuckxter.site" ||
-      isLocalDev ||
       isDedicatedApiPath ||
       isOverlappingApiPath;
     if (!isApiHost) {

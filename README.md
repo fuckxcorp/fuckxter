@@ -29,9 +29,6 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ### 部署配置
 
-- 更新 Worker 前先执行 `pnpm api:migrate:remote`。迁移 `0020` 会保留已有认证标识、回填点赞计数并创建计数触发器；本地开发使用 `pnpm api:migrate:local`。
-- `pnpm test` 运行认证、来源校验、数据库迁移和上传限制的回归测试。
-
 - `FUCKXTER_SECRET`（可选）：加密 TOTP 密钥和恢复码用的主密钥，用
   `wrangler secret put FUCKXTER_SECRET` 配置。不配置时 Worker 会在第一次用到加密时
   自动生成一把随机密钥存进 D1 的 `app_secrets` 表，双重验证开箱可用。

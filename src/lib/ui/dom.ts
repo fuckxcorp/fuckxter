@@ -216,6 +216,7 @@ export function postMedia(post: Post): HTMLElement {
   image.alt = media.alt;
   image.loading = "lazy";
   image.decoding = "async";
+  image.fetchPriority = "low";
   image.referrerPolicy = "no-referrer";
   node.append(image);
   if (media.hdr) {
@@ -247,6 +248,7 @@ export function authorAvatar(
   image.alt = name;
   image.loading = "lazy";
   image.decoding = "async";
+  image.fetchPriority = "low";
   avatar.append(fallback, image);
   avatar.title = `查看 @${handle} 的主页`;
   avatar.setAttribute("aria-label", `查看 ${name}（@${handle}）的主页`);

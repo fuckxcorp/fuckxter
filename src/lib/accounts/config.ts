@@ -18,9 +18,9 @@ function isLocalHostname(hostname: string): boolean {
 
 function defaultApiUrl(): string {
   if (typeof window === "undefined") return DEFAULT_PRODUCTION_API_URL;
-  const { hostname, protocol, origin } = window.location;
+  const { hostname, origin } = window.location;
   if (isLocalHostname(hostname)) {
-    return `${protocol}//${hostname}:8787`;
+    return origin;
   }
   // 默认和页面同源：Worker 本身同时提供页面和 API，
   // 广告拦截器/隐私工具不会把同源请求当成第三方接口拦掉。

@@ -102,6 +102,7 @@ import Notice from "../layouts/Notice.astro";
     image.alt = "";
     image.loading = "lazy";
     image.decoding = "async";
+    image.fetchPriority = "low";
     avatar.append(image);
     return avatar;
   }

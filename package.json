@@ -1,22 +1,21 @@
 {
   "name": "fuckxter",
   "type": "module",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "engines": {
     "node": ">=24.21.0"
   },
   "scripts": {
-    "test": "node --import ./tests/register.mjs --test tests/*.test.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
     "format": "prettier . --write",
     "check": "astro check && prettier . --check",
-    "api:dev": "wrangler dev --port 8787 --var FUCKXTER_DEV:true",
-    "api:deploy": "wrangler deploy",
-    "api:migrate:local": "wrangler d1 migrations apply DB --local",
-    "api:migrate:remote": "wrangler d1 migrations apply DB --remote"
+    "wrangler:deploy": "wrangler deploy",
+    "wrangler:dev": "wrangler dev --config wrangler.dev.toml --port 8787",
+    "wrangler:migrate:local": "wrangler d1 migrations apply DB --local",
+    "wrangler:migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
     "astro": "7.3.4",

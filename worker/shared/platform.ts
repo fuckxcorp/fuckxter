@@ -104,13 +104,14 @@ export interface ImagesBinding {
 
 export interface Env {
   DB: D1Database;
-  ASSETS: { fetch(request: Request): Promise<Response> };
+  ASSETS?: { fetch(request: Request): Promise<Response> };
   MEDIA_CACHE: R2Bucket;
   IMAGES: ImagesBinding;
   KV: KVStore;
   JOBS: QueueProducer<Job>;
   FUCKXTER_ORIGINS: string;
   FUCKXTER_DEV?: string;
+  FUCKXTER_DEV_ASSET_ORIGIN?: string;
   /** 可选：加密 TOTP 密钥的主密钥。不配就用 D1 里自动生成的那把。 */
   FUCKXTER_SECRET?: string;
 }

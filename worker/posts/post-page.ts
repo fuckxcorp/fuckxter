@@ -1,5 +1,5 @@
 import type { Env, HtmlRewriterConstructor } from "../shared/platform";
-import { getPostByPath } from "./posts";
+import { getComments, getPostByPath } from "./posts";
 
 declare const HTMLRewriter: HtmlRewriterConstructor;
 
@@ -50,6 +50,7 @@ function formatTime(iso: string): string {
 }
 
 type Post = NonNullable<Awaited<ReturnType<typeof getPostByPath>>>;
+type Comment = Awaited<ReturnType<typeof getComments>>["comments"][number];
 
 /**
  * 边缘渲染帖子正文。
@@ -87,6 +88,61 @@ function renderOriginPost(post: Post): string {
   ].join("");
 }
 
+function renderComment(
+  comment: Comment,
+  children: Map<string, Comment[]>,
+): string {
+  const avatar = comment.author.avatarUrl ?? AVATAR_FALLBACK;
+  const initial =
+    [...comment.author.name.trim()][0]?.toLocaleUpperCase() ?? "?";
+  const handle = escapeHtml(comment.author.handle);
+  const replies = children.get(comment.id) ?? [];
+  const parent = comment.parent
+    ? `<div class="reply-quote"><strong>回覆 @${escapeHtml(comment.parent.handle)}</strong><span>：${escapeHtml(excerpt(comment.parent.text, 40))}</span></div>`
+    : "";
+  const nested = replies.length
+    ? `<div class="thread-children">${replies.map((reply) => renderComment(reply, children)).join("")}</div>`
+    : "";
+
+  return [
+    `<article id="comment-${escapeHtml(comment.id)}" class="thread-post thread-reply shard" data-shard="${postShard(comment.id)}">`,
+    `<span class="thread-kind">回帖</span>`,
+    `<a class="avatar avatar-link" data-handle="${handle}" href="/user/${encodeURIComponent(comment.author.handle)}" title="查看 @${handle} 的主页">`,
+    `<span class="avatar-fallback">${escapeHtml(initial)}</span>`,
+    `<img class="avatar-image" src="${escapeHtml(avatar)}" alt="${escapeHtml(comment.author.name)}" loading="lazy" decoding="async" fetchpriority="low">`,
+    `</a>`,
+    `<div class="thread-body">`,
+    `<header class="thread-meta"><div class="thread-who"><strong>${escapeHtml(comment.author.name)}</strong><span class="thread-handle">@${handle}</span></div><time datetime="${escapeHtml(comment.createdAt)}">${escapeHtml(formatTime(comment.createdAt))}</time></header>`,
+    parent,
+    `<p class="thread-text">${escapeHtml(comment.text)}</p>`,
+    `</div>`,
+    nested,
+    `</article>`,
+  ].join("");
+}
+
+function renderComments(comments: Comment[], total: number): string {
+  const byId = new Map(comments.map((comment) => [comment.id, comment]));
+  const children = new Map<string, Comment[]>();
+  const roots: Comment[] = [];
+  for (const comment of comments) {
+    const parentId = comment.parent?.id;
+    if (!parentId || !byId.has(parentId)) {
+      roots.push(comment);
+      continue;
+    }
+    const bucket = children.get(parentId) ?? [];
+    bucket.push(comment);
+    children.set(parentId, bucket);
+  }
+  const count =
+    total > comments.length ? `${comments.length}/${total}` : String(total);
+  const content = roots.length
+    ? roots.map((comment) => renderComment(comment, children)).join("")
+    : `<div class="comments-empty"><strong>还没有回帖</strong><span>来发布第一条回帖吧。</span></div>`;
+  return `<section class="thread-replies"><header class="replies-head"><h2>回帖</h2><span>${count}</span></header><div class="comments-list thread-list">${content}</div></section>`;
+}
+
 /**
  * 帖子页在边缘补全：
  * 1. head 里的 og:* / title / description（爬虫不跑 JS）
@@ -116,6 +172,7 @@ export async function withPostPageHtml(
     const post = await getPostByPath(env, null, handle, slug);
     if (!post) return response;
 
+    const comments = await getComments(env, null, post.id);
     const origin = url.origin;
     const title = `${post.author.name}：${excerpt(post.text, TITLE_EXCERPT) || "查看这条帖子"}`;
     const description =
@@ -162,9 +219,11 @@ export async function withPostPageHtml(
             element.replace(renderOriginPost(post), { html: true });
           },
         })
-        .on(".replies-head span", {
+        .on(".thread-replies", {
           element(element) {
-            element.setInnerContent(String(post.stats.replies));
+            element.replace(renderComments(comments.comments, comments.total), {
+              html: true,
+            });
           },
         })
         .transform(response)

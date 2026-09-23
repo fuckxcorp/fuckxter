@@ -175,6 +175,7 @@ export function mountAccountControls(
           : "/user.avif";
         image.alt = "";
         image.decoding = "async";
+        image.fetchPriority = "low";
         element.replaceChildren(image);
       }
       menuName.textContent = account.profile.name;

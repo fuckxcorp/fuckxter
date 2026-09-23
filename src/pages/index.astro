@@ -25,7 +25,7 @@ import Layout from "../layouts/Layout.astro";
         // 模块里的收尾就不会执行，遮罩会一直盖着整页，所以在这里也放一个保险。
         window.setTimeout(() => {
           if (splash.isConnected) splash.remove();
-        }, 4000);
+        }, 1500);
       })();
     </script>
     <img

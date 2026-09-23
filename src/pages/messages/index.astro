@@ -132,6 +132,7 @@ import Layout from "../../layouts/Layout.astro";
     image.alt = user.name;
     image.loading = "lazy";
     image.decoding = "async";
+    image.fetchPriority = "low";
     image.referrerPolicy = "no-referrer";
     node.replaceChildren(fallback, image);
   }
