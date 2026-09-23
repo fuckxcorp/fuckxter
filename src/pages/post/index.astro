@@ -669,7 +669,12 @@ import Header from "../../components/Header.astro";
       current?.close();
     };
 
-    const openInlineReply = (host: HTMLElement, comment: Comment): void => {
+    const openInlineReply = (
+      host: HTMLElement,
+      comment: Pick<Comment, "id"> & {
+        author: Pick<Comment["author"], "handle">;
+      },
+    ): void => {
       if (!getAccount()) {
         requestAuthentication();
         return;
@@ -753,6 +758,29 @@ import Header from "../../components/Header.astro";
       sync();
       input.focus();
     };
+
+    // 首屏回帖由 Worker 直接输出。这里用事件代理接管其中的静态按钮，
+    // 不必等待评论接口返回、也不必先把静态楼中楼重绘成客户端 DOM。
+    list.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
+        "[data-static-reply]",
+      );
+      if (!button) return;
+      const article = button.closest<HTMLElement>("article.thread-reply");
+      const id = button.dataset.commentId;
+      const handle = button.dataset.commentHandle;
+      if (!article || !id || !handle) return;
+      let host = article.querySelector<HTMLElement>(".reply-inline");
+      if (!host) {
+        host = el("div", "reply-inline");
+        host.hidden = true;
+        article.querySelector<HTMLElement>(".thread-body")?.append(host);
+      }
+      openInlineReply(host, {
+        id,
+        author: { handle },
+      });
+    });
 
     const renderList = (comments: Comment[], total = comments.length): void => {
       descendantCounts.clear();
@@ -957,8 +985,8 @@ import Header from "../../components/Header.astro";
         input.focus();
       });
     }
-    // 静态 HTML 先立即显示；随后只水合回帖列表，补齐回复、喜欢等交互。
-    void refreshComments();
+    // 静态 HTML 已包含楼中楼和回复入口；新增、删除后才重新拉取列表。
+    if (!initialReplies) void refreshComments();
     return { thread, composer };
   }
 

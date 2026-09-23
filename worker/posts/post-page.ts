@@ -137,6 +137,8 @@ function renderComment(
     `<header class="thread-meta"><div class="thread-who"><strong>${escapeHtml(comment.author.name)}</strong><span class="thread-handle">@${handle}</span></div><time datetime="${escapeHtml(comment.createdAt)}">${escapeHtml(formatTime(comment.createdAt))}</time></header>`,
     parent,
     `<p class="thread-text">${renderPostText(comment.text)}</p>`,
+    `<footer class="thread-reply-actions"><button type="button" class="thread-link-btn" data-static-reply data-comment-id="${escapeHtml(comment.id)}" data-comment-handle="${handle}">回复</button></footer>`,
+    `<div class="reply-inline" hidden></div>`,
     `</div>`,
     nested,
     `</article>`,
