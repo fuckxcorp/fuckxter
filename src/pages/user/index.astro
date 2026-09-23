@@ -8,6 +8,16 @@ import Header from "../../components/Header.astro";
 <Layout title="个人主页">
   <div class="app subpage" data-user>
     <Header />
+    <button
+      type="button"
+      class="user-sticky-avatar"
+      data-role="user-sticky-avatar"
+      aria-label="查看用户头像"
+      title="查看用户头像"
+      hidden
+    >
+      <img data-role="user-sticky-avatar-image" alt="" decoding="async" />
+    </button>
 
     <div class="user-main">
       <div class="user-inner">
@@ -275,6 +285,19 @@ import Header from "../../components/Header.astro";
         : profile.avatarUrl
       : "/user.avif";
     avatarImage.alt = profile.name;
+    const stickyAvatar = document.querySelector<HTMLButtonElement>(
+      "[data-role=user-sticky-avatar]",
+    );
+    const stickyAvatarImage = document.querySelector<HTMLImageElement>(
+      "[data-role=user-sticky-avatar-image]",
+    );
+    if (stickyAvatar && stickyAvatarImage) {
+      stickyAvatarImage.src = avatarImage.src;
+      stickyAvatarImage.alt = `${profile.name} 的头像`;
+      stickyAvatar.hidden = false;
+      stickyAvatar.setAttribute("aria-label", `查看 ${profile.name} 的头像`);
+      stickyAvatar.title = `查看 ${profile.name} 的头像`;
+    }
 
     role<HTMLElement>("name").textContent = profile.name;
     role<HTMLElement>("handle").textContent = `@${profile.handle}`;
@@ -346,11 +369,6 @@ import Header from "../../components/Header.astro";
             article.tabIndex = 0;
             article.setAttribute("role", "link");
             article.setAttribute("aria-label", "打开这条帖子");
-            const link = document.createElement("a");
-            link.className = "user-post-open-link";
-            link.href = postPath(post);
-            link.textContent = "查看帖子";
-            article.querySelector<HTMLElement>(".actions")?.before(link);
             return article;
           })),
     );
@@ -367,9 +385,6 @@ import Header from "../../components/Header.astro";
         navigate(userPath(avatarLink.dataset.handle));
         return;
       }
-
-      // 详情链接保留浏览器原生跳转能力（新标签、复制链接等）。
-      if (target.closest(".user-post-open-link")) return;
 
       const followButton = target.closest<HTMLButtonElement>(".follow-btn");
       if (followButton?.dataset.handle) {
@@ -522,15 +537,20 @@ import Header from "../../components/Header.astro";
     const avatarImage = card.querySelector<HTMLImageElement>(
       "[data-role=user-avatar-image]",
     )!;
+    const stickyAvatar = container.querySelector<HTMLButtonElement>(
+      "[data-role=user-sticky-avatar]",
+    )!;
     const avatarDialog = document.querySelector<HTMLDialogElement>(
       "[data-avatar-dialog]",
     )!;
     const enlargedAvatar = avatarDialog.querySelector<HTMLImageElement>("img")!;
-    avatar.addEventListener("click", () => {
+    const showAvatarDialog = () => {
       enlargedAvatar.src = avatarImage.currentSrc || avatarImage.src;
       enlargedAvatar.alt = avatarImage.alt;
       avatarDialog.showModal();
-    });
+    };
+    avatar.addEventListener("click", showAvatarDialog);
+    stickyAvatar.addEventListener("click", showAvatarDialog);
     avatarDialog
       .querySelector("button")!
       .addEventListener("click", () => avatarDialog.close());
