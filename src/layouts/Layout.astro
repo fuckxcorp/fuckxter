@@ -29,7 +29,37 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
   </head>
   <body>
     <slot />
+    <dialog class="media-viewer" data-media-viewer aria-label="图片预览">
+      <button type="button" aria-label="关闭图片预览">
+        ×
+      </button>
+      <img alt="" />
+    </dialog>
     <script is:inline>
+      document.addEventListener("click", (event) => {
+        const target = event.target;
+        const viewer = document.querySelector("[data-media-viewer]");
+        if (!(viewer instanceof HTMLDialogElement)) return;
+        if (
+          target instanceof HTMLImageElement &&
+          target.matches(".media-image")
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          const image = viewer.querySelector("img");
+          image.src = target.currentSrc || target.src;
+          image.alt = target.alt;
+          viewer.showModal();
+          return;
+        }
+        if (
+          target === viewer ||
+          (target instanceof HTMLButtonElement &&
+            target.closest("[data-media-viewer]"))
+        ) {
+          viewer.close();
+        }
+      });
       document.addEventListener(
         "error",
         (event) => {

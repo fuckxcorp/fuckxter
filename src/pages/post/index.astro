@@ -779,10 +779,23 @@ import Header from "../../components/Header.astro";
 
     // 首屏回帖由 Worker 直接输出。这里用事件代理接管其中的静态按钮，
     // 不必等待评论接口返回、也不必先把静态楼中楼重绘成客户端 DOM。
-    list.addEventListener("click", (event) => {
-      const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
-        "[data-static-reply]",
-      );
+    list.addEventListener("click", async (event) => {
+      const target = event.target as HTMLElement;
+      const remove = target.closest<HTMLButtonElement>("[data-static-delete]");
+      if (remove?.dataset.commentId) {
+        if (!confirm("确定删除这条回帖吗？")) return;
+        remove.disabled = true;
+        try {
+          await deleteComment(post.id, remove.dataset.commentId);
+          await refreshComments();
+        } catch (error) {
+          remove.disabled = false;
+          status.textContent =
+            error instanceof Error ? error.message : "删除失败";
+        }
+        return;
+      }
+      const button = target.closest<HTMLButtonElement>("[data-static-reply]");
       if (!button) return;
       const article = button.closest<HTMLElement>("article.thread-reply");
       const id = button.dataset.commentId;
@@ -1092,6 +1105,16 @@ import Header from "../../components/Header.astro";
           },
           initialReplies ?? undefined,
         );
+        const me = getAccount()?.profile.handle;
+        if (me) {
+          for (const button of thread.querySelectorAll<HTMLButtonElement>(
+            "[data-static-delete]",
+          )) {
+            const reply = button.closest<HTMLElement>("[data-comment-author]");
+            button.hidden =
+              me !== post.author.handle && me !== reply?.dataset.commentAuthor;
+          }
+        }
         host.replaceChildren(thread);
         let hot = renderHotPosts(null, post.id);
         side.replaceChildren(renderPostInfo(post), controls, hot);

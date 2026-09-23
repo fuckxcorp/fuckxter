@@ -50,6 +50,16 @@ function absolute(origin: string, value: string | null | undefined) {
   return value.startsWith("/") ? `${origin}${value}` : value;
 }
 
+function apiOrigin(url: URL): string {
+  if (
+    url.hostname === "fuckxter.site" ||
+    url.hostname === "www.fuckxter.site"
+  ) {
+    return "https://api.fuckxter.site";
+  }
+  return url.origin;
+}
+
 /** 与前端 dom.ts 的 postShard 保持一致，水合时才不会跳版 */
 function postShard(id: string): string {
   let hash = 2166136261;
@@ -79,13 +89,13 @@ type Comment = Awaited<ReturnType<typeof getComments>>["comments"][number];
  * 结构、类名都跟前端 renderOriginPost 保持一致，
  * 客户端水合时整块替换，所以这里既是爬虫看到的内容，也是首屏内容。
  */
-function renderOriginPost(post: Post): string {
+function renderOriginPost(post: Post, origin: string): string {
   const avatar = post.author.avatarUrl ?? AVATAR_FALLBACK;
   const initial = [...post.author.name.trim()][0]?.toLocaleUpperCase() ?? "?";
   const handle = escapeHtml(post.author.handle);
 
   const media = post.media
-    ? `<div class="media"><img class="media-image" src="${escapeHtml(post.media.url)}" alt="${escapeHtml(post.media.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>`
+    ? `<div class="media"><img class="media-image" src="${escapeHtml(absolute(origin, post.media.url) ?? post.media.url)}" alt="${escapeHtml(post.media.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer"></div>`
     : "";
 
   return [
@@ -145,7 +155,7 @@ function renderComment(
     : "";
 
   return [
-    `<article id="comment-${escapeHtml(comment.id)}" class="thread-post thread-reply shard" data-shard="${postShard(comment.id)}">`,
+    `<article id="comment-${escapeHtml(comment.id)}" class="thread-post thread-reply shard" data-shard="${postShard(comment.id)}" data-comment-author="${handle}">`,
     `<span class="thread-kind">回帖</span>`,
     `<a class="avatar avatar-link" data-handle="${handle}" href="/user/${encodeURIComponent(comment.author.handle)}" title="查看 @${handle} 的主页">`,
     `<span class="avatar-fallback">${escapeHtml(initial)}</span>`,
@@ -155,7 +165,7 @@ function renderComment(
     `<header class="thread-meta"><div class="thread-who"><strong>${escapeHtml(comment.author.name)}</strong><span class="thread-handle">@${handle}</span></div><time datetime="${escapeHtml(comment.createdAt)}">${escapeHtml(formatTime(comment.createdAt))}</time></header>`,
     parent,
     `<p class="thread-text">${renderPostText(comment.text)}</p>`,
-    `<footer class="thread-reply-actions"><button type="button" class="thread-link-btn" data-static-reply data-comment-id="${escapeHtml(comment.id)}" data-comment-handle="${handle}">回复</button></footer>`,
+    `<footer class="thread-reply-actions"><button type="button" class="thread-link-btn" data-static-reply data-comment-id="${escapeHtml(comment.id)}" data-comment-handle="${handle}">回复</button><button type="button" class="thread-link-btn is-danger" data-static-delete data-comment-id="${escapeHtml(comment.id)}" hidden>删除</button></footer>`,
     `<div class="reply-inline" hidden></div>`,
     `</div>`,
     nested,
@@ -216,11 +226,12 @@ export async function withPostPageHtml(
 
     const comments = await getComments(env, null, post.id);
     const origin = url.origin;
+    const mediaOrigin = apiOrigin(url);
     const title = `${post.author.name}：${excerpt(post.text, TITLE_EXCERPT) || "查看这条帖子"}`;
     const description =
       excerpt(post.text, DESCRIPTION_EXCERPT) || "查看这条帖子";
     const image =
-      absolute(origin, post.media?.url) ??
+      absolute(mediaOrigin, post.media?.url) ??
       absolute(origin, post.author.avatarUrl) ??
       `${origin}${FALLBACK_IMAGE}`;
     const canonical = `${origin}${url.pathname}`;
@@ -259,7 +270,7 @@ export async function withPostPageHtml(
         .on("article.post-skeleton", {
           element(element) {
             element.replace(
-              `${renderOriginPost(post)}${renderReplyComposer(post)}`,
+              `${renderOriginPost(post, mediaOrigin)}${renderReplyComposer(post)}`,
               {
                 html: true,
               },

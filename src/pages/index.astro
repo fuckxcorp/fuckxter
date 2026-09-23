@@ -264,7 +264,20 @@ import Account from "../layouts/Account.astro";
         </div>
       </section>
 
-      <section class="feed" aria-label="信息流"></section>
+      <section class="feed" aria-label="信息流">
+        <div class="feed-loading" aria-label="正在加载帖子">
+          {[0, 1, 2, 3].map(() => (
+            <article class="feed-loading-card">
+              <span class="feed-loading-avatar"></span>
+              <div>
+                <span class="feed-loading-line is-short"></span>
+                <span class="feed-loading-line"></span>
+                <span class="feed-loading-line is-medium"></span>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <div class="sentinel">
         <span class="spinner" aria-hidden="true"></span>

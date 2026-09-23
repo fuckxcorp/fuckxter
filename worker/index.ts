@@ -67,6 +67,7 @@ import {
   updatePost,
 } from "./posts/posts";
 import { withPostPageHtml } from "./posts/post-page";
+import { withHomePageHtml } from "./posts/home-page";
 import { testStorageConnection } from "./accounts/s3";
 import {
   accountFromRow,
@@ -1060,9 +1061,13 @@ export default {
           mode,
         );
         // 帖子页补上 og:*，Telegram 之类的爬虫才抓得到内容
-        return assetPath === "/post/"
-          ? await withPostPageHtml(request, env, url, response)
-          : response;
+        if (assetPath === "/post/") {
+          return await withPostPageHtml(request, env, url, response);
+        }
+        if (assetPath === "/" && url.pathname === "/") {
+          return await withHomePageHtml(request, env, response);
+        }
+        return response;
       }
       return fetchAsset(request, env, url, url, context, mode);
     }

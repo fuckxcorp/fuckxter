@@ -133,11 +133,6 @@ body {
   padding-top: var(--topbar-height);
 }
 
-html.menu-open,
-html.menu-open body {
-  overflow: hidden;
-}
-
 .topbar {
   position: fixed;
   top: 0;
@@ -257,6 +252,7 @@ html.menu-open body {
   align-self: stretch;
   display: flex;
 
+  margin-left: auto;
   margin-right: -1rem;
 }
 
@@ -1091,6 +1087,48 @@ html.menu-open body {
   width: auto;
   height: auto;
   object-fit: contain;
+  cursor: zoom-in;
+}
+
+.media-viewer {
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 3.5rem 1rem 1rem;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.media-viewer[open] {
+  display: grid;
+  place-items: center;
+}
+
+.media-viewer::backdrop {
+  background: rgb(0 0 0 / 88%);
+}
+
+.media-viewer img {
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 5rem);
+  object-fit: contain;
+}
+
+.media-viewer button {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+  font-size: 1.7rem;
 }
 
 .actions {

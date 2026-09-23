@@ -22,9 +22,7 @@ function defaultApiUrl(): string {
   if (isLocalHostname(hostname)) {
     return origin;
   }
-  // 默认和页面同源：Worker 本身同时提供页面和 API，
-  // 广告拦截器/隐私工具不会把同源请求当成第三方接口拦掉。
-  return origin;
+  return DEFAULT_PRODUCTION_API_URL;
 }
 
 const configuredApiUrl = import.meta.env.PUBLIC_FUCKXTER_API_URL?.trim();
