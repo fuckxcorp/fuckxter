@@ -543,13 +543,20 @@ import Header from "../../components/Header.astro";
 
     const me = getAccount();
     // 主回复和楼中楼共用同一套输入框布局与控件，避免两处越改越不一致。
-    const createReplyFields = (placeholder: string, ariaLabel: string) => {
+    const createReplyFields = (
+      fieldId: string,
+      placeholder: string,
+      ariaLabel: string,
+    ) => {
       const input = el(
         "textarea",
         "comment-input side-comment-input reply-composer-input",
       ) as HTMLTextAreaElement;
       input.rows = 2;
       input.maxLength = MAX_COMMENT_CHARS;
+      input.id = fieldId;
+      input.name = "reply";
+      input.autocomplete = "off";
       input.placeholder = placeholder;
       input.setAttribute("aria-label", ariaLabel);
       const count = el("span", "comment-count");
@@ -569,7 +576,11 @@ import Header from "../../components/Header.astro";
       count,
       submit,
       actions: composerActions,
-    } = createReplyFields(me ? "写下你的回复" : "登录后才能回复", "回复内容");
+    } = createReplyFields(
+      `reply-${encodeURIComponent(post.id)}`,
+      me ? "写下你的回复" : "登录后才能回复",
+      "回复内容",
+    );
     input.disabled = !me;
     submit.disabled = !me;
     const composer = el("section", "thread-composer shard");
@@ -693,7 +704,11 @@ import Header from "../../components/Header.astro";
         count: hint,
         submit: send,
         actions: foot,
-      } = createReplyFields(`回复 @${handle}…`, `回复 @${handle}`);
+      } = createReplyFields(
+        `reply-${encodeURIComponent(post.id)}-${encodeURIComponent(comment.id)}`,
+        `回复 @${handle}…`,
+        `回复 @${handle}`,
+      );
       const cancel = el("button", "thread-link-btn inline-cancel");
       cancel.type = "button";
       cancel.textContent = "取消";

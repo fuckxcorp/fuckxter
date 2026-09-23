@@ -482,7 +482,7 @@
 
 /* 桌面端让左右区域独立：右侧信息固定，只有左侧帖子线程滚动。 */
 @media (min-width: 901px) {
-  .app.subpage:has([data-post]) {
+  .app.subpage[data-post] {
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
@@ -797,7 +797,7 @@
 }
 
 @media (max-width: 900px) {
-  .app.subpage:has([data-post]) {
+  .app.subpage[data-post] {
     height: auto;
     min-height: 100dvh;
     overflow: visible;

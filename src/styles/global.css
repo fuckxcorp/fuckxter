@@ -28,6 +28,14 @@ svg {
   max-width: 100%;
 }
 
+/*
+ * 所有懒加载图片先保留一个稳定的布局框，避免资源到达前是 0 × 0 而触发 CLS。
+ * 头像、头图等已知比例的图片会在各自的样式规则中覆盖这个兜底比例。
+ */
+img[loading="lazy"] {
+  aspect-ratio: 1 / 1;
+}
+
 button {
   cursor: pointer;
 }
@@ -888,6 +896,7 @@ html.menu-open body {
   z-index: 1;
   width: 100%;
   height: 100%;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
 }
 
