@@ -1,7 +1,7 @@
 {
   "name": "fuckxter",
   "type": "module",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "engines": {
     "node": ">=24.21.0"
   },
@@ -14,14 +14,14 @@
     "check": "astro check && prettier . --check"
   },
   "dependencies": {
-    "astro": "7.3.4",
+    "astro": "7.3.5",
     "modern-normalize": "^3.0.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "prettier": "^3.9.8",
     "prettier-plugin-astro": "^1.0.1",
-    "wrangler": "^4.137.0"
+    "wrangler": "^4.138.0"
   },
   "packageManager": "pnpm@12.6.0+sha512.3ef68f951cb111ac204b4a5a16f0b2ddf0da56a96e0413e81d855d9f0b55ef926714709028e1cd00c405c2c5fb7b9e8ec4dc46777c805d0373c2f2ff00fd20ec"
 }
