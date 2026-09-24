@@ -75,6 +75,7 @@ async function requestOnce<T>(
       ...options,
       headers,
       credentials: "include",
+      cache: "no-store",
       signal,
     });
   } catch (error) {
@@ -90,6 +91,14 @@ async function requestOnce<T>(
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (response.ok && text && !contentType.includes("application/json")) {
+    throw new ApiError(
+      "服务器返回了异常格式，请重试。",
+      502,
+      "INVALID_RESPONSE",
+    );
+  }
   let body: unknown = null;
   if (text) {
     try {

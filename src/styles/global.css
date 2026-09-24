@@ -1117,6 +1117,11 @@ body {
   cursor: zoom-in;
 }
 
+.media-list:not(.is-detail) .media-image {
+  width: 260px;
+  max-height: none;
+}
+
 .media-viewer {
   width: 100%;
   height: 100dvh;

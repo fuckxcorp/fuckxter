@@ -344,11 +344,16 @@ async function route(
     const user = await requireUser(request, env);
 
     if (parts.length === 2 && method === "GET") {
-      const [threads, unread, suggestions] = await Promise.all([
+      const [threads, unread] = await Promise.all([
         listConversations(env, user.id),
         countUnreadMessages(env, user.id),
-        listMessageSuggestions(env, user.id),
       ]);
+      let suggestions: Awaited<ReturnType<typeof listMessageSuggestions>> = [];
+      try {
+        suggestions = await listMessageSuggestions(env, user.id);
+      } catch (error) {
+        console.error("Message suggestions failed", error);
+      }
       return json({ threads, unread, suggestions }, request, env);
     }
 

@@ -44,7 +44,7 @@ export async function withMessagesPageHtml(
         return `<a class="thread${thread.unread > 0 ? " is-unread" : ""}" href="/messages/${encodeURIComponent(other.handle)}" data-handle="${escapeHtml(other.handle)}"><span class="avatar thread-avatar"><img class="avatar-image" src="${escapeHtml(apiUrl(other.avatarUrl))}" alt="${escapeHtml(other.name)}" loading="lazy" decoding="async"></span><span class="thread-body"><span class="thread-top"><strong>${escapeHtml(other.name)}</strong><small>@${escapeHtml(other.handle)}</small><time datetime="${escapeHtml(thread.lastMessage?.createdAt ?? thread.lastMessageAt)}"></time></span><span class="thread-preview">${escapeHtml(preview)}</span></span>${thread.unread > 0 ? `<span class="thread-unread">${thread.unread}</span>` : ""}</a>`;
       })
       .join("");
-    return new HTMLRewriter()
+    const transformed = new HTMLRewriter()
       .on('[data-role="threads-summary"]', {
         element(element) {
           element.setInnerContent(summary);
@@ -62,6 +62,16 @@ export async function withMessagesPageHtml(
         },
       })
       .transform(response);
+    const headers = new Headers(transformed.headers);
+    headers.set("Cache-Control", "no-store, max-age=0");
+    headers.set("CDN-Cache-Control", "no-store");
+    headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+    headers.set("Vary", "Cookie");
+    return new Response(transformed.body, {
+      status: transformed.status,
+      statusText: transformed.statusText,
+      headers,
+    });
   } catch (error) {
     console.error("Messages page render failed", error);
     return response;

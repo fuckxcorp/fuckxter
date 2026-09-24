@@ -890,6 +890,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   feed.addEventListener("click", async (event) => {
     const target = event.target as HTMLElement;
+    if (target.closest(".media")) return;
+
     const avatarLink = target.closest<HTMLElement>(".avatar-link");
     if (avatarLink?.dataset.handle) {
       event.preventDefault();

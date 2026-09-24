@@ -455,9 +455,19 @@ import Layout from "../../layouts/Layout.astro";
         page.unread > 0
           ? `${page.threads.length} 个会话 · ${page.unread} 条未读`
           : `${page.threads.length} 个会话`;
-    } catch {
-      list.replaceChildren(statusRow("私信列表加载失败，请稍后再试。"));
-      summary.textContent = "加载失败";
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        void navigate("/login?next=%2Fmessages");
+        return;
+      }
+      if (list.dataset.ssr !== "true") {
+        list.replaceChildren(statusRow("私信列表暂时无法刷新。"));
+      }
+      const retry = el("button", "retry-btn");
+      retry.type = "button";
+      retry.textContent = "重试";
+      retry.addEventListener("click", () => void mountThreadList(root));
+      summary.replaceChildren(document.createTextNode("刷新失败 · "), retry);
     }
   }
 
