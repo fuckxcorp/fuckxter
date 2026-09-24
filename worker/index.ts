@@ -896,8 +896,13 @@ async function route(
 
     if (parts.length === 5 && parts[3] === "comments" && method === "DELETE") {
       const user = await requireUser(request, env);
-      await deleteComment(env, user.id, segment(parts, 2), segment(parts, 4));
-      return json({ ok: true }, request, env);
+      const deleted = await deleteComment(
+        env,
+        user.id,
+        segment(parts, 2),
+        segment(parts, 4),
+      );
+      return json({ ok: true, deleted }, request, env);
     }
 
     if (

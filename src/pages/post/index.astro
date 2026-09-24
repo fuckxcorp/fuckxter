@@ -396,6 +396,7 @@ import Header from "../../components/Header.astro";
     scrollToComment: (target: HTMLElement | null) => void,
     status: HTMLElement,
     depth: number,
+    descendantCount: number,
   ): HTMLElement {
     const article = el("article", "thread-post thread-reply shard");
     /** 楼中楼里每条都顶着完整表头 + 一整套按钮会很乱，嵌套层用精简版 */
@@ -522,7 +523,10 @@ import Header from "../../components/Header.astro";
       remove.type = "button";
       remove.textContent = "删除";
       remove.addEventListener("click", async () => {
-        if (!confirm("确定删除这条回帖吗？")) return;
+        const message = descendantCount
+          ? `这条回帖下有 ${descendantCount} 条楼中楼回复，删除后会一并删除。确定继续吗？`
+          : "确定删除这条回帖吗？";
+        if (!confirm(message)) return;
         remove.disabled = true;
         try {
           await deleteComment(postId, comment.id);
@@ -808,7 +812,13 @@ import Header from "../../components/Header.astro";
       const target = event.target as HTMLElement;
       const remove = target.closest<HTMLButtonElement>("[data-static-delete]");
       if (remove?.dataset.commentId) {
-        if (!confirm("确定删除这条回帖吗？")) return;
+        const count = remove
+          .closest<HTMLElement>("article.thread-reply")
+          ?.querySelectorAll("article.thread-reply").length;
+        const message = count
+          ? `这条回帖下有 ${count} 条楼中楼回复，删除后会一并删除。确定继续吗？`
+          : "确定删除这条回帖吗？";
+        if (!confirm(message)) return;
         remove.disabled = true;
         try {
           await deleteComment(post.id, remove.dataset.commentId);
@@ -904,6 +914,7 @@ import Header from "../../components/Header.astro";
           scrollToComment,
           status,
           depth,
+          countDescendants(comment.id),
         );
         node.dataset.depth = String(depth);
         if (depth > 0) node.classList.add("is-nested");

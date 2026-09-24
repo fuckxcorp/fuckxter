@@ -95,7 +95,7 @@ function renderOriginPost(post: Post, origin: string): string {
   const handle = escapeHtml(post.author.handle);
 
   const media = post.media?.length
-    ? `<div class="media-list is-detail">${post.media
+    ? `<div class="media-list is-detail${post.media.length > 3 ? " is-scrollable" : ""}">${post.media
         .map(
           (item) =>
             `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(absolute(origin, item.url) ?? item.url)}" alt="${escapeHtml(item.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`,

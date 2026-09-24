@@ -91,7 +91,7 @@ function parseMedia(value: string | null): StoredMedia[] | undefined {
         typeof item.contentType === "string" &&
         typeof item.byteSize === "number",
     );
-    return valid.length ? valid.slice(0, 3) : undefined;
+    return valid.length ? valid.slice(0, 10) : undefined;
   } catch {
     return undefined;
   }
@@ -1012,7 +1012,7 @@ export async function deleteComment(
   userId: string,
   postId: string,
   commentId: string,
-): Promise<void> {
+): Promise<number> {
   const row = await env.DB.prepare(
     `SELECT c.author_id, p.author_id AS post_author_id
      FROM comments c
@@ -1025,8 +1025,28 @@ export async function deleteComment(
   if (row.author_id !== userId && row.post_author_id !== userId) {
     throw new HttpError(403, "FORBIDDEN", "无法删除这条回覆。");
   }
-  await env.DB.prepare("UPDATE comments SET deleted_at = ? WHERE id = ?")
-    .bind(new Date().toISOString(), commentId)
+  const descendants = await env.DB.prepare(
+    `WITH RECURSIVE tree(id) AS (
+       SELECT id FROM comments
+       WHERE id = ? AND post_id = ? AND deleted_at IS NULL
+       UNION ALL
+       SELECT child.id FROM comments child
+       JOIN tree ON child.parent_id = tree.id
+       WHERE child.post_id = ? AND child.deleted_at IS NULL
+     )
+     SELECT id FROM tree`,
+  )
+    .bind(commentId, postId, postId)
+    .all<{ id: string }>();
+  const ids = (descendants.results ?? []).map((item) => item.id);
+  if (!ids.length)
+    throw new HttpError(404, "COMMENT_NOT_FOUND", "回覆不存在。");
+  await env.DB.prepare(
+    `UPDATE comments SET deleted_at = ?
+     WHERE id IN (${ids.map(() => "?").join(", ")})`,
+  )
+    .bind(new Date().toISOString(), ...ids)
     .run();
-  await deleteNotification(env, `reply:${commentId}`);
+  await Promise.all(ids.map((id) => deleteNotification(env, `reply:${id}`)));
+  return ids.length;
 }
