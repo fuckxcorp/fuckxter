@@ -235,6 +235,14 @@ import Account from "../layouts/Account.astro";
               aria-live="polite"
               hidden
             ></span>
+            <div class="upload-progress" data-role="upload-progress" hidden>
+              <span data-role="upload-progress-label">0 MB / 0 MB</span>
+              <progress
+                data-role="upload-progress-bar"
+                value="0"
+                max="1"
+              ></progress>
+            </div>
             <span
               class="composer-auth-hint"
               data-role="composer-auth-hint"

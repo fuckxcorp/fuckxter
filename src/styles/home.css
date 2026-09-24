@@ -64,20 +64,6 @@
   font-weight: 700;
 }
 
-.post.is-opening {
-  transform: scale(0.976);
-  border-color: var(--color-accent);
-  transition:
-    transform 140ms ease,
-    border-color 140ms ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .post.is-opening {
-    transform: none;
-  }
-}
-
 .composer-picker {
   position: relative;
   flex: 0 1 auto;
@@ -357,6 +343,28 @@ html.menu-open .main {
   cursor: pointer;
 }
 
+.upload-progress {
+  display: grid;
+  gap: 0.25rem;
+  width: min(12rem, 32vw);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.upload-progress[hidden] {
+  display: none;
+}
+
+.upload-progress progress {
+  width: 100%;
+  height: 0.35rem;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  accent-color: var(--color-accent);
+}
+
 /* 发帖时的图片预览：放在「上传图片」那一行下面，按缩略图大小显示 */
 .composer-preview {
   margin-top: 0.7rem;
@@ -372,6 +380,30 @@ html.menu-open .main {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.composer-preview-item {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.composer-preview-remove {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.65);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .composer-preview[hidden] {

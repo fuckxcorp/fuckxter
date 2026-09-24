@@ -76,25 +76,56 @@ interface MediaUploadTicket {
 async function proxyUploadMedia(
   file: File,
   storageConfigId?: string,
+  onProgress?: (loaded: number, total: number) => void,
 ): Promise<PostMedia> {
   const headers: Record<string, string> = {
     "Content-Type": file.type,
     "X-File-Name": encodeURIComponent(file.name),
   };
   if (storageConfigId) headers["X-Storage-Config-Id"] = storageConfigId;
-  const response = await apiRequest<{ media: PostMedia }>("/media", {
-    method: "POST",
-    headers,
-    body: file,
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", apiEndpoint("/media"));
+    request.withCredentials = true;
+    request.setRequestHeader("Accept", "application/json");
+    for (const [name, value] of Object.entries(headers)) {
+      request.setRequestHeader(name, value);
+    }
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress?.(event.loaded, event.total);
+    });
+    request.addEventListener("load", () => {
+      let body: {
+        media?: PostMedia;
+        error?: { code?: string; message?: string };
+      } = {};
+      try {
+        body = JSON.parse(request.responseText);
+      } catch {}
+      if (request.status >= 200 && request.status < 300 && body.media) {
+        resolve(body.media);
+        return;
+      }
+      reject(
+        new ApiError(
+          body.error?.message ?? `上传失败（${request.status}）。`,
+          request.status,
+          body.error?.code,
+        ),
+      );
+    });
+    request.addEventListener("error", () =>
+      reject(new ApiError("无法连接服务器，请检查网络后重试。", 0, "NETWORK")),
+    );
+    request.send(file);
   });
-  return response.media;
 }
 
 function putFileToStorage(
   url: string,
   headers: Record<string, string>,
   file: File,
-  onProgress?: (percent: number) => void,
+  onProgress?: (loaded: number, total: number) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -104,7 +135,7 @@ function putFileToStorage(
     }
     request.upload.addEventListener("progress", (event) => {
       if (!event.lengthComputable || !onProgress) return;
-      onProgress(Math.round((event.loaded / event.total) * 100));
+      onProgress(event.loaded, event.total);
     });
     request.addEventListener("load", () => {
       if (request.status >= 200 && request.status < 300) {
@@ -138,11 +169,11 @@ function putFileToStorage(
 export async function uploadMedia(
   file: File,
   storageConfigId?: string,
-  onProgress?: (percent: number) => void,
+  onProgress?: (loaded: number, total: number) => void,
   uploadMode: "proxy" | "direct" = "proxy",
 ): Promise<PostMedia> {
   if (uploadMode === "proxy") {
-    return proxyUploadMedia(file, storageConfigId);
+    return proxyUploadMedia(file, storageConfigId, onProgress);
   }
 
   let presign: { upload: MediaUploadTicket };
@@ -164,7 +195,7 @@ export async function uploadMedia(
       error instanceof ApiError &&
       error.code === "DIRECT_UPLOAD_UNAVAILABLE"
     ) {
-      return proxyUploadMedia(file, storageConfigId);
+      return proxyUploadMedia(file, storageConfigId, onProgress);
     }
     throw error;
   }

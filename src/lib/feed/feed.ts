@@ -184,6 +184,15 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const mediaStatus = container.querySelector<HTMLElement>(
     "[data-role=media-status]",
   )!;
+  const uploadProgress = container.querySelector<HTMLElement>(
+    "[data-role=upload-progress]",
+  )!;
+  const uploadProgressLabel = container.querySelector<HTMLElement>(
+    "[data-role=upload-progress-label]",
+  )!;
+  const uploadProgressBar = container.querySelector<HTMLProgressElement>(
+    "[data-role=upload-progress-bar]",
+  )!;
   const mediaPreview = container.querySelector<HTMLElement>(
     "[data-role=media-preview]",
   )!;
@@ -285,10 +294,22 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
     mediaPreviewImages.replaceChildren(
       ...media.map((item) => {
+        const preview = el("span", "composer-preview-item");
         const image = el("img", "media-image");
         image.src = item.url.startsWith("/") ? apiEndpoint(item.url) : item.url;
         image.alt = item.alt;
-        return image;
+        const remove = el("button", "composer-preview-remove");
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", `移除 ${item.alt || "图片"}`);
+        remove.addEventListener("click", () => {
+          selectedMedia = selectedMedia.filter((media) => media.id !== item.id);
+          hdrMedia.delete(item.id);
+          showMediaPreview(selectedMedia);
+          syncComposer();
+        });
+        preview.append(image, remove);
+        return preview;
       }),
     );
     mediaHdrWrap.hidden = !canUseHdr(media);
@@ -665,6 +686,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
 
   const renderError = (retry: () => void) => {
+    feed.querySelector(".feed-loading")?.remove();
     feed.querySelectorAll(".status").forEach((node) => node.remove());
     const row = el("div", "status");
     row.append(
@@ -940,8 +962,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       const id = article?.dataset.postId;
       const post = id ? postsById.get(id) : undefined;
       if (post && article) {
-        article.classList.add("is-opening");
-        window.setTimeout(() => void navigate(postPath(post)), 140);
+        void navigate(postPath(post));
       }
       return;
     }
@@ -1098,8 +1119,14 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const uploadFiles = async (files: File[], keep: boolean) => {
     uploadingMedia = true;
     attachMediaBtn.disabled = true;
-    mediaStatus.textContent = "上传中…";
-    mediaStatus.hidden = false;
+    mediaStatus.hidden = true;
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    const formatBytes = (bytes: number) =>
+      `${(bytes / 1024 / 1024).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+    uploadProgressBar.max = totalBytes || 1;
+    uploadProgressBar.value = 0;
+    uploadProgressLabel.textContent = `0 MB / ${formatBytes(totalBytes)}`;
+    uploadProgress.hidden = false;
     syncComposer();
     if (!keep) {
       selectedMedia = [];
@@ -1115,12 +1142,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
         const media = await uploadMedia(
           file,
           selectedStorageId || undefined,
-          (percent) => {
-            progress[index] = percent;
-            const total = Math.round(
-              progress.reduce((sum, value) => sum + value, 0) / files.length,
-            );
-            mediaStatus.textContent = `上传中 ${total}%`;
+          (loaded) => {
+            progress[index] = loaded;
+            const total = progress.reduce((sum, value) => sum + value, 0);
+            uploadProgressBar.value = total;
+            uploadProgressLabel.textContent = `${formatBytes(total)} / ${formatBytes(totalBytes)}`;
           },
           mode,
         );
@@ -1162,6 +1188,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       mediaStatus.hidden = true;
     }
     uploadingMedia = false;
+    uploadProgress.hidden = true;
     attachMediaBtn.disabled = false;
     mediaInput.value = "";
     syncComposer();
@@ -1182,6 +1209,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     } catch (error) {
       mediaStatus.textContent =
         error instanceof Error ? error.message : "图片上传失败";
+      mediaStatus.hidden = false;
+      uploadProgress.hidden = true;
       uploadingMedia = false;
       attachMediaBtn.disabled = false;
       mediaInput.value = "";

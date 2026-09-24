@@ -241,6 +241,21 @@ export function postMedia(post: Post): HTMLElement {
     image.decoding = "async";
     image.fetchPriority = "low";
     image.referrerPolicy = "no-referrer";
+    const size = () => {
+      const landscape = image.naturalWidth >= image.naturalHeight;
+      node.classList.toggle("is-landscape", landscape);
+      node.classList.toggle("is-portrait", !landscape);
+      node.style.setProperty(
+        "--media-width",
+        `${Math.min(image.naturalWidth, landscape ? 400 : 200)}px`,
+      );
+      node.style.setProperty(
+        "--media-height",
+        `${Math.min(image.naturalHeight, landscape ? 200 : 400)}px`,
+      );
+    };
+    image.addEventListener("load", size, { once: true });
+    if (image.complete) size();
     node.append(image);
     if (media.hdr) {
       const badge = el("span", "media-hdr-badge");
@@ -250,7 +265,39 @@ export function postMedia(post: Post): HTMLElement {
     }
     list.append(node);
   }
-  return list;
+  if ((post.media?.length ?? 0) < 2) return list;
+
+  const strip = el("div", "media-strip");
+  const previous = el("button", "media-scroll is-previous");
+  const next = el("button", "media-scroll is-next");
+  previous.type = next.type = "button";
+  previous.textContent = "‹";
+  next.textContent = "›";
+  previous.setAttribute("aria-label", "查看前面的图片");
+  next.setAttribute("aria-label", "查看更多图片");
+  const sync = () => {
+    previous.hidden = list.scrollLeft <= 1;
+    next.hidden = list.scrollLeft + list.clientWidth >= list.scrollWidth - 1;
+  };
+  const scroll = (direction: number) => {
+    list.scrollBy({
+      left: direction * list.clientWidth * 0.8,
+      behavior: "smooth",
+    });
+  };
+  previous.addEventListener("click", (event) => {
+    event.stopPropagation();
+    scroll(-1);
+  });
+  next.addEventListener("click", (event) => {
+    event.stopPropagation();
+    scroll(1);
+  });
+  list.addEventListener("scroll", sync, { passive: true });
+  list.addEventListener("load", sync, true);
+  strip.append(list, previous, next);
+  requestAnimationFrame(sync);
+  return strip;
 }
 
 export function authorAvatar(

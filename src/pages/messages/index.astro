@@ -17,21 +17,24 @@ import Layout from "../../layouts/Layout.astro";
             <p data-role="threads-summary">正在加载…</p>
           </div>
         </header>
-        <div class="quick-start" data-role="quick-start" hidden>
-          <div class="quick-start-head">
-            <strong>快速发起会话</strong>
-            <small data-role="quick-start-hint"></small>
-          </div>
-          <div class="quick-start-list" data-role="quick-start-list"></div>
-        </div>
         <div class="thread-list" data-role="thread-list"></div>
         <p class="status" data-role="threads-empty" hidden>
-          还没有私信。上面点一个人，或者去别人主页点「私信」就能开始聊天。
+          还没有私信。
         </p>
       </section>
 
-      <section class="chat" data-role="chat" hidden>
-        <header class="chat-head">
+      <section class="chat" data-role="chat">
+        <button class="start-chat" type="button" data-role="start-chat">
+          <span class="start-chat-avatar" aria-hidden="true">
+            ＋
+          </span>
+          <span class="start-chat-copy">
+            <strong>发起聊天</strong>
+            <small>点击此处快速向您的好友发起聊天</small>
+          </span>
+        </button>
+
+        <header class="chat-head" data-role="chat-head" hidden>
           <a class="chat-user" data-role="chat-user" href="#">
             <span class="avatar chat-avatar" data-role="chat-avatar"></span>
             <span class="chat-meta">
@@ -44,9 +47,13 @@ import Layout from "../../layouts/Layout.astro";
           </a>
         </header>
 
-        <div class="chat-messages" data-role="chat-messages"></div>
+        <div class="chat-empty" data-role="chat-empty">
+          <p>从左侧选择一个会话开始聊天</p>
+        </div>
 
-        <form class="chat-composer" data-role="chat-form" novalidate>
+        <div class="chat-messages" data-role="chat-messages" hidden></div>
+
+        <form class="chat-composer" data-role="chat-form" novalidate hidden>
           <textarea
             class="chat-input"
             data-role="chat-input"
@@ -72,6 +79,22 @@ import Layout from "../../layouts/Layout.astro";
         ></p>
       </section>
     </main>
+
+    <dialog class="contact-dialog" data-role="contact-dialog">
+      <div class="contact-dialog-head">
+        <div>
+          <strong>发起聊天</strong>
+          <small>选择一位好友</small>
+        </div>
+        <button type="button" data-role="contact-close" aria-label="关闭">
+          ×
+        </button>
+      </div>
+      <div class="contact-list" data-role="contact-list"></div>
+      <p class="contact-empty" data-role="contact-empty" hidden>
+        暂时没有可以私信的好友。
+      </p>
+    </dialog>
   </div>
 </Layout>
 
@@ -146,6 +169,7 @@ import Layout from "../../layouts/Layout.astro";
   function renderThreads(
     container: HTMLElement,
     threads: Conversation[],
+    active?: string,
   ): void {
     container.replaceChildren();
     if (threads.length === 0) return;
@@ -154,6 +178,7 @@ import Layout from "../../layouts/Layout.astro";
       row.href = conversationPath(thread.other.handle);
       row.dataset.handle = thread.other.handle;
       if (thread.unread > 0) row.classList.add("is-unread");
+      if (thread.other.handle === active) row.classList.add("is-active");
 
       row.append(avatarNode(thread.other, "thread-avatar"));
 
@@ -186,52 +211,49 @@ import Layout from "../../layouts/Layout.astro";
     }
   }
 
-  /** 快速发起会话：把互关的人放在最前面，点一下直接开聊 */
-  function renderQuickStart(
-    wrap: HTMLElement,
-    hint: HTMLElement,
+  function renderContacts(
     container: HTMLElement,
+    empty: HTMLElement,
     suggestions: MessageSuggestion[],
   ): void {
     container.replaceChildren();
     const usable = suggestions.filter((person) => person.canDm);
-    if (usable.length === 0) {
-      wrap.hidden = true;
-      return;
-    }
+    empty.hidden = usable.length > 0;
     const mutual = usable.filter((person) => person.mutual);
-    for (const person of mutual) container.append(quickStartChip(person));
+    for (const person of mutual) container.append(contactRow(person));
     for (const person of usable.filter((person) => !person.mutual)) {
-      container.append(quickStartChip(person));
+      container.append(contactRow(person));
     }
-    hint.textContent = mutual.length
-      ? `互关 ${mutual.length} 人，其余是你关注的人`
-      : "你关注的人";
-    wrap.hidden = false;
   }
 
-  function quickStartChip(person: MessageSuggestion): HTMLElement {
-    const chip = el("button", "quick-start-chip");
-    chip.type = "button";
-    if (person.mutual) chip.classList.add("is-mutual");
-    if (person.hasThread) chip.classList.add("is-existing");
-    chip.append(avatarNode(person, "quick-start-avatar"));
-    const name = el("span", "quick-start-name");
+  function contactRow(person: MessageSuggestion): HTMLElement {
+    const row = el("button", "contact-row");
+    row.type = "button";
+    row.append(avatarNode(person, "contact-avatar"));
+    const copy = el("span", "contact-copy");
+    const name = el("strong");
     name.textContent = person.name;
-    chip.append(name);
-    if (person.mutual) {
-      const badge = el("span", "quick-start-badge");
-      badge.textContent = "互关";
-      chip.append(badge);
+    const detail = el("small");
+    detail.textContent = `@${person.handle}${person.mutual ? " · 互关" : ""}`;
+    copy.append(name, detail);
+    row.append(copy);
+    row.addEventListener("click", () => {
+      row.closest<HTMLDialogElement>("dialog")?.close();
+      void navigate(conversationPath(person.handle));
+    });
+    return row;
+  }
+
+  async function loadContacts(root: HTMLElement): Promise<void> {
+    const list = root.querySelector<HTMLElement>("[data-role=contact-list]")!;
+    const empty = root.querySelector<HTMLElement>("[data-role=contact-empty]")!;
+    try {
+      const page = await getConversations();
+      renderContacts(list, empty, page.suggestions ?? []);
+    } catch {
+      list.replaceChildren(statusRow("联系人加载失败，请重试。"));
+      empty.hidden = true;
     }
-    chip.title = person.hasThread
-      ? `继续和 ${person.name} 的会话`
-      : `给 ${person.name} 发私信`;
-    chip.addEventListener(
-      "click",
-      () => void navigate(conversationPath(person.handle)),
-    );
-    return chip;
   }
 
   function messageRow(message: DirectMessage): HTMLElement {
@@ -276,6 +298,10 @@ import Layout from "../../layouts/Layout.astro";
       "[data-role=threads-panel]",
     )!;
     const chat = root.querySelector<HTMLElement>("[data-role=chat]")!;
+    const chatHead = root.querySelector<HTMLElement>("[data-role=chat-head]")!;
+    const chatEmpty = root.querySelector<HTMLElement>(
+      "[data-role=chat-empty]",
+    )!;
     const list = root.querySelector<HTMLElement>("[data-role=chat-messages]")!;
     const form = root.querySelector<HTMLFormElement>("[data-role=chat-form]")!;
     const input = root.querySelector<HTMLTextAreaElement>(
@@ -300,10 +326,38 @@ import Layout from "../../layouts/Layout.astro";
     )!;
     const backBtn = root.querySelector<HTMLButtonElement>("[data-role=back]")!;
 
-    threadsPanel.hidden = true;
+    root.classList.add("has-chat");
+    threadsPanel.hidden = false;
     chat.hidden = false;
+    chatHead.hidden = false;
+    chatEmpty.hidden = true;
+    list.hidden = false;
+    form.hidden = false;
     backBtn.textContent = "← 返回私信";
     backBtn.onclick = () => void navigate(messagesPath());
+
+    const threadList = root.querySelector<HTMLElement>(
+      "[data-role=thread-list]",
+    )!;
+    const summary = root.querySelector<HTMLElement>(
+      "[data-role=threads-summary]",
+    )!;
+    const contactList = root.querySelector<HTMLElement>(
+      "[data-role=contact-list]",
+    )!;
+    const contactEmpty = root.querySelector<HTMLElement>(
+      "[data-role=contact-empty]",
+    )!;
+    void getConversations()
+      .then((page) => {
+        renderThreads(threadList, page.threads, handle);
+        renderContacts(contactList, contactEmpty, page.suggestions ?? []);
+        summary.textContent =
+          page.unread > 0
+            ? `${page.threads.length} 个会话 · ${page.unread} 条未读`
+            : `${page.threads.length} 个会话`;
+      })
+      .catch(() => undefined);
 
     const setStatus = (message: string) => {
       status.textContent = message;
@@ -430,18 +484,10 @@ import Layout from "../../layouts/Layout.astro";
       "[data-role=threads-summary]",
     )!;
     const empty = root.querySelector<HTMLElement>("[data-role=threads-empty]")!;
-    const quickWrap = root.querySelector<HTMLElement>(
-      "[data-role=quick-start]",
-    )!;
-    const quickHint = root.querySelector<HTMLElement>(
-      "[data-role=quick-start-hint]",
-    )!;
-    const quickList = root.querySelector<HTMLElement>(
-      "[data-role=quick-start-list]",
-    )!;
     const backBtn = root.querySelector<HTMLButtonElement>("[data-role=back]")!;
 
     panel.hidden = false;
+    root.classList.remove("has-chat");
     backBtn.onclick = () =>
       history.length > 1 ? history.back() : (location.href = "/");
 
@@ -449,7 +495,13 @@ import Layout from "../../layouts/Layout.astro";
       const page = await getConversations();
       if (list.dataset.ssr !== "true") renderThreads(list, page.threads);
       delete list.dataset.ssr;
-      renderQuickStart(quickWrap, quickHint, quickList, page.suggestions ?? []);
+      const contactList = root.querySelector<HTMLElement>(
+        "[data-role=contact-list]",
+      )!;
+      const contactEmpty = root.querySelector<HTMLElement>(
+        "[data-role=contact-empty]",
+      )!;
+      renderContacts(contactList, contactEmpty, page.suggestions ?? []);
       empty.hidden = page.threads.length > 0;
       summary.textContent =
         page.unread > 0
@@ -477,6 +529,21 @@ import Layout from "../../layouts/Layout.astro";
     root.dataset.messagesMounted = "true";
 
     document.addEventListener("astro:before-swap", stopPolling, { once: true });
+
+    const dialog = root.querySelector<HTMLDialogElement>(
+      "[data-role=contact-dialog]",
+    )!;
+    root.querySelector<HTMLButtonElement>("[data-role=start-chat]")!.onclick =
+      () => {
+        dialog.showModal();
+        if (!dialog.querySelector(".contact-row")) void loadContacts(root);
+      };
+    root.querySelector<HTMLButtonElement>(
+      "[data-role=contact-close]",
+    )!.onclick = () => dialog.close();
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
 
     void hydrateSession().then((account) => {
       if (!account) {
