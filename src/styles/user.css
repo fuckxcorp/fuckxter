@@ -31,6 +31,14 @@
   min-height: 0;
 }
 
+@media (min-width: 901px) {
+  .user-head {
+    position: sticky;
+    top: calc(var(--topbar-height) + 1rem);
+    align-self: start;
+  }
+}
+
 .user-head-card {
   height: auto;
   min-height: 0;

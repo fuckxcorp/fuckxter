@@ -761,7 +761,7 @@ async function route(
       if (
         body.mediaIDs !== undefined &&
         (!Array.isArray(body.mediaIDs) ||
-          body.mediaIDs.length > 3 ||
+          body.mediaIDs.length > 10 ||
           body.mediaIDs.some((id) => typeof id !== "string"))
       ) {
         throw new HttpError(400, "INVALID_MEDIA", "图片引用无效。");

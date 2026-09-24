@@ -450,8 +450,8 @@ export async function createPost(
   }
   const now = new Date().toISOString();
   let mediaJson: string | null = null;
-  if (mediaIDs.length > 3) {
-    throw new HttpError(400, "TOO_MANY_MEDIA", "每条帖子最多上传 3 张图片。");
+  if (mediaIDs.length > 10) {
+    throw new HttpError(400, "TOO_MANY_MEDIA", "每条帖子最多上传 10 张图片。");
   }
   if (mediaIDs.length) {
     const media = await Promise.all(

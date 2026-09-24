@@ -318,6 +318,8 @@ import Layout from "../../layouts/Layout.astro";
     };
 
     let sending = false;
+    let composing = false;
+    let compositionEndedAt = 0;
     let lastRendered: string | null = null;
 
     const applyConversation = (user: FeedUser, messages: DirectMessage[]) => {
@@ -379,7 +381,21 @@ import Layout from "../../layouts/Layout.astro";
           showToast("撤回失败，请重试");
         });
     });
+    input.addEventListener("compositionstart", () => {
+      composing = true;
+    });
+    input.addEventListener("compositionend", () => {
+      composing = false;
+      compositionEndedAt = performance.now();
+    });
     input.addEventListener("keydown", (event) => {
+      if (
+        composing ||
+        event.isComposing ||
+        (event.key === "Enter" && performance.now() - compositionEndedAt < 120)
+      ) {
+        return;
+      }
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         form.requestSubmit();

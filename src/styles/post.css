@@ -819,6 +819,28 @@
     border-top: 1px solid var(--color-border);
   }
 
+  .thread-origin + .post-controls {
+    padding: 0.25rem 0 1rem;
+  }
+
+  .thread-origin + .post-controls .post-controls-title {
+    display: none;
+  }
+
+  .thread-origin + .post-controls .post-control-actions {
+    gap: 0.35rem;
+  }
+
+  .thread-origin + .post-controls .action {
+    flex-basis: calc(25% - 0.27rem);
+    padding: 0.5rem;
+  }
+
+  .thread-origin + .post-controls .action:nth-child(5):nth-last-child(2),
+  .thread-origin + .post-controls .action:nth-child(6):last-child {
+    flex-basis: calc(50% - 0.18rem);
+  }
+
   .comments-list {
     overflow: visible;
   }

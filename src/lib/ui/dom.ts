@@ -210,7 +210,11 @@ export function postMetaText(
   }`;
 }
 
-export function postHead(post: Post, timeMode: "relative" | "absolute") {
+export function postHead(
+  post: Post,
+  timeMode: "relative" | "absolute",
+  showFollow = true,
+) {
   const head = el("header", "post-head");
   const name = el("span", "post-name");
   name.textContent = post.author.name;
@@ -226,12 +230,13 @@ export function postHead(post: Post, timeMode: "relative" | "absolute") {
     label.textContent = post.visibility === "private" ? "私密贴" : "仅互关可见";
     head.append(label);
   }
-  head.append(followButton(post));
+  if (showFollow) head.append(followButton(post));
   return head;
 }
 
 export function postMedia(post: Post): HTMLElement {
   const list = el("div", "media-list");
+  if ((post.media?.length ?? 0) > 3) list.classList.add("is-scrollable");
   for (const media of post.media ?? []) {
     const node = el("div", media.hdr ? "media is-hdr" : "media");
     const image = el("img", "media-image");
@@ -289,7 +294,7 @@ export function postShard(id: string): string {
   return String(Math.abs(hash) % 8);
 }
 
-export function renderPost(post: Post): HTMLElement {
+export function renderPost(post: Post, showFollow = true): HTMLElement {
   const article = el("article", "post");
   article.dataset.postId = post.id;
   article.dataset.handle = post.author.handle;
@@ -302,7 +307,7 @@ export function renderPost(post: Post): HTMLElement {
   );
 
   const body = el("div", "post-body");
-  body.append(postHead(post, "relative"));
+  body.append(postHead(post, "relative", showFollow));
 
   const text = el("p", "post-text");
   text.append(renderRichText(post.text));

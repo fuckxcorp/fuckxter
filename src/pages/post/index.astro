@@ -256,11 +256,16 @@ import Header from "../../components/Header.astro";
       }
 
       if (action === "like" || action === "repost") {
+        if (!getAccount()) {
+          requestAuthentication();
+          return;
+        }
         const activeClass = action === "like" ? "is-liked" : "is-reposted";
         const willActive = !btn.classList.contains(activeClass);
         const current = Number(btn.dataset.count ?? "0");
         setCount(btn, Math.max(0, current + (willActive ? 1 : -1)));
         btn.classList.toggle(activeClass, willActive);
+        btn.disabled = true;
         try {
           if (action === "like") {
             const result = await toggleLike(post.id, willActive);
@@ -270,10 +275,20 @@ import Header from "../../components/Header.astro";
             const result = await toggleRepost(post.id, willActive);
             setCount(btn, result.reposts);
             btn.classList.toggle(activeClass, result.reposted);
+            showToast(result.reposted ? "已转发" : "已取消转发");
           }
-        } catch {
+        } catch (error) {
           setCount(btn, current);
           btn.classList.toggle(activeClass, !willActive);
+          if (error instanceof ApiError && error.status === 401) {
+            requestAuthentication();
+          } else if (action === "repost") {
+            showToast(
+              error instanceof Error ? error.message : "转发失败，请重试。",
+            );
+          }
+        } finally {
+          btn.disabled = false;
         }
         return;
       }
@@ -348,6 +363,7 @@ import Header from "../../components/Header.astro";
     body.append(text);
     if (post.media?.length) {
       const list = el("div", "media-list is-detail");
+      if (post.media.length > 3) list.classList.add("is-scrollable");
       for (const item of post.media) {
         const media = el("div", item.hdr ? "media is-hdr" : "media");
         const image = el("img", "media-image");
@@ -1132,6 +1148,23 @@ import Header from "../../components/Header.astro";
         host.replaceChildren(thread);
         let hot = renderHotPosts(null, post.id);
         side.replaceChildren(renderPostInfo(post), controls, hot);
+        const controlsMedia = matchMedia("(max-width: 900px)");
+        const placeControls = () => {
+          if (controlsMedia.matches) {
+            thread
+              .querySelector<HTMLElement>(".thread-origin")
+              ?.after(controls);
+            return;
+          }
+          side.querySelector<HTMLElement>(".post-info")?.after(controls);
+        };
+        placeControls();
+        controlsMedia.addEventListener("change", placeControls);
+        document.addEventListener(
+          "astro:before-swap",
+          () => controlsMedia.removeEventListener("change", placeControls),
+          { once: true },
+        );
         side.hidden = false;
         let hotPosts: Post[] | null = null;
         let hotLimit = 0;

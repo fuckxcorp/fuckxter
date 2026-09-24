@@ -46,6 +46,7 @@ import { dismissHomeSplash } from "../ui/splash";
 import { postPath, userPath } from "../core/urls";
 
 const MAX_CHARS = 1000;
+const MAX_MEDIA = 10;
 
 const COLUMN_STORAGE_KEY = "fk_columns";
 
@@ -285,10 +286,22 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
     mediaPreviewImages.replaceChildren(
       ...media.map((item) => {
+        const preview = el("div", "composer-preview-item");
         const image = el("img", "media-image");
         image.src = item.url.startsWith("/") ? apiEndpoint(item.url) : item.url;
         image.alt = item.alt;
-        return image;
+        const remove = el("button", "composer-preview-remove");
+        remove.type = "button";
+        remove.textContent = "移除";
+        remove.setAttribute("aria-label", `移除附件 ${item.alt}`);
+        remove.addEventListener("click", () => {
+          selectedMedia = selectedMedia.filter((media) => media.id !== item.id);
+          hdrMedia.delete(item.id);
+          showMediaPreview(selectedMedia);
+          syncComposer();
+        });
+        preview.append(image, remove);
+        return preview;
       }),
     );
     mediaHdrWrap.hidden = !canUseHdr(media);
@@ -962,6 +975,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
 
     if (action === "like" || action === "repost") {
+      if (!getAccount()) {
+        requestAuthentication();
+        return;
+      }
       const activeClass = action === "like" ? "is-liked" : "is-reposted";
       const willActive = !button.classList.contains(activeClass);
       button.classList.toggle(activeClass, willActive);
@@ -970,6 +987,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       const optimistic = Math.max(0, current + (willActive ? 1 : -1));
       button.dataset.count = String(optimistic);
       setCount(button, optimistic);
+      button.disabled = true;
       try {
         let serverCount: number;
         let serverActive: boolean;
@@ -985,10 +1003,22 @@ export function mountFeed(container: HTMLElement): FeedControls {
         button.dataset.count = String(serverCount);
         setCount(button, serverCount);
         button.classList.toggle(activeClass, serverActive);
-      } catch {
+        if (action === "repost") {
+          showToast(serverActive ? "已转发" : "已取消转发");
+        }
+      } catch (error) {
         button.classList.toggle(activeClass, !willActive);
         button.dataset.count = String(current);
         setCount(button, current);
+        if (error instanceof ApiError && error.status === 401) {
+          requestAuthentication();
+        } else if (action === "repost") {
+          showToast(
+            error instanceof Error ? error.message : "转发失败，请重试。",
+          );
+        }
+      } finally {
+        button.disabled = false;
       }
       return;
     }
@@ -1167,8 +1197,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   mediaInput.addEventListener("change", async () => {
     const selected = [...(mediaInput.files ?? [])];
-    if (selected.length > 3) {
-      mediaStatus.textContent = "每条帖子最多上传 3 张图片。";
+    if (selected.length + selectedMedia.length > MAX_MEDIA) {
+      mediaStatus.textContent = `每条帖子最多上传 ${MAX_MEDIA} 张图片。`;
       mediaStatus.hidden = false;
       mediaInput.value = "";
       return;
@@ -1176,7 +1206,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     const files = selected;
     if (!files.length) return;
     try {
-      await uploadFiles(files, false);
+      await uploadFiles(files, true);
     } catch (error) {
       mediaStatus.textContent =
         error instanceof Error ? error.message : "图片上传失败";

@@ -249,7 +249,7 @@
   min-height: 0;
   overflow: visible;
   overscroll-behavior: auto;
-  transition: transform 320ms cubic-bezier(0.42, 0, 0.9, 1);
+  transition: transform 200ms cubic-bezier(0.42, 0, 0.9, 1);
   transform-origin: left center;
 }
 
@@ -374,6 +374,23 @@ html.menu-open .main {
   gap: 0.5rem;
 }
 
+.composer-preview-item {
+  position: relative;
+}
+
+.composer-preview-remove {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  border: 0;
+  padding: 0.2rem 0.4rem;
+  background: rgb(0 0 0 / 72%);
+  color: #fff;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
 .composer-preview[hidden] {
   display: none;
 }
@@ -389,7 +406,7 @@ html.menu-open .main {
   }
 }
 
-.composer-preview .media-image {
+.composer-preview-item .media-image {
   width: auto;
   height: auto;
   max-width: min(100%, 260px);

@@ -341,7 +341,7 @@ import Header from "../../components/Header.astro";
       ...(posts.length === 0
         ? [statusRow("还没有发过帖子。")]
         : posts.map((post) => {
-            const article = renderPost(post);
+            const article = renderPost(post, false);
             article.classList.add("user-post-link");
             article.tabIndex = 0;
             article.setAttribute("role", "link");

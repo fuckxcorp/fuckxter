@@ -1054,6 +1054,21 @@ body {
   overflow: visible;
 }
 
+.media-list.is-scrollable,
+.media-list.is-detail.is-scrollable {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.4rem;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.media-list.is-scrollable > .media {
+  flex-basis: min(82%, 260px);
+  scroll-snap-align: start;
+}
+
 .media-list > .media {
   flex: 0 0 auto;
 }
