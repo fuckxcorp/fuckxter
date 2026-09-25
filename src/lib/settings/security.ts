@@ -40,9 +40,44 @@ export function mountSecuritySettings(
       card("recovery-form"),
       card("delete-account"),
       card("tfa-form"),
+    ].filter((item): item is HTMLElement => Boolean(item));
+    const columns = [
+      document.createElement("div"),
+      document.createElement("div"),
     ];
-    ordered.forEach((item) => item && masonry.append(item));
+    columns.forEach((column) => (column.className = "security-column"));
+    const narrow = matchMedia("(max-width: 900px)");
+    const layout = () => {
+      if (narrow.matches) {
+        masonry.classList.add("is-single");
+        masonry.replaceChildren(...ordered);
+        return;
+      }
+
+      masonry.classList.remove("is-single");
+      masonry.replaceChildren(...columns);
+      columns.forEach((column) => column.replaceChildren());
+      ordered.slice(0, -2).forEach((item, index) => {
+        const column =
+          index < columns.length
+            ? columns[index]
+            : columns[0].offsetHeight <= columns[1].offsetHeight
+              ? columns[0]
+              : columns[1];
+        column.append(item);
+      });
+      if (ordered.at(-2)) columns[0].append(ordered.at(-2)!);
+      if (ordered.at(-1)) columns[1].append(ordered.at(-1)!);
+    };
+
     securityPane.insertBefore(masonry, formGroups[0]);
+    layout();
+    narrow.addEventListener("change", layout);
+    document.addEventListener(
+      "astro:before-swap",
+      () => narrow.removeEventListener("change", layout),
+      { once: true },
+    );
     formGroups.forEach((group) => group.remove());
   }
 
