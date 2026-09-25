@@ -107,11 +107,6 @@ import Notice from "../layouts/Notice.astro";
       count.textContent = `${length} / 1000`;
       save.disabled = busy || !input.value.trim() || length > 1000;
     };
-    root
-      .querySelector("[data-role=back]")!
-      .addEventListener("click", () =>
-        history.length > 1 ? history.back() : location.assign("/"),
-      );
     input.addEventListener("input", sync);
     hdrInput.addEventListener("change", () => {
       hdrChanged = true;

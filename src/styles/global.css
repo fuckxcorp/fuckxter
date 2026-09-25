@@ -1054,6 +1054,12 @@ body {
   overflow: visible;
 }
 
+.media-list.is-detail .media,
+.media-list.is-detail .media-image {
+  max-width: min(100%, 640px);
+  max-height: none;
+}
+
 .media-list > .media {
   flex: 0 0 auto;
 }
@@ -1120,18 +1126,16 @@ body {
 .post .media-list:not(.is-detail) > .media {
   width: min(100%, var(--media-width, 200px));
   aspect-ratio: var(--media-ratio, 1);
-  max-width: min(100%, 400px);
+  max-width: min(100%, 640px);
   max-height: none;
 }
 
 .post .media-list:not(.is-detail) > .media.is-portrait {
-  max-width: 200px;
-  max-height: 400px;
+  max-width: min(100%, 360px);
 }
 
 .post .media-list:not(.is-detail) > .media.is-landscape {
-  max-width: 400px;
-  max-height: 200px;
+  max-width: min(100%, 640px);
 }
 
 .post .media-list:not(.is-detail) .media-image {
@@ -1374,25 +1378,6 @@ body {
   }
 }
 
-.back-btn {
-  flex: none;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  padding: 0.45rem 0.8rem;
-  border-radius: 999px;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  transition:
-    background 150ms ease,
-    color 150ms ease;
-}
-
-.back-btn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-strong);
-}
-
 .topbar-icon {
   display: grid;
   place-items: center;
@@ -1541,6 +1526,10 @@ body {
   font-size: 0.75rem;
 }
 
+.share-menu-item.menu-item:is(:hover, :focus-visible) span {
+  color: color-mix(in srgb, var(--menu-select-text) 72%, transparent);
+}
+
 .share-menu-item:disabled {
   cursor: not-allowed;
   opacity: 0.48;
@@ -1656,7 +1645,6 @@ html body .thread-more:disabled {
 /* 次要按钮：同样是斜切，只画斜边框，保持次级观感 */
 html body .ghost-btn,
 html body .follow-btn,
-html body .back-btn,
 html body .chat-recall,
 html body .search-exit,
 html body .avatar-crop-label,
@@ -1670,7 +1658,6 @@ html body .header-crop-label {
 
 html body .ghost-btn::before,
 html body .follow-btn::before,
-html body .back-btn::before,
 html body .chat-recall::before,
 html body .search-exit::before,
 html body .avatar-crop-label::before,
@@ -1688,7 +1675,6 @@ html body .header-crop-label::before {
 
 html body .ghost-btn:hover:not(:disabled),
 html body .follow-btn:hover:not(:disabled),
-html body .back-btn:hover,
 html body .chat-recall:hover,
 html body .search-exit:hover,
 html body .avatar-crop-label:hover,
@@ -1698,7 +1684,6 @@ html body .header-crop-label:hover {
 
 html body .ghost-btn:hover:not(:disabled)::before,
 html body .follow-btn:hover:not(:disabled)::before,
-html body .back-btn:hover::before,
 html body .chat-recall:hover::before,
 html body .search-exit:hover::before,
 html body .avatar-crop-label:hover::before,

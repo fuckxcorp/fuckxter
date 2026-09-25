@@ -38,7 +38,7 @@ function renderPostText(value: string): string {
     if (token.startsWith("fk://")) {
       html += escapeHtml(token.slice("fk://".length));
     } else {
-      html += `<a class="inline-link" href="${escapeHtml(token)}">${escapeHtml(token)}</a>`;
+      html += `<a class="inline-link" href="${escapeHtml(token)}" target="_blank" rel="noopener noreferrer">${escapeHtml(token)}</a>`;
     }
     html += escapeHtml(trailing);
     lastIndex = index + match[0].length;

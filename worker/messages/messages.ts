@@ -197,22 +197,27 @@ export async function listConversations(env: Env, userId: string) {
          WHERE um.thread_id = t.id
            AND um.sender_id != ?
            AND um.read_at IS NULL
+           AND um.created_at > COALESCE(dc.cleared_at, '')
        ) AS unread
      FROM dm_threads t
+     LEFT JOIN dm_thread_clears dc
+       ON dc.thread_id = t.id AND dc.user_id = ?
      JOIN users o
        ON o.id = CASE WHEN t.user_low_id = ? THEN t.user_high_id ELSE t.user_low_id END
      LEFT JOIN dm_messages m
        ON m.id = (
          SELECT id FROM dm_messages
          WHERE thread_id = t.id
+           AND created_at > COALESCE(dc.cleared_at, '')
          ORDER BY created_at DESC, id DESC
          LIMIT 1
        )
-     WHERE t.user_low_id = ? OR t.user_high_id = ?
+     WHERE (t.user_low_id = ? OR t.user_high_id = ?)
+       AND t.last_message_at > COALESCE(dc.cleared_at, '')
      ORDER BY t.last_message_at DESC
      LIMIT ?`,
   )
-    .bind(userId, userId, userId, userId, THREAD_LIST_LIMIT)
+    .bind(userId, userId, userId, userId, userId, THREAD_LIST_LIMIT)
     .all<ThreadRow>();
 
   return (rows.results ?? []).map((row) => ({
@@ -329,10 +334,15 @@ async function loadMessages(env: Env, threadId: string, userId: string) {
     `SELECT id, body, sender_id, created_at, read_at
      FROM dm_messages
      WHERE thread_id = ?
+       AND created_at > COALESCE(
+         (SELECT cleared_at FROM dm_thread_clears
+          WHERE thread_id = ? AND user_id = ?),
+         ''
+       )
      ORDER BY created_at DESC, id DESC
      LIMIT ?`,
   )
-    .bind(threadId, THREAD_PAGE_SIZE)
+    .bind(threadId, threadId, userId, THREAD_PAGE_SIZE)
     .all<MessageRow>();
 
   return (rows.results ?? [])
@@ -499,6 +509,25 @@ export async function recallMessage(
   };
 }
 
+export async function deleteConversation(
+  env: Env,
+  userId: string,
+  handle: string,
+): Promise<void> {
+  const person = await findPerson(env, handle);
+  const [low, high] = pairFor(userId, person.id);
+  const threadId = await findThreadID(env, low, high);
+  if (!threadId) return;
+  await env.DB.prepare(
+    `INSERT INTO dm_thread_clears (thread_id, user_id, cleared_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT (thread_id, user_id)
+     DO UPDATE SET cleared_at = excluded.cleared_at`,
+  )
+    .bind(threadId, userId, new Date().toISOString())
+    .run();
+}
+
 export async function countUnreadMessages(
   env: Env,
   userId: string,
@@ -507,11 +536,14 @@ export async function countUnreadMessages(
     `SELECT COUNT(*) AS total
      FROM dm_messages m
      JOIN dm_threads t ON t.id = m.thread_id
+     LEFT JOIN dm_thread_clears dc
+       ON dc.thread_id = t.id AND dc.user_id = ?
      WHERE m.sender_id != ?
        AND m.read_at IS NULL
+       AND m.created_at > COALESCE(dc.cleared_at, '')
        AND (t.user_low_id = ? OR t.user_high_id = ?)`,
   )
-    .bind(userId, userId, userId)
+    .bind(userId, userId, userId, userId)
     .first<{ total: number }>();
   return Number(row?.total ?? 0);
 }

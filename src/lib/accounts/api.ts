@@ -271,6 +271,12 @@ export async function sendDirectMessage(
   }
 }
 
+export async function deleteConversation(handle: string): Promise<void> {
+  await apiRequest(`/messages/${encodeURIComponent(handle)}`, {
+    method: "DELETE",
+  });
+}
+
 export async function markConversationRead(handle: string): Promise<number> {
   const response = await apiRequest<{ unread: number }>(
     `/messages/${encodeURIComponent(handle)}/read`,

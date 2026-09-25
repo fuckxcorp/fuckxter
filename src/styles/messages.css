@@ -1,11 +1,17 @@
+.app.subpage[data-messages] {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .messages-main {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
-  width: min(1180px, 100%);
-  margin: 0 auto;
-  padding: 1.25rem 1.25rem 1.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .messages-panel,
@@ -18,7 +24,7 @@
 .messages-panel {
   border: 1px solid var(--color-border);
   border-right: 0;
-  border-radius: 18px 0 0 18px;
+  border-radius: 0;
   background: var(--color-bg);
   overflow-y: auto;
 }
@@ -160,7 +166,7 @@
 .chat {
   flex: 1 1 auto;
   border: 1px solid var(--color-border);
-  border-radius: 0 18px 18px 0;
+  border-radius: 0;
   background: var(--color-bg);
   box-shadow: var(--shadow-card);
   overflow: hidden;
@@ -302,6 +308,29 @@
   opacity: 0.86;
 }
 
+.chat-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-delete {
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.chat-delete:hover {
+  color: var(--like);
+}
+
+.chat-delete:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
 .chat-messages {
   flex: 1 1 auto;
   min-height: 12rem;
@@ -427,8 +456,8 @@
 .chat-input {
   flex: 1 1 auto;
   min-height: 2.6rem;
-  max-height: 8rem;
-  resize: vertical;
+  max-height: calc(7.5em + 1.1rem + 2px);
+  resize: none;
   padding: 0.55rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -436,6 +465,8 @@
   color: var(--color-text-strong);
   font-size: 0.92rem;
   font-family: inherit;
+  line-height: 1.5;
+  overflow-y: hidden;
   outline: none;
 }
 
@@ -578,14 +609,14 @@
   .messages-main {
     display: flex;
     flex-direction: column;
-    padding: 1rem 0.75rem 1rem;
+    padding: 0;
   }
 
   .messages-panel,
   .chat {
     height: 100%;
     border: 1px solid var(--color-border);
-    border-radius: 16px;
+    border-radius: 0;
   }
 
   .messages-main .chat {

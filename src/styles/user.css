@@ -13,7 +13,6 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: visible;
-  --banner-bleed: calc(1.5rem + (100vw - 3rem) * 0.01);
   padding: 1rem 1.5rem 1.5rem;
 }
 
@@ -57,7 +56,7 @@
 }
 
 .user-banner {
-  width: calc(100% + var(--banner-bleed));
+  width: 100%;
   aspect-ratio: 5 / 1;
   border: 1px solid var(--color-border);
   border-radius: 0;
@@ -97,7 +96,7 @@
   gap: 0.8rem;
   min-height: 0;
   margin-top: 0;
-  padding: 0 0.25rem 3rem;
+  padding: 0 0 3rem;
   overflow: visible;
 }
 
@@ -447,7 +446,6 @@ html:has(.avatar-dialog[open]) {
 
 @media (max-width: 900px) {
   .user-main {
-    --banner-bleed: calc(1rem + (100vw - 2rem) * 0.01);
     padding: 0 1rem 3rem;
     overflow: visible;
   }
@@ -470,7 +468,6 @@ html:has(.avatar-dialog[open]) {
 
   .user-banner-host {
     grid-area: banner;
-    margin-left: calc(-1 * var(--banner-bleed));
   }
 
   .user-head {

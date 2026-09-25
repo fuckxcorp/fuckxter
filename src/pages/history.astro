@@ -72,11 +72,6 @@ import Notice from "../layouts/Notice.astro";
       if (!visits.length)
         list.append(statusRow("还没有浏览记录，打开帖子后会显示在这里。"));
     };
-    root
-      .querySelector("[data-role=back]")!
-      .addEventListener("click", () =>
-        history.length > 1 ? history.back() : location.assign("/"),
-      );
     clear.addEventListener("click", () => {
       if (!confirm("清空此账号在本浏览器中的浏览历史？")) return;
       try {

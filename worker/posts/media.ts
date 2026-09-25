@@ -519,14 +519,15 @@ async function getMediaRow(env: Env, id: string): Promise<MediaRow> {
  * 以前这里会调 Images 绑定转成 AVIF，但源文件本来就能被浏览器直接显示，
  * 转码失败反而会让整张图 502（上传的 JPEG/PNG 全都打不开），所以不再转码。
  */
-function mediaFromSource(row: MediaRow, bytes: ArrayBuffer) {
+function mediaFromSource(row: MediaRow, bytes: ArrayBuffer, etag = row.sha256) {
   const detected = detectImageType(new Uint8Array(bytes.slice(0, 64)));
   return {
     body: bytes,
     // 以文件头为准，免得数据库里记的类型和实际字节对不上导致浏览器不显示
     contentType: detected ?? row.content_type,
     size: bytes.byteLength,
-    etag: row.sha256,
+    etag,
+    mutable: Boolean(row.storage_config_id),
   };
 }
 
@@ -538,22 +539,18 @@ export async function getMedia(
   contentType: string;
   size: number;
   etag: string;
+  mutable: boolean;
 }> {
   const row = await getMediaRow(env, id);
   const cacheKey = `media/${row.sha256}`;
-  const cached = await env.MEDIA_CACHE.get(cacheKey);
-  if (cached) {
-    return {
-      body: cached.body,
-      contentType: cached.httpMetadata?.contentType ?? row.content_type,
-      size: cached.size,
-      etag: row.sha256,
-    };
-  }
 
   // 平台存储：源文件本来就在 R2 里，不用再问 S3
   if (!row.storage_config_id) {
-    const object = await env.MEDIA_CACHE.get(row.object_key);
+    const object =
+      (await env.MEDIA_CACHE.get(cacheKey)) ??
+      (cacheKey === row.object_key
+        ? null
+        : await env.MEDIA_CACHE.get(row.object_key));
     if (!object) {
       throw new HttpError(
         502,
@@ -583,13 +580,20 @@ export async function getMedia(
   const sourceSize =
     Number(row.byte_size) ||
     Number(response.headers.get("Content-Length") ?? "0");
+  const sourceEtag =
+    response.headers.get("ETag")?.replace(/^W\//, "").replace(/^"|"$/g, "") ||
+    null;
   if (sourceSize > STREAM_FALLBACK_BYTES && response.body) {
     return {
       body: response.body,
-      contentType: row.content_type,
+      contentType: response.headers.get("Content-Type") ?? row.content_type,
       size: sourceSize,
-      etag: row.sha256,
+      etag:
+        sourceEtag ??
+        `${row.sha256}-${response.headers.get("Last-Modified") ?? sourceSize}`,
+      mutable: true,
     };
   }
-  return mediaFromSource(row, await response.arrayBuffer());
+  const bytes = await response.arrayBuffer();
+  return mediaFromSource(row, bytes, sourceEtag ?? (await sha256Hex(bytes)));
 }

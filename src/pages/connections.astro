@@ -76,12 +76,6 @@ import Layout from "../layouts/Layout.astro";
     if (!root || root.dataset.connectionsMounted === "true") return;
     root.dataset.connectionsMounted = "true";
 
-    root
-      .querySelector<HTMLButtonElement>("[data-role=back]")!
-      .addEventListener("click", () =>
-        history.length > 1 ? history.back() : (location.href = "/"),
-      );
-
     const match = location.pathname.match(
       /^\/user\/([^/]+)\/(followers|following)\/?$/i,
     );

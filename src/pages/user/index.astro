@@ -356,6 +356,8 @@ import Header from "../../components/Header.astro";
     root.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
 
+      if (target.closest<HTMLAnchorElement>(".inline-link")) return;
+
       const avatarLink = target.closest<HTMLElement>(".avatar-link");
       if (avatarLink?.dataset.handle) {
         event.preventDefault();
@@ -505,12 +507,6 @@ import Header from "../../components/Header.astro";
     if (container.dataset.userMounted === "true") return;
     container.dataset.userMounted = "true";
     const sessionPromise = hydrateSession().then(() => getAccount());
-
-    container
-      .querySelector<HTMLButtonElement>("[data-role=back]")!
-      .addEventListener("click", () =>
-        history.length > 1 ? history.back() : (location.href = "/"),
-      );
 
     const card = container.querySelector<HTMLElement>("[data-role=user-card]")!;
     const avatar = card.querySelector<HTMLButtonElement>(

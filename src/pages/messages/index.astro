@@ -7,7 +7,7 @@ import Layout from "../../layouts/Layout.astro";
 
 <Layout title="私信">
   <div class="app subpage" data-messages>
-    <Header label="← 返回" />
+    <Header />
 
     <main class="messages-main">
       <section class="messages-panel" data-role="threads-panel">
@@ -17,6 +17,15 @@ import Layout from "../../layouts/Layout.astro";
             <p data-role="threads-summary">正在加载…</p>
           </div>
         </header>
+        <button class="start-chat" type="button" data-role="start-chat">
+          <span class="start-chat-avatar" aria-hidden="true">
+            ＋
+          </span>
+          <span class="start-chat-copy">
+            <strong>发起聊天</strong>
+            <small>从好友列表中选择联系人</small>
+          </span>
+        </button>
         <div class="thread-list" data-role="thread-list"></div>
         <p class="status" data-role="threads-empty" hidden>
           还没有私信。
@@ -24,16 +33,6 @@ import Layout from "../../layouts/Layout.astro";
       </section>
 
       <section class="chat" data-role="chat">
-        <button class="start-chat" type="button" data-role="start-chat">
-          <span class="start-chat-avatar" aria-hidden="true">
-            ＋
-          </span>
-          <span class="start-chat-copy">
-            <strong>发起聊天</strong>
-            <small>点击此处快速向您的好友发起聊天</small>
-          </span>
-        </button>
-
         <header class="chat-head" data-role="chat-head" hidden>
           <a class="chat-user" data-role="chat-user" href="#">
             <span class="avatar chat-avatar" data-role="chat-avatar"></span>
@@ -42,9 +41,14 @@ import Layout from "../../layouts/Layout.astro";
               <small data-role="chat-handle"></small>
             </span>
           </a>
-          <a class="chat-profile" data-role="chat-profile" href="#">
-            查看主页
-          </a>
+          <span class="chat-head-actions">
+            <button class="chat-delete" type="button" data-role="chat-delete">
+              删除会话
+            </button>
+            <a class="chat-profile" data-role="chat-profile" href="#">
+              查看主页
+            </a>
+          </span>
         </header>
 
         <div class="chat-empty" data-role="chat-empty">
@@ -101,6 +105,7 @@ import Layout from "../../layouts/Layout.astro";
 <script>
   import { navigate } from "astro:transitions/client";
   import {
+    deleteConversation,
     getConversation,
     getConversations,
     markConversationRead,
@@ -324,7 +329,9 @@ import Layout from "../../layouts/Layout.astro";
     const headHandle = root.querySelector<HTMLElement>(
       "[data-role=chat-handle]",
     )!;
-    const backBtn = root.querySelector<HTMLButtonElement>("[data-role=back]")!;
+    const deleteBtn = root.querySelector<HTMLButtonElement>(
+      "[data-role=chat-delete]",
+    )!;
 
     root.classList.add("has-chat");
     threadsPanel.hidden = false;
@@ -333,8 +340,18 @@ import Layout from "../../layouts/Layout.astro";
     chatEmpty.hidden = true;
     list.hidden = false;
     form.hidden = false;
-    backBtn.textContent = "← 返回私信";
-    backBtn.onclick = () => void navigate(messagesPath());
+    deleteBtn.onclick = async () => {
+      if (!confirm("确定删除与该用户的全部聊天记录吗？")) return;
+      deleteBtn.disabled = true;
+      try {
+        await deleteConversation(handle);
+        showToast("会话已删除");
+        void navigate(messagesPath());
+      } catch (error) {
+        deleteBtn.disabled = false;
+        showToast(error instanceof Error ? error.message : "删除会话失败");
+      }
+    };
 
     const threadList = root.querySelector<HTMLElement>(
       "[data-role=thread-list]",
@@ -369,6 +386,20 @@ import Layout from "../../layouts/Layout.astro";
     const syncSendState = () => {
       const length = [...input.value].length;
       sendBtn.disabled = !canSend || length === 0 || length > MAX_CHARS;
+    };
+    const resizeInput = () => {
+      input.style.height = "auto";
+      const style = getComputedStyle(input);
+      const lineHeight = Number.parseFloat(style.lineHeight);
+      const extra =
+        Number.parseFloat(style.paddingTop) +
+        Number.parseFloat(style.paddingBottom) +
+        Number.parseFloat(style.borderTopWidth) +
+        Number.parseFloat(style.borderBottomWidth);
+      const maxHeight = lineHeight * 5 + extra;
+      input.style.height = `${Math.min(input.scrollHeight, maxHeight)}px`;
+      input.style.overflowY =
+        input.scrollHeight > maxHeight ? "auto" : "hidden";
     };
 
     let sending = false;
@@ -413,7 +444,10 @@ import Layout from "../../layouts/Layout.astro";
       }
     };
 
-    input.addEventListener("input", syncSendState);
+    input.addEventListener("input", () => {
+      syncSendState();
+      resizeInput();
+    });
     list.addEventListener("click", (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
         "[data-recall]",
@@ -440,6 +474,7 @@ import Layout from "../../layouts/Layout.astro";
       }
     });
     syncSendState();
+    resizeInput();
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -451,6 +486,7 @@ import Layout from "../../layouts/Layout.astro";
       void sendDirectMessage(handle, text)
         .then((page) => {
           input.value = "";
+          resizeInput();
           setStatus("");
           applyConversation(page.user, page.messages);
         })
@@ -484,12 +520,9 @@ import Layout from "../../layouts/Layout.astro";
       "[data-role=threads-summary]",
     )!;
     const empty = root.querySelector<HTMLElement>("[data-role=threads-empty]")!;
-    const backBtn = root.querySelector<HTMLButtonElement>("[data-role=back]")!;
 
     panel.hidden = false;
     root.classList.remove("has-chat");
-    backBtn.onclick = () =>
-      history.length > 1 ? history.back() : (location.href = "/");
 
     try {
       const page = await getConversations();

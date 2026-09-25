@@ -30,6 +30,7 @@ import {
 } from "./posts/media";
 import {
   countUnreadMessages,
+  deleteConversation,
   getConversation,
   listConversations,
   listMessageSuggestions,
@@ -392,6 +393,10 @@ async function route(
           { status: 201 },
         );
       }
+      if (method === "DELETE") {
+        await deleteConversation(env, user.id, handle);
+        return json({ ok: true }, request, env);
+      }
     }
 
     if (parts.length === 4 && parts[3] === "read" && method === "POST") {
@@ -509,7 +514,13 @@ async function route(
       headers.set("X-Content-Type-Options", "nosniff");
       headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
       headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-      headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      if (media.mutable) {
+        headers.set("Cache-Control", "public, max-age=0, must-revalidate");
+        headers.set("CDN-Cache-Control", "no-store");
+        headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+      } else {
+        headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      }
       headers.set("ETag", `"${media.etag}"`);
       return new Response(media.body, { status: 200, headers });
     }

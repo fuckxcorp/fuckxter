@@ -132,6 +132,8 @@ export function renderRichText(value: string): DocumentFragment {
     const link = el("a", "inline-link");
     if (token.startsWith("http://") || token.startsWith("https://")) {
       link.href = token;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
     } else if (token.startsWith("@")) {
       const handle = token.slice(1);
       link.href = `/user/${encodeURIComponent(handle)}`;
@@ -253,7 +255,7 @@ export function postMedia(post: Post): HTMLElement {
       );
       node.style.setProperty(
         "--media-width",
-        `${Math.min(image.naturalWidth, landscape ? 400 : 200)}px`,
+        `${Math.min(image.naturalWidth, landscape ? 640 : 360)}px`,
       );
     };
     image.addEventListener("load", size, { once: true });

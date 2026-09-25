@@ -36,10 +36,6 @@ async function bootSettings(
     return;
   }
 
-  root
-    .querySelector<HTMLButtonElement>("[data-role=back]")!
-    .addEventListener("click", () => void navigate("/"));
-
   const context: SettingsContext = {
     getAccount: () => account,
     setAccount: (next) => {

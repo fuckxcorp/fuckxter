@@ -2,18 +2,11 @@
 import Account from "../layouts/Account.astro";
 
 interface Props {
-  label?: string;
   showRefresh?: boolean;
   search?: boolean;
-  showBack?: boolean;
 }
 
-const {
-  label = "← 返回",
-  showRefresh = false,
-  search = false,
-  showBack = true,
-} = Astro.props;
+const { showRefresh = false, search = false } = Astro.props;
 ---
 
 <header class="topbar">
@@ -35,11 +28,6 @@ const {
       decoding="async"
     />
   </a>
-  {showBack && (
-    <button type="button" class="back-btn" data-role="back">
-      {label}
-    </button>
-  )}
   {search && (
     <form class="search" action="/" role="search">
       <input

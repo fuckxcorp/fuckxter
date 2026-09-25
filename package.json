@@ -1,7 +1,7 @@
 {
   "name": "fuckxter",
   "type": "module",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "engines": {
     "node": ">=24.21.0"
   },
@@ -11,7 +11,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "format": "prettier . --write",
-    "check": "astro check && prettier . --check"
+    "check": "astro check && prettier . --check",
+    "syncdb": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
     "astro": "7.3.5",
