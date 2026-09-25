@@ -87,9 +87,15 @@ import Notice from "../layouts/Notice.astro";
       }
     });
     document.addEventListener("fuckxter:account-change", render);
-    document.addEventListener("astro:before-swap", () => {
-      document.removeEventListener("fuckxter:account-change", render);
-    }, { once: true });
-    void hydrateSession().then(() => { if (root.isConnected) render(); });
+    document.addEventListener(
+      "astro:before-swap",
+      () => {
+        document.removeEventListener("fuckxter:account-change", render);
+      },
+      { once: true },
+    );
+    void hydrateSession().then(() => {
+      if (root.isConnected) render();
+    });
   });
 </script>
