@@ -7,14 +7,19 @@ import Header from "../../components/Header.astro";
 
 <Layout title="详情">
   <div class="app subpage" data-post>
-    <Header search />
+    <Header search showBack={false} />
 
     <div class="post-layout">
       <div class="post-main">
         <div class="post-main-inner" data-role="post-detail">
           <section class="thread" aria-label="帖子线程">
             <header class="thread-head">
-              <h1>帖子线程</h1>
+              <div class="thread-head-row">
+                <h1>帖子线程</h1>
+                <a class="thread-back" href="/">
+                  ← 返回主页
+                </a>
+              </div>
               <p>发起与回帖按时间排列</p>
             </header>
 
@@ -34,8 +39,14 @@ import Header from "../../components/Header.astro";
             <section class="thread-replies">
               <header class="replies-head">
                 <h2>回帖</h2>
-                <span>加载中</span>
+                <span>0</span>
               </header>
+              <div class="comments-list thread-list">
+                <div class="comments-empty">
+                  <strong>还没有回帖</strong>
+                  <span>来发布第一条回帖吧。</span>
+                </div>
+              </div>
             </section>
           </section>
         </div>
@@ -78,6 +89,7 @@ import Header from "../../components/Header.astro";
     toggleCommentLike,
     toggleCommentRepost,
     toggleRepost,
+    updateComment,
   } from "../../lib/accounts/api";
   import {
     getAccount,
@@ -101,7 +113,7 @@ import Header from "../../components/Header.astro";
   import { ApiError, apiEndpoint } from "../../lib/core/http";
   import { onPageReady } from "../../lib/core/page";
   import { rememberPost } from "../../lib/feed/history";
-  import { openPostShareMenu } from "../../lib/ui/share";
+  import { openPostShareMenu, shareComment } from "../../lib/ui/share";
   import type { Comment, Post } from "../../lib/core/types";
   import { parsePostPath, postPath, userPath } from "../../lib/core/urls";
 
@@ -372,7 +384,7 @@ import Header from "../../components/Header.astro";
   }
 
   function renderReply(
-    postId: string,
+    post: Post,
     comment: Comment,
     canModerate: boolean,
     openReply: (host: HTMLElement, comment: Comment) => void,
@@ -456,7 +468,7 @@ import Header from "../../components/Header.astro";
       const next = !like.classList.contains("is-liked");
       like.classList.toggle("is-liked", next);
       try {
-        const result = await toggleCommentLike(postId, comment.id, next);
+        const result = await toggleCommentLike(post.id, comment.id, next);
         comment.viewer.liked = result.liked;
         setCommentCount(like, result.likes);
         like.classList.toggle("is-liked", result.liked);
@@ -472,7 +484,7 @@ import Header from "../../components/Header.astro";
       const next = !repost.classList.contains("is-reposted");
       repost.classList.toggle("is-reposted", next);
       try {
-        const result = await toggleCommentRepost(postId, comment.id, next);
+        const result = await toggleCommentRepost(post.id, comment.id, next);
         comment.viewer.reposted = result.reposted;
         setCommentCount(repost, result.reposts);
         repost.classList.toggle("is-reposted", result.reposted);
@@ -480,7 +492,7 @@ import Header from "../../components/Header.astro";
         repost.classList.toggle("is-reposted", !next);
       }
     });
-    const quote = actionButton("quote", ICONS.copy, "转贴", 0);
+    const quote = actionButton("quote", ICONS.quote, "转贴", 0);
     quote.addEventListener("click", async () => {
       if (!getAccount()) {
         requestAuthentication();
@@ -498,18 +510,47 @@ import Header from "../../components/Header.astro";
         quote.disabled = false;
       }
     });
-    actions.append(like, repost, quote);
+    const share = actionButton("share", ICONS.share, "分享", 0);
+    share.addEventListener("click", async () => {
+      share.disabled = true;
+      try {
+        const result = await shareComment(post, comment);
+        if (result === "copied") showToast("回帖链接已复制");
+        if (result === "shared") showToast("已分享");
+      } catch {
+        showToast("分享失败");
+      } finally {
+        share.disabled = false;
+      }
+    });
+    actions.append(like, repost, quote, share);
 
     const me = getAccount();
+    if (me?.profile.handle === comment.author.handle) {
+      const edit = actionButton("edit", ICONS.edit, "编辑", 0);
+      edit.addEventListener("click", async () => {
+        const next = prompt("编辑回帖", comment.text)?.trim();
+        if (!next || next === comment.text) return;
+        edit.disabled = true;
+        try {
+          await updateComment(post.id, comment.id, next);
+          await refreshComments();
+          showToast("回帖已更新");
+        } catch (error) {
+          status.textContent =
+            error instanceof Error ? error.message : "编辑失败";
+          edit.disabled = false;
+        }
+      });
+      actions.append(edit);
+    }
     if (me && (canModerate || comment.author.handle === me.profile.handle)) {
-      const remove = el("button", "thread-link-btn is-danger");
-      remove.type = "button";
-      remove.textContent = "删除";
+      const remove = actionButton("delete", ICONS.trash, "删除", 0);
       remove.addEventListener("click", async () => {
         if (!confirm("确定删除这条回帖吗？")) return;
         remove.disabled = true;
         try {
-          await deleteComment(postId, comment.id);
+          await deleteComment(post.id, comment.id);
           await refreshComments();
         } catch (error) {
           remove.disabled = false;
@@ -529,14 +570,20 @@ import Header from "../../components/Header.astro";
     canModerate: boolean,
     onReplyCountChange: (count: number) => void,
     initialReplies?: HTMLElement,
+    initialOrigin?: HTMLElement,
   ): { thread: HTMLElement; composer: HTMLElement } {
     const thread = el("section", "thread");
     const head = el("header", "thread-head");
+    const row = el("div", "thread-head-row");
     const title = el("h1");
     title.textContent = "帖子线程";
+    const back = el("a", "thread-back");
+    back.href = "/";
+    back.textContent = "← 返回主页";
     const hint = el("p");
     hint.textContent = "发起与回帖按时间排列";
-    head.append(title, hint);
+    row.append(title, back);
+    head.append(row, hint);
 
     // 直达帖子页时，Worker 已将回帖渲染进 HTML。复用该节点而不是
     // 再请求一次并替换它，首屏内容便始终是静态 HTML，不会闪成 JS 加载。
@@ -880,7 +927,7 @@ import Header from "../../components/Header.astro";
 
       const renderNode = (comment: Comment, depth: number): HTMLElement => {
         const node = renderReply(
-          post.id,
+          post,
           comment,
           canModerate,
           openInlineReply,
@@ -1023,7 +1070,12 @@ import Header from "../../components/Header.astro";
     requestAnimationFrame(resizeCommentInput);
 
     if (!list.isConnected) replies.append(list);
-    thread.append(head, renderOriginPost(post), composer, replies);
+    thread.append(
+      head,
+      initialOrigin ?? renderOriginPost(post),
+      composer,
+      replies,
+    );
     if (location.hash === "#reply" && me) {
       requestAnimationFrame(() => {
         composer.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1040,12 +1092,6 @@ import Header from "../../components/Header.astro";
     if (container.dataset.postMounted === "true") return;
     container.dataset.postMounted = "true";
     const sessionPromise = hydrateSession();
-
-    container
-      .querySelector<HTMLButtonElement>("[data-role=back]")!
-      .addEventListener("click", () =>
-        history.length > 1 ? history.back() : (location.href = "/"),
-      );
 
     const layout = container.querySelector<HTMLElement>(".post-layout")!;
     layout.addEventListener("click", (event) => {
@@ -1104,6 +1150,9 @@ import Header from "../../components/Header.astro";
         const controls = renderPostControls(post);
         const initialReplies =
           host.querySelector<HTMLElement>(".thread-replies");
+        const initialOrigin = host.querySelector<HTMLElement>(
+          ".thread-origin:not(.post-skeleton)",
+        );
         const { thread } = renderThread(
           post,
           getAccount()?.profile.handle === post.author.handle,
@@ -1118,6 +1167,7 @@ import Header from "../../components/Header.astro";
               count > 0 ? fmtCount(count) : "";
           },
           initialReplies ?? undefined,
+          initialOrigin ?? undefined,
         );
         const me = getAccount()?.profile.handle;
         if (me) {

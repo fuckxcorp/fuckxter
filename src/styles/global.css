@@ -1119,7 +1119,7 @@ body {
 
 .post .media-list:not(.is-detail) > .media {
   width: min(100%, var(--media-width, 200px));
-  height: var(--media-height, 200px);
+  aspect-ratio: var(--media-ratio, 1);
   max-width: min(100%, 400px);
   max-height: none;
 }
@@ -1139,7 +1139,7 @@ body {
   height: 100%;
   max-width: none;
   max-height: none;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
 }
 
@@ -1397,7 +1397,6 @@ body {
   display: grid;
   place-items: center;
   flex: none;
-  margin-left: auto;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -1406,6 +1405,18 @@ body {
   background: none;
   color: var(--color-text-muted);
   cursor: pointer;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.topbar-actions .account {
+  margin-left: 0;
 }
 
 .topbar-icon:hover:not(:disabled) {
@@ -1498,6 +1509,17 @@ body {
   display: grid;
   gap: 0.15rem;
   width: min(250px, calc(100vw - 1rem));
+  padding: 0.45rem;
+  border: 1px solid var(--menu-line);
+  border-radius: 12px;
+  background: var(--menu-surface);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.36);
+  color: var(--menu-text);
+}
+
+.share-menu.submenu::before,
+.share-menu.submenu::after {
+  display: none;
 }
 
 .share-menu-item.menu-item {

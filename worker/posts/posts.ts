@@ -1030,3 +1030,28 @@ export async function deleteComment(
     .run();
   await deleteNotification(env, `reply:${commentId}`);
 }
+
+export async function updateComment(
+  env: Env,
+  userId: string,
+  postId: string,
+  commentId: string,
+  text: string,
+): Promise<void> {
+  const cleanText = text.trim();
+  if (!cleanText) {
+    throw new HttpError(400, "EMPTY_COMMENT", "回覆内容不能为空。");
+  }
+  if ([...cleanText].length > 1000) {
+    throw new HttpError(400, "COMMENT_TOO_LONG", "回覆不能超过 1000 个字符。");
+  }
+  const result = await env.DB.prepare(
+    `UPDATE comments SET text = ?
+     WHERE id = ? AND post_id = ? AND author_id = ? AND deleted_at IS NULL`,
+  )
+    .bind(cleanText, commentId, postId, userId)
+    .run();
+  if (!Number(result.meta?.changes ?? 0)) {
+    throw new HttpError(403, "FORBIDDEN", "无法编辑这条回覆。");
+  }
+}

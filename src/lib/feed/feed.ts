@@ -923,13 +923,14 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
     const inlineLink = target.closest<HTMLAnchorElement>(".inline-link");
     if (inlineLink) {
-      event.preventDefault();
       if (inlineLink.dataset.hashtag) {
+        event.preventDefault();
         const query = `#${inlineLink.dataset.hashtag}`;
         searchInput.value = query;
         void doSearch(query);
         window.scrollTo({ top: 0 });
       } else if (inlineLink.dataset.mention) {
+        event.preventDefault();
         void navigate(userPath(inlineLink.dataset.mention));
       }
       return;

@@ -31,31 +31,17 @@ export function mountSecuritySettings(
     ]);
     const masonry = document.createElement("div");
     masonry.className = "security-masonry";
-    const columns = [0, 1].map(() => {
-      const column = document.createElement("div");
-      column.className = "security-column";
-      masonry.append(column);
-      return column;
-    });
-    const shortestColumn = () => {
-      let target = columns[0];
-      for (const column of columns) {
-        if (column.offsetHeight < target.offsetHeight) target = column;
-      }
-      return target;
-    };
-    const recoveryCard = cards.find((card) =>
-      card.textContent?.includes("恢复密钥"),
-    );
-    cards.forEach((card, index) => {
-      const column =
-        card === recoveryCard
-          ? columns[1]
-          : index < columns.length
-            ? columns[index]
-            : shortestColumn();
-      column.append(card);
-    });
+    const card = (role: string) =>
+      cards.find((item) => item.matches(`[data-role=${role}]`));
+    const ordered = [
+      card("dm-policy-form"),
+      card("email-form"),
+      card("password-form"),
+      card("recovery-form"),
+      card("delete-account"),
+      card("tfa-form"),
+    ];
+    ordered.forEach((item) => item && masonry.append(item));
     securityPane.insertBefore(masonry, formGroups[0]);
     formGroups.forEach((group) => group.remove());
   }

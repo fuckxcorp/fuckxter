@@ -65,6 +65,7 @@ import {
   setRepost,
   setSaved,
   updatePost,
+  updateComment,
 } from "./posts/posts";
 import { withPostPageHtml } from "./posts/post-page";
 import { withConnectionsPageHtml } from "./accounts/connections-page";
@@ -368,12 +369,24 @@ async function route(
         );
       }
       if (method === "POST") {
-        const body = await readJson<{ text?: unknown }>(request);
+        const body = await readJson<{ text?: unknown; id?: unknown }>(request);
         if (typeof body.text !== "string") {
           throw new HttpError(400, "INVALID_MESSAGE", "私信内容无效。");
         }
+        if (
+          body.id !== undefined &&
+          (typeof body.id !== "string" || body.id.length > 64)
+        ) {
+          throw new HttpError(400, "INVALID_MESSAGE_ID", "私信请求无效。");
+        }
         return json(
-          await sendMessage(env, user.id, handle, body.text),
+          await sendMessage(
+            env,
+            user.id,
+            handle,
+            body.text,
+            typeof body.id === "string" ? body.id : undefined,
+          ),
           request,
           env,
           { status: 201 },
@@ -899,9 +912,23 @@ async function route(
       }
     }
 
-    if (parts.length === 5 && parts[3] === "comments" && method === "DELETE") {
+    if (
+      parts.length === 5 &&
+      parts[3] === "comments" &&
+      (method === "PATCH" || method === "DELETE")
+    ) {
       const user = await requireUser(request, env);
-      await deleteComment(env, user.id, segment(parts, 2), segment(parts, 4));
+      const postId = segment(parts, 2);
+      const commentId = segment(parts, 4);
+      if (method === "PATCH") {
+        const body = await readJson<{ text?: unknown }>(request);
+        if (typeof body.text !== "string") {
+          throw new HttpError(400, "INVALID_COMMENT", "回覆内容无效。");
+        }
+        await updateComment(env, user.id, postId, commentId, body.text);
+      } else {
+        await deleteComment(env, user.id, postId, commentId);
+      }
       return json({ ok: true }, request, env);
     }
 

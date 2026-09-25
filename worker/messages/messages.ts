@@ -351,6 +351,7 @@ export async function sendMessage(
   userId: string,
   handle: string,
   text: string,
+  messageId = randomID(),
 ) {
   const body = text.trim();
   if (!body) {
@@ -407,8 +408,9 @@ export async function sendMessage(
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)
-       VALUES (?, ?, ?, ?, ?)`,
-    ).bind(randomID(), threadId, userId, body, now),
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (id) DO NOTHING`,
+    ).bind(`${userId}:${messageId}`, threadId, userId, body, now),
     env.DB.prepare(
       "UPDATE dm_threads SET last_message_at = ? WHERE id = ?",
     ).bind(now, threadId),

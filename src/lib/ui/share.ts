@@ -1,5 +1,5 @@
 import { hidePanel, showPanel } from "./dom";
-import type { Post } from "../core/types";
+import type { Comment, Post } from "../core/types";
 import { postPath } from "../core/urls";
 
 export type ShareResult = "shared" | "copied" | "cancelled";
@@ -26,6 +26,30 @@ export async function sharePost(post: Post): Promise<ShareResult> {
       await navigator.share({
         title: `${post.author.name} 的帖子`,
         text: post.text,
+        url,
+      });
+      return "shared";
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return "cancelled";
+      }
+      throw error;
+    }
+  }
+  await copyText(url);
+  return "copied";
+}
+
+export async function shareComment(
+  post: Post,
+  comment: Comment,
+): Promise<ShareResult> {
+  const url = `${postUrl(post)}#comment-${encodeURIComponent(comment.id)}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: `${comment.author.name} 的回帖`,
+        text: comment.text,
         url,
       });
       return "shared";

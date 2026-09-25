@@ -439,7 +439,7 @@ const sectionTitles: Record<SettingsSection, string> = {
             </div>
 
             <div class="security-forms security-advanced">
-              <div class="fieldset">
+              <div class="fieldset" data-role="tfa-form">
                 <p class="fieldset-title">两步验证（2FA）</p>
                 <p class="form-hint" data-role="tfa-status" />
 
@@ -500,7 +500,7 @@ const sectionTitles: Record<SettingsSection, string> = {
                 </div>
               </div>
 
-              <div class="fieldset">
+              <div class="fieldset" data-role="recovery-form">
                 <p class="fieldset-title">恢复密钥</p>
                 <p class="form-hint" data-role="recovery-hint" hidden>
                   需要先开启两步验证，才能生成恢复密钥。

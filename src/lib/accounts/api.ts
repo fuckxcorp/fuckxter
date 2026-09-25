@@ -248,17 +248,27 @@ export function getConversation(handle: string): Promise<ConversationPage> {
   );
 }
 
-export function sendDirectMessage(
+export async function sendDirectMessage(
   handle: string,
   text: string,
 ): Promise<ConversationPage> {
-  return apiRequest<ConversationPage>(
-    `/messages/${encodeURIComponent(handle)}`,
-    {
+  const id = crypto.randomUUID();
+  const send = () =>
+    apiRequest<ConversationPage>(`/messages/${encodeURIComponent(handle)}`, {
       method: "POST",
-      body: JSON.stringify({ text }),
-    },
-  );
+      body: JSON.stringify({ text, id }),
+    });
+  try {
+    return await send();
+  } catch (error) {
+    if (
+      !(error instanceof ApiError) ||
+      ![0, 408, 502, 503, 504].includes(error.status)
+    )
+      throw error;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return await send();
+  }
 }
 
 export async function markConversationRead(handle: string): Promise<number> {
@@ -397,6 +407,20 @@ export async function deleteComment(
     `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
     {
       method: "DELETE",
+    },
+  );
+}
+
+export async function updateComment(
+  postId: string,
+  commentId: string,
+  text: string,
+): Promise<void> {
+  await apiRequest(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ text }),
     },
   );
 }

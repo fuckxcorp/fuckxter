@@ -11,6 +11,8 @@ export const ICONS = {
   share:
     '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M16 6l-4-4-4 4"></path><path d="M12 2v13"></path></svg>',
   copy: '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>',
+  quote:
+    '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h11v11H4z"></path><path d="M10 19h10V9"></path><path d="m16 5 4 4-4 4"></path></svg>',
   bookmark:
     '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>',
   edit: '<svg class="action-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4z"></path></svg>',
@@ -246,12 +248,12 @@ export function postMedia(post: Post): HTMLElement {
       node.classList.toggle("is-landscape", landscape);
       node.classList.toggle("is-portrait", !landscape);
       node.style.setProperty(
-        "--media-width",
-        `${Math.min(image.naturalWidth, landscape ? 400 : 200)}px`,
+        "--media-ratio",
+        `${image.naturalWidth} / ${image.naturalHeight}`,
       );
       node.style.setProperty(
-        "--media-height",
-        `${Math.min(image.naturalHeight, landscape ? 200 : 400)}px`,
+        "--media-width",
+        `${Math.min(image.naturalWidth, landscape ? 400 : 200)}px`,
       );
     };
     image.addEventListener("load", size, { once: true });
