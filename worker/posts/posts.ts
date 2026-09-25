@@ -3,10 +3,8 @@ import type { D1PreparedStatement, Env, PostRow } from "../shared/platform";
 import { randomID } from "../shared/crypto";
 import { usernameKey } from "../accounts/usernames";
 import { buildAvatarUrl } from "../accounts/avatar";
-import {
-  createNotification,
-  deleteNotification,
-} from "../notifications/notifications";
+import { deleteNotification } from "../notifications/notifications";
+import { enqueueJob } from "../shared/jobs";
 
 const postSelect = (viewerID: string | null) => `
   SELECT
@@ -614,10 +612,11 @@ export async function setLike(
     )
       .bind(userId, postId, new Date().toISOString())
       .run();
-    await createNotification(env, {
+    await enqueueJob(env, {
+      type: "notification.post.sync",
       recipientId: post.author_id,
       actorId: userId,
-      type: "like",
+      kind: "like",
       postId,
       eventKey,
     });
@@ -625,7 +624,14 @@ export async function setLike(
     await env.DB.prepare("DELETE FROM likes WHERE user_id = ? AND post_id = ?")
       .bind(userId, postId)
       .run();
-    await deleteNotification(env, eventKey);
+    await enqueueJob(env, {
+      type: "notification.post.sync",
+      recipientId: post.author_id,
+      actorId: userId,
+      kind: "like",
+      postId,
+      eventKey,
+    });
   }
   const count = await env.DB.prepare(
     "SELECT COUNT(*) AS count FROM likes WHERE post_id = ?",
@@ -656,10 +662,11 @@ export async function setRepost(
     )
       .bind(userId, postId, new Date().toISOString())
       .run();
-    await createNotification(env, {
+    await enqueueJob(env, {
+      type: "notification.post.sync",
       recipientId: post.author_id,
       actorId: userId,
-      type: "repost",
+      kind: "repost",
       postId,
       eventKey,
     });
@@ -669,7 +676,14 @@ export async function setRepost(
     )
       .bind(userId, postId)
       .run();
-    await deleteNotification(env, eventKey);
+    await enqueueJob(env, {
+      type: "notification.post.sync",
+      recipientId: post.author_id,
+      actorId: userId,
+      kind: "repost",
+      postId,
+      eventKey,
+    });
   }
   const count = await env.DB.prepare(
     "SELECT COUNT(*) AS count FROM reposts WHERE post_id = ?",
@@ -965,24 +979,24 @@ export async function createComment(
     }>();
   if (!user) throw new HttpError(401, "UNAUTHORIZED", "请先登录。");
 
-  await createNotification(env, {
+  await enqueueJob(env, {
+    type: "notification.reply.sync",
     recipientId: post.author_id,
     actorId: userId,
-    type: "reply",
     postId,
     commentId: id,
     eventKey: `reply:${id}`,
-    data: { excerpt: cleanText.slice(0, 120) },
+    excerpt: cleanText.slice(0, 120),
   });
   if (parent && parent.author_id !== post.author_id) {
-    await createNotification(env, {
+    await enqueueJob(env, {
+      type: "notification.reply.sync",
       recipientId: parent.author_id,
       actorId: userId,
-      type: "reply",
       postId,
       commentId: id,
       eventKey: `reply-to-comment:${id}`,
-      data: { excerpt: cleanText.slice(0, 120) },
+      excerpt: cleanText.slice(0, 120),
     });
   }
 

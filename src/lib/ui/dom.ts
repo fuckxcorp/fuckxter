@@ -247,6 +247,13 @@ export function postMedia(post: Post): HTMLElement {
     image.referrerPolicy = "no-referrer";
     const size = () => {
       const landscape = image.naturalWidth >= image.naturalHeight;
+      const maxWidth = landscape ? 520 : 320;
+      const maxHeight = landscape ? 360 : 480;
+      const scale = Math.min(
+        1,
+        maxWidth / image.naturalWidth,
+        maxHeight / image.naturalHeight,
+      );
       node.classList.toggle("is-landscape", landscape);
       node.classList.toggle("is-portrait", !landscape);
       node.style.setProperty(
@@ -255,7 +262,7 @@ export function postMedia(post: Post): HTMLElement {
       );
       node.style.setProperty(
         "--media-width",
-        `${Math.min(image.naturalWidth, landscape ? 640 : 360)}px`,
+        `${image.naturalWidth * scale}px`,
       );
     };
     image.addEventListener("load", size, { once: true });

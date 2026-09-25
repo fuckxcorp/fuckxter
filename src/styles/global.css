@@ -1054,10 +1054,14 @@ body {
   overflow: visible;
 }
 
-.media-list.is-detail .media,
+.media-list.is-detail .media {
+  max-width: min(100%, 520px);
+  max-height: 480px;
+}
+
 .media-list.is-detail .media-image {
-  max-width: min(100%, 640px);
-  max-height: none;
+  max-width: min(100%, 520px);
+  max-height: 480px;
 }
 
 .media-list > .media {
@@ -1126,16 +1130,16 @@ body {
 .post .media-list:not(.is-detail) > .media {
   width: min(100%, var(--media-width, 200px));
   aspect-ratio: var(--media-ratio, 1);
-  max-width: min(100%, 640px);
+  max-width: min(100%, 520px);
   max-height: none;
 }
 
 .post .media-list:not(.is-detail) > .media.is-portrait {
-  max-width: min(100%, 360px);
+  max-width: min(100%, 320px);
 }
 
 .post .media-list:not(.is-detail) > .media.is-landscape {
-  max-width: min(100%, 640px);
+  max-width: min(100%, 520px);
 }
 
 .post .media-list:not(.is-detail) .media-image {

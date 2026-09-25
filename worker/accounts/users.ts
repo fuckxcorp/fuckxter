@@ -7,10 +7,8 @@ import {
   headerExists,
   headerObjectKey,
 } from "./avatar";
-import {
-  createNotification,
-  deleteNotification,
-} from "../notifications/notifications";
+import { deleteNotification } from "../notifications/notifications";
+import { enqueueJob } from "../shared/jobs";
 
 interface ProfileRow {
   id: string;
@@ -260,10 +258,10 @@ export async function setFollow(
     )
       .bind(followerId, target.id, new Date().toISOString())
       .run();
-    await createNotification(env, {
+    await enqueueJob(env, {
+      type: "notification.follow.sync",
       recipientId: target.id,
-      actorId: followerId,
-      type: "follow",
+      followerId,
       eventKey,
     });
   } else {
@@ -272,7 +270,12 @@ export async function setFollow(
     )
       .bind(followerId, target.id)
       .run();
-    await deleteNotification(env, eventKey);
+    await enqueueJob(env, {
+      type: "notification.follow.sync",
+      recipientId: target.id,
+      followerId,
+      eventKey,
+    });
   }
 
   const count = await env.DB.prepare(
