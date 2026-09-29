@@ -22,7 +22,7 @@
     "@astrojs/check": "^0.9.10",
     "prettier": "^3.9.8",
     "prettier-plugin-astro": "^1.1.0",
-    "wrangler": "4.142.0"
+    "wrangler": "4.143.0"
   },
-  "packageManager": "pnpm@12.8.0+sha512.3916e9559cdfbddf7dc921e8999076584425161de773f6cabf7f47467f0d9452bfa89a689ec245753ad3d55abcb3cf706e667ac12062dbc9c625fbd72bca20dc"
+  "packageManager": "pnpm@12.8.1"
 }
