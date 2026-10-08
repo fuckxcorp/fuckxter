@@ -66,6 +66,7 @@ import Header from "../../components/Header.astro";
   import { navigate } from "astro:transitions/client";
   import {
     createComment,
+    uploadMedia,
     createPost,
     deleteComment,
     deletePost,
@@ -94,6 +95,7 @@ import Header from "../../components/Header.astro";
     postShard,
     relativeTime,
     renderRichText,
+    renderPostSource,
     setFollowButtonState,
     showToast,
     statusRow,
@@ -102,7 +104,8 @@ import Header from "../../components/Header.astro";
   import { onPageReady } from "../../lib/core/page";
   import { rememberPost } from "../../lib/feed/history";
   import { openPostShareMenu } from "../../lib/ui/share";
-  import type { Comment, Post } from "../../lib/core/types";
+  import { quotePost } from "../../lib/ui/repost";
+  import type { Comment, Post, PostMedia } from "../../lib/core/types";
   import { parsePostPath, postPath, userPath } from "../../lib/core/urls";
 
   const fullTime = (iso: string) =>
@@ -212,6 +215,7 @@ import Header from "../../components/Header.astro";
       actionButton("repost", ICONS.repost, "转发", post.stats.reposts),
       actionButton("like", ICONS.heart, "喜欢", post.stats.likes),
       actionButton("share", ICONS.share, "分享", 0),
+      actionButton("quote-post", ICONS.copy, "转发并评论", 0),
     );
 
     if (post.viewer?.isAuthor) {
@@ -252,6 +256,16 @@ import Header from "../../components/Header.astro";
           document.querySelector<HTMLTextAreaElement>(".comment-input");
         input?.scrollIntoView({ behavior: "smooth", block: "center" });
         input?.focus();
+        return;
+      }
+
+      if (action === "quote-post") {
+        btn.disabled = true;
+        try {
+          await quotePost(post);
+        } finally {
+          btn.disabled = false;
+        }
         return;
       }
 
@@ -360,8 +374,9 @@ import Header from "../../components/Header.astro";
     body.append(threadAuthorLine(post.author, post.createdAt));
     const text = el("p", "thread-text");
     text.append(renderRichText(post.text));
-    body.append(text);
-    if (post.media?.length) {
+    if (post.repostKind !== "repost") body.append(text);
+    if (post.repostKind) body.append(renderPostSource(post));
+    if (post.media?.length && post.repostKind !== "repost") {
       const list = el("div", "media-list is-detail");
       if (post.media.length > 3) list.classList.add("is-scrollable");
       for (const item of post.media) {
@@ -393,18 +408,12 @@ import Header from "../../components/Header.astro";
     canModerate: boolean,
     openReply: (host: HTMLElement, comment: Comment) => void,
     refreshComments: () => Promise<void>,
-    scrollToComment: (target: HTMLElement | null) => void,
     status: HTMLElement,
-    depth: number,
     descendantCount: number,
+    sourceUrl: string,
   ): HTMLElement {
-    const article = el("article", "thread-post thread-reply shard");
-    /** 楼中楼里每条都顶着完整表头 + 一整套按钮会很乱，嵌套层用精简版 */
-    const compact = depth > 0;
+    const article = el("article", "thread-post thread-reply");
     article.id = `comment-${comment.id}`;
-    article.dataset.shard = postShard(comment.id);
-    const kind = el("span", "thread-kind");
-    kind.textContent = compact ? `第 ${depth + 1} 层` : "回帖";
     const avatar = authorAvatar(
       comment.author.handle,
       comment.author.name,
@@ -412,34 +421,25 @@ import Header from "../../components/Header.astro";
       comment.author.avatarUrl,
     );
     const body = el("div", "thread-body");
-    body.append(threadAuthorLine(comment.author, comment.createdAt, compact));
-    if (comment.parent) {
-      const quote = el("button", "reply-quote");
-      quote.type = "button";
-      const who = el("strong");
-      const parentText = comment.parent.text.replace(/\s+/g, " ").slice(0, 60);
-      if (compact) {
-        // 嵌套层只标出回复对象，正文摘要放到 title 里，避免每层都占两三行
-        who.textContent = `↳ @${comment.parent.handle}`;
-        quote.append(who);
-      } else {
-        who.textContent = `回复 @${comment.parent.handle}`;
-        const snippet = el("span");
-        snippet.textContent = `：${parentText.slice(0, 40)}`;
-        quote.append(who, snippet);
-      }
-      quote.title = `回复 @${comment.parent.handle}：${parentText}`;
-      quote.addEventListener("click", () => {
-        // 父回帖可能被折叠在楼中楼里，先展开再滚过去
-        scrollToComment(
-          document.getElementById(`comment-${comment.parent!.id}`),
-        );
-      });
-      body.append(quote);
-    }
+    body.append(threadAuthorLine(comment.author, comment.createdAt, true));
     const text = el("p", "thread-text");
     text.append(renderRichText(comment.text));
     body.append(text);
+    if (comment.media?.length) {
+      const mediaList = el("div", "media-list reply-media");
+      for (const item of comment.media) {
+        const media = el("div", "media");
+        const image = document.createElement("img");
+        image.className = "media-image";
+        image.src = item.url.startsWith("/") ? apiEndpoint(item.url) : item.url;
+        image.alt = item.alt;
+        image.loading = "lazy";
+        image.decoding = "async";
+        media.append(image);
+        mediaList.append(media);
+      }
+      body.append(mediaList);
+    }
 
     const actions = el("footer", "thread-reply-actions");
     const reply = el("button", "thread-link-btn");
@@ -497,23 +497,79 @@ import Header from "../../components/Header.astro";
         repost.classList.toggle("is-reposted", !next);
       }
     });
-    const quote = actionButton("quote", ICONS.copy, "转贴", 0);
+    const quote = actionButton("quote", ICONS.copy, "转发并评论", 0);
     quote.addEventListener("click", async () => {
       if (!getAccount()) {
         requestAuthentication();
         return;
       }
-      const prefix = `转贴 @${comment.author.handle}：\n`;
-      const text = [...`${prefix}${comment.text}`].slice(0, 1000).join("");
+      if (quote.disabled) return;
       quote.disabled = true;
-      try {
-        await createPost(text);
-        showToast("已转贴");
-      } catch (error) {
-        showToast(error instanceof Error ? error.message : "转贴失败");
-      } finally {
+      const dialog = document.createElement("dialog");
+      dialog.className = "quote-dialog";
+      const title = el("h2");
+      title.textContent = "转贴回帖";
+      const preview = el("blockquote", "quote-preview");
+      const author = el("strong");
+      author.textContent = `@${comment.author.handle}`;
+      const content = el("p");
+      content.append(renderRichText(comment.text));
+      const source = el("a", "inline-link");
+      source.textContent = "查看原回帖";
+      source.href = `${sourceUrl}#comment-${encodeURIComponent(comment.id)}`;
+      source.target = "_blank";
+      source.rel = "noopener";
+      preview.append(author, content, source);
+      const input = document.createElement("textarea");
+      input.placeholder = "添加你的想法（可选）";
+      input.setAttribute("aria-label", "转贴附言");
+      input.rows = 3;
+      const link = `\n\n${sourceUrl}#comment-${encodeURIComponent(comment.id)}`;
+      const prefix = `转贴 @${comment.author.handle}：\n`;
+      const excerpt = [...comment.text].slice(0, 500).join("") || "[图片回帖]";
+      const quoted = `${prefix}${excerpt}${[...comment.text].length > 500 ? "…" : ""}${link}`;
+      input.maxLength = Math.max(0, 1000 - [...quoted].length - 2);
+      const error = el("p", "thread-status");
+      error.setAttribute("role", "status");
+      const foot = el("div", "quote-dialog-actions");
+      const cancel = el("button", "ghost-btn");
+      cancel.type = "button";
+      cancel.textContent = "取消";
+      const send = el("button", "primary-btn");
+      send.type = "button";
+      send.textContent = "发布转贴";
+      foot.append(cancel, send);
+      dialog.append(title, preview, input, error, foot);
+      dialog.addEventListener("close", () => {
+        dialog.remove();
         quote.disabled = false;
-      }
+        quote.focus();
+      });
+      cancel.addEventListener("click", () => dialog.close());
+      dialog.addEventListener("cancel", (event) => {
+        if (send.disabled) event.preventDefault();
+      });
+      send.addEventListener("click", async () => {
+        if (send.disabled) return;
+        send.disabled = true;
+        cancel.disabled = true;
+        error.textContent = "";
+        try {
+          const note = input.value.trim();
+          await createPost(note ? `${note}\n\n${quoted}` : quoted);
+          dialog.close();
+          showToast("已转贴，原回帖链接已附上");
+        } catch (failure) {
+          error.textContent =
+            failure instanceof Error ? failure.message : "转贴失败，请重试";
+        } finally {
+          send.disabled = false;
+          cancel.disabled = false;
+        }
+      });
+      document.body.append(dialog);
+      dialog.showModal();
+      input.focus();
     });
     actions.append(like, repost, quote);
 
@@ -540,7 +596,7 @@ import Header from "../../components/Header.astro";
       actions.append(remove);
     }
     body.append(actions, inlineHost);
-    article.append(kind, avatar, body);
+    article.append(avatar, body);
     return article;
   }
 
@@ -575,6 +631,7 @@ import Header from "../../components/Header.astro";
 
     const me = getAccount();
     // 主回复和楼中楼共用同一套输入框布局与控件，避免两处越改越不一致。
+    const mediaDrafts = new Map<string, PostMedia[]>();
     const createReplyFields = (
       fieldId: string,
       placeholder: string,
@@ -600,14 +657,117 @@ import Header from "../../components/Header.astro";
         "div",
         "thread-composer-actions reply-composer-actions",
       );
-      actions.append(count, submit);
-      return { input, count, submit, actions };
+      const media = mediaDrafts.get(fieldId) ?? [];
+      mediaDrafts.set(fieldId, media);
+      const preview = el("div", "reply-media-preview");
+      const picker = document.createElement("input");
+      picker.type = "file";
+      picker.accept = "image/*";
+      picker.multiple = true;
+      picker.hidden = true;
+      const attach = el("button", "ghost-btn reply-attach");
+      attach.type = "button";
+      attach.textContent = "添加图片";
+      attach.disabled = !getAccount();
+      const error = el("p", "thread-status");
+      error.setAttribute("aria-live", "polite");
+      const syncMedia = () => {
+        preview.replaceChildren();
+        for (const item of media) {
+          const tile = el("div", "reply-media-tile");
+          const image = document.createElement("img");
+          image.src = item.url.startsWith("/")
+            ? apiEndpoint(item.url)
+            : item.url;
+          image.alt = item.alt;
+          const remove = el("button");
+          remove.type = "button";
+          remove.textContent = "×";
+          remove.setAttribute("aria-label", `移除 ${item.alt}`);
+          remove.disabled =
+            submit.dataset.busy === "true" ||
+            submit.dataset.uploading === "true";
+          remove.addEventListener("click", () => {
+            media.splice(media.indexOf(item), 1);
+            syncMedia();
+          });
+          tile.append(image, remove);
+          preview.append(tile);
+        }
+        attach.disabled =
+          !getAccount() ||
+          media.length >= 4 ||
+          submit.dataset.busy === "true" ||
+          submit.dataset.uploading === "true";
+        const cancel = input
+          .closest(".inline-composer")
+          ?.querySelector<HTMLButtonElement>(".inline-cancel");
+        if (cancel)
+          cancel.disabled =
+            submit.dataset.busy === "true" ||
+            submit.dataset.uploading === "true";
+        input.dispatchEvent(new Event("input"));
+      };
+      attach.addEventListener("click", () => picker.click());
+      picker.addEventListener("change", async () => {
+        const files = [...(picker.files ?? [])];
+        picker.value = "";
+        if (!files.length) return;
+        if (
+          files.length + media.length > 4 ||
+          files.some((file) => !file.type.startsWith("image/"))
+        ) {
+          error.textContent = "每条回帖最多添加 4 张图片。";
+          return;
+        }
+        error.textContent = "";
+        submit.dataset.uploading = "true";
+        const host = input.closest<HTMLElement>(".reply-inline");
+        if (host) host.dataset.busy = "true";
+        attach.textContent = "上传中…";
+        syncMedia();
+        try {
+          for (const file of files) media.push(await uploadMedia(file));
+        } catch (failure) {
+          error.textContent =
+            failure instanceof Error ? failure.message : "图片上传失败，请重试";
+        } finally {
+          delete submit.dataset.uploading;
+          if (host) delete host.dataset.busy;
+          attach.textContent = "添加图片";
+          syncMedia();
+        }
+      });
+      actions.append(attach, count, submit);
+      syncMedia();
+      const clearMedia = () => {
+        media.splice(0);
+        syncMedia();
+      };
+      return {
+        input,
+        count,
+        submit,
+        actions,
+        preview,
+        picker,
+        mediaError: error,
+        media,
+        clearMedia,
+        syncMedia,
+      };
     };
     const {
       input,
       count,
       submit,
       actions: composerActions,
+      preview: composerPreview,
+      picker: composerPicker,
+      mediaError: composerMediaError,
+      media: composerMedia,
+      clearMedia: clearComposerMedia,
+      syncMedia: syncComposerMedia,
     } = createReplyFields(
       `reply-${encodeURIComponent(post.id)}`,
       me ? "写下你的回复" : "登录后才能回复",
@@ -621,7 +781,12 @@ import Header from "../../components/Header.astro";
       ? authorAvatar(me.profile.handle, me.profile.name, "avatar", me.avatarUrl)
       : el("span", "avatar");
     const composerBody = el("div", "composer-body");
-    composerBody.append(input);
+    composerBody.append(
+      input,
+      composerPicker,
+      composerPreview,
+      composerMediaError,
+    );
 
     const status = el("p", "thread-status");
     status.setAttribute("aria-live", "polite");
@@ -647,7 +812,8 @@ import Header from "../../components/Header.astro";
       count.classList.toggle("is-over", length > MAX_COMMENT_CHARS);
       submit.disabled =
         !me ||
-        [...input.value.trim()].length === 0 ||
+        (![...input.value.trim()].length && !composerMedia.length) ||
+        submit.dataset.uploading === "true" ||
         length > MAX_COMMENT_CHARS ||
         submit.dataset.busy === "true";
     };
@@ -667,7 +833,10 @@ import Header from "../../components/Header.astro";
      */
     const AUTO_COLLAPSE_DEPTH = 1;
     /** 一次「继续展开」放出多少条（按回复条数算），避免一口气铺开几千条 */
-    const EXPAND_PAGE_SIZE = 30;
+    const EXPAND_PAGE_SIZE = 10;
+    const expandedCounts = new Map<string, number>();
+    const collapsedBranches = new Set<string>();
+    const replyDrafts = new Map<string, string>();
     const descendantCounts = new Map<string, number>();
     /** 折叠区块 -> 展开函数，深链接跳进去之前先把祖先展开 */
     const expanders = new Map<HTMLElement, () => void>();
@@ -676,20 +845,6 @@ import Header from "../../components/Header.astro";
       if (!target) return;
       for (const [box, expand] of expanders) {
         if (box.hidden && box.contains(target)) expand();
-      }
-    };
-
-    /**
-     * 把某个节点内部所有被折叠的楼中楼也展开。
-     * 点了「展开」就该看到整段内容，而不是又冒出一堆「展开其余 N 条」。
-     */
-    const expandAllWithin = (node: HTMLElement): void => {
-      for (let pass = 0; pass < 30; pass += 1) {
-        const pending = [
-          ...node.querySelectorAll<HTMLElement>(".thread-children-rest"),
-        ].filter((box) => box.hidden);
-        if (pending.length === 0) return;
-        for (const box of pending) expanders.get(box)?.();
       }
     };
 
@@ -722,6 +877,10 @@ import Header from "../../components/Header.astro";
         requestAuthentication();
         return;
       }
+      if (inlineReply?.host.dataset.busy === "true") {
+        showToast("正在发送回复，请稍候");
+        return;
+      }
       // 再点一次同一层就收起
       if (inlineReply?.host === host) {
         closeInlineReply();
@@ -736,21 +895,32 @@ import Header from "../../components/Header.astro";
         count: hint,
         submit: send,
         actions: foot,
+        preview,
+        picker,
+        mediaError,
+        media,
+        clearMedia,
+        syncMedia,
       } = createReplyFields(
         `reply-${encodeURIComponent(post.id)}-${encodeURIComponent(comment.id)}`,
         `回复 @${handle}…`,
         `回复 @${handle}`,
       );
+      input.value = replyDrafts.get(comment.id) ?? "";
+      const error = el("p", "thread-status");
+      error.setAttribute("aria-live", "polite");
       const cancel = el("button", "thread-link-btn inline-cancel");
       cancel.type = "button";
       cancel.textContent = "取消";
       send.disabled = true;
       foot.insertBefore(cancel, send);
-      box.append(input, foot);
+      box.append(input, picker, preview, mediaError, error, foot);
       host.replaceChildren(box);
       host.hidden = false;
 
       const close = () => {
+        if (input.value) replyDrafts.set(comment.id, input.value);
+        else replyDrafts.delete(comment.id);
         host.hidden = true;
         host.replaceChildren();
       };
@@ -761,34 +931,84 @@ import Header from "../../components/Header.astro";
         hint.textContent = `${length} / ${MAX_COMMENT_CHARS}`;
         hint.classList.toggle("is-over", length > MAX_COMMENT_CHARS);
         send.disabled =
-          length === 0 ||
+          (!input.value.trim() && !media.length) ||
+          send.dataset.uploading === "true" ||
           length > MAX_COMMENT_CHARS ||
           send.dataset.busy === "true";
       };
 
       const submitInline = async () => {
         const text = input.value.trim();
-        if (!text || send.dataset.busy === "true") return;
+        if (
+          (!text && !media.length) ||
+          send.dataset.uploading === "true" ||
+          [...input.value].length > MAX_COMMENT_CHARS ||
+          send.dataset.busy === "true"
+        )
+          return;
+        error.textContent = "";
+        input.disabled = true;
+        cancel.disabled = true;
         send.dataset.busy = "true";
+        host.dataset.busy = "true";
         send.textContent = "回复中…";
         sync();
+        syncMedia();
         try {
-          const created = await createComment(post.id, text, comment.id);
+          const created = await createComment(
+            post.id,
+            text,
+            comment.id,
+            media.map((item) => item.id),
+          );
+          clearMedia();
+          input.value = "";
+          replyDrafts.delete(comment.id);
           closeInlineReply();
           await refreshComments();
           scrollToComment(document.getElementById(`comment-${created.id}`));
-        } catch (error) {
-          status.textContent =
-            error instanceof Error ? error.message : "回帖失败";
+        } catch (failure) {
+          error.textContent =
+            failure instanceof Error ? failure.message : "回帖失败";
         } finally {
+          input.disabled = false;
+          cancel.disabled = false;
+          delete host.dataset.busy;
           delete send.dataset.busy;
           send.textContent = "回复";
           sync();
+          syncMedia();
         }
       };
 
-      input.addEventListener("input", sync);
+      input.addEventListener("input", () => {
+        sync();
+        input.style.height = "auto";
+        input.style.height = `${Math.min(input.scrollHeight, 240)}px`;
+      });
+      let composing = false;
+      let compositionEndedAt = -Infinity;
+      input.addEventListener("compositionstart", () => {
+        composing = true;
+      });
+      input.addEventListener("compositionend", () => {
+        composing = false;
+        compositionEndedAt = performance.now();
+      });
       input.addEventListener("keydown", (event) => {
+        if (
+          composing ||
+          (event.key === "Enter" &&
+            performance.now() - compositionEndedAt < 120)
+        )
+          return;
+        if (
+          event.isComposing ||
+          event.key === "Process" ||
+          send.dataset.uploading === "true" ||
+          send.dataset.busy === "true"
+        )
+          return;
         if (event.key === "Escape") {
           event.preventDefault();
           closeInlineReply();
@@ -851,7 +1071,7 @@ import Header from "../../components/Header.astro";
     const renderList = (comments: Comment[], total = comments.length): void => {
       descendantCounts.clear();
       expanders.clear();
-      inlineReply = null;
+      closeInlineReply();
       repliesCount.textContent =
         total > comments.length ? `${comments.length}/${total}` : String(total);
       repliesCount.title =
@@ -891,7 +1111,7 @@ import Header from "../../components/Header.astro";
        * 不封顶的话十几层之后回帖会被挤成一条竖线并一路向右延伸，
        * 楼中楼下面的其他回帖就被顶到很下面、也基本没法看了。
        */
-      const MAX_INDENT_DEPTH = 2;
+      const MAX_INDENT_DEPTH = 3;
 
       const countDescendants = (commentId: string): number => {
         const cached = descendantCounts.get(commentId);
@@ -911,10 +1131,9 @@ import Header from "../../components/Header.astro";
           canModerate,
           openInlineReply,
           refreshComments,
-          scrollToComment,
           status,
-          depth,
           countDescendants(comment.id),
+          new URL(postPath(post), location.origin).href,
         );
         node.dataset.depth = String(depth);
         if (depth > 0) node.classList.add("is-nested");
@@ -940,19 +1159,21 @@ import Header from "../../components/Header.astro";
             pendingBox.hidden = true;
             for (const kid of rest)
               pendingBox.append(renderNode(kid, depth + 1));
-            // 每条被折叠的子回复连同它的子孙一共多少条
-            const sizes = rest.map((kid) => 1 + countDescendants(kid.id));
-            const totalHidden = sizes.reduce((sum, size) => sum + size, 0);
+            const totalHidden = rest.length;
             const toggle = el("button", "thread-more");
             toggle.type = "button";
+            const collapse = el("button", "thread-collapse");
+            collapse.type = "button";
+            collapse.textContent = "收起";
             let revealed = 0;
             let hiddenReplies = totalHidden;
             const syncLabel = () => {
+              collapse.hidden = revealed === 0 || revealed === rest.length;
               toggle.setAttribute("aria-expanded", String(revealed > 0));
               toggle.textContent =
                 revealed === rest.length
-                  ? "收起楼中楼"
-                  : `${revealed === 0 ? "展开其余" : "继续展开"} ${hiddenReplies} 条回复`;
+                  ? "收起更多回复"
+                  : `${revealed === 0 ? "查看其余" : "继续展开"} ${hiddenReplies} 条回复`;
             };
             const revealNext = () => {
               let added = 0;
@@ -960,24 +1181,25 @@ import Header from "../../components/Header.astro";
                 const next = pendingBox.firstElementChild as HTMLElement | null;
                 if (!next) break;
                 shownBox.append(next);
-                // 这一条自己下面的楼中楼也一起展开，点了「展开」就是整段都出来
-                expandAllWithin(next);
-                hiddenReplies -= sizes[revealed];
+                hiddenReplies -= 1;
                 revealed += 1;
-                added += sizes[revealed - 1];
+                added += 1;
               }
-              pendingBox.hidden = pendingBox.childElementCount === 0;
+              pendingBox.hidden = true;
+              expandedCounts.set(comment.id, revealed);
               syncLabel();
             };
             const collapseAll = () => {
-              while (shownBox.firstElementChild) {
-                pendingBox.append(shownBox.firstElementChild);
+              while (shownBox.lastElementChild) {
+                pendingBox.prepend(shownBox.lastElementChild);
               }
               revealed = 0;
+              expandedCounts.delete(comment.id);
               hiddenReplies = totalHidden;
               pendingBox.hidden = true;
               syncLabel();
             };
+            collapse.addEventListener("click", collapseAll);
             toggle.addEventListener("click", () => {
               if (revealed === rest.length) collapseAll();
               else revealNext();
@@ -986,10 +1208,49 @@ import Header from "../../components/Header.astro";
             expanders.set(pendingBox, () => {
               while (revealed < rest.length) revealNext();
             });
+            const saved = expandedCounts.get(comment.id) ?? 0;
+            while (revealed < Math.min(saved, rest.length)) revealNext();
+            toggle.setAttribute("aria-controls", `children-${comment.id}`);
+            shownBox.id = `children-${comment.id}`;
             syncLabel();
-            box.append(shownBox, pendingBox, toggle);
+            box.append(shownBox, pendingBox, toggle, collapse);
           }
-          node.append(box);
+          box.id = `branch-${comment.id}`;
+          const toggle = el("button", "branch-toggle");
+          toggle.type = "button";
+          toggle.setAttribute("aria-controls", box.id);
+          const rail = el("button", "branch-rail");
+          rail.type = "button";
+          rail.setAttribute("aria-controls", box.id);
+          const setCollapsed = (collapsed: boolean) => {
+            if (collapsed && inlineReply && box.contains(inlineReply.host)) {
+              if (inlineReply.host.dataset.busy === "true") {
+                showToast("正在发送回复，请稍候");
+                return;
+              }
+              closeInlineReply();
+            }
+            box.hidden = collapsed;
+            node.classList.toggle("is-collapsed", collapsed);
+            if (collapsed) collapsedBranches.add(comment.id);
+            else collapsedBranches.delete(comment.id);
+            toggle.textContent = collapsed
+              ? `展开 ${countDescendants(comment.id)} 条回复`
+              : "收起回复";
+            toggle.setAttribute("aria-expanded", String(!collapsed));
+            rail.setAttribute("aria-expanded", String(!collapsed));
+            rail.setAttribute(
+              "aria-label",
+              `收起 ${comment.author.name} 的 ${countDescendants(comment.id)} 条回复`,
+            );
+            rail.title = "点击连接线收起此分支";
+          };
+          toggle.addEventListener("click", () => setCollapsed(!box.hidden));
+          rail.addEventListener("click", () => setCollapsed(true));
+          expanders.set(box, () => setCollapsed(false));
+          setCollapsed(collapsedBranches.has(comment.id));
+          node.querySelector(".thread-reply-actions")!.append(toggle);
+          node.append(rail, box);
         }
         return node;
       };
@@ -1020,12 +1281,27 @@ import Header from "../../components/Header.astro";
 
     submit.addEventListener("click", async () => {
       const text = input.value.trim();
-      if (!text || !me || [...input.value].length > MAX_COMMENT_CHARS) return;
+      if (
+        (!text && !composerMedia.length) ||
+        !me ||
+        submit.dataset.busy === "true" ||
+        submit.dataset.uploading === "true" ||
+        [...input.value].length > MAX_COMMENT_CHARS
+      )
+        return;
       submit.dataset.busy = "true";
+      input.disabled = true;
       submit.disabled = true;
       submit.textContent = "回复中…";
+      syncComposerMedia();
       try {
-        const created = await createComment(post.id, text);
+        const created = await createComment(
+          post.id,
+          text,
+          undefined,
+          composerMedia.map((item) => item.id),
+        );
+        clearComposerMedia();
         input.value = "";
         syncCommentSubmit();
         resizeCommentInput();
@@ -1037,8 +1313,10 @@ import Header from "../../components/Header.astro";
           error instanceof Error ? error.message : "回帖失败";
       } finally {
         delete submit.dataset.busy;
+        input.disabled = !me;
         submit.textContent = "回复";
         syncCommentSubmit();
+        syncComposerMedia();
       }
     });
 

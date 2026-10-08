@@ -1,22 +1,105 @@
+[data-messages].app {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .messages-main {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1.25rem 1.25rem 1.5rem;
+  overflow: hidden;
 }
 
 .messages-panel,
 .chat {
-  width: min(760px, 100%);
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .messages-panel {
+  flex: 0 0 clamp(280px, 24vw, 360px);
+  border-right: 1px solid var(--color-border);
   overflow-y: auto;
+  background: var(--color-bg);
+}
+
+.chat-placeholder {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.chat-placeholder[hidden] {
+  display: none;
+}
+
+.chat-placeholder svg {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 1rem;
+}
+
+.chat-placeholder h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--color-text-strong);
+}
+
+.chat-placeholder p {
+  font-size: 0.85rem;
+}
+
+.new-chat {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
+  color: var(--color-text-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.new-chat:hover,
+.new-chat[aria-expanded="true"] {
+  background: var(--color-bg-hover);
+}
+
+.new-chat-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--ink-text);
+  font-size: 1.9rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.new-chat strong,
+.new-chat small {
+  display: block;
+}
+
+.new-chat small {
+  margin-top: 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 
 .chat[hidden],
@@ -29,7 +112,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
 }
 
 .messages-head h1 {
@@ -44,16 +129,22 @@
   font-size: 0.85rem;
 }
 
-.thread-list {
+.messages-panel .thread-list {
   display: grid;
-  gap: 0.6rem;
+  gap: 0;
+}
+
+.messages-panel > .status {
+  padding: 1rem;
+  line-height: 1.6;
 }
 
 /* 快速发起会话：不用再去别人主页点私信 */
 .quick-start {
   display: grid;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .quick-start[hidden] {
@@ -105,6 +196,7 @@
   inset: 0.04rem 0.02rem;
   z-index: -1;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg);
   opacity: 0.86;
   transition:
@@ -115,6 +207,7 @@
 .quick-start-chip:hover::before,
 .quick-start-chip:focus-visible::before {
   opacity: 1;
+  border-radius: 4px;
   transform: skewX(-12deg) scale(1.02);
 }
 
@@ -162,10 +255,11 @@
   align-items: center;
   gap: 0.85rem;
   padding: 0.85rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
   background: var(--color-bg);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
   color: inherit;
   text-decoration: none;
   transition:
@@ -175,17 +269,16 @@
 
 .thread:hover,
 .thread:focus-visible {
-  border-color: var(--color-border-strong);
+  background: var(--color-bg-hover);
   outline: none;
 }
 
 .thread.is-unread {
-  border-color: color-mix(
-    in srgb,
-    var(--color-accent) 45%,
-    var(--color-border)
-  );
-  background: var(--color-accent-soft);
+  background: var(--color-bg-subtle);
+}
+
+.thread.is-active {
+  background: var(--color-bg-hover);
 }
 
 .thread .thread-avatar {
@@ -251,6 +344,18 @@
   color: var(--ink-text);
 
   clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(5px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 5px) calc(100% - 4px),
+    curve to calc(calc(100% - 5px) - 4px) 100% with calc(100% - 5px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 5px 4px,
+    curve to calc(5px + 4px) 0 with 5px 0,
+    close
+  );
   font-size: 0.7rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -258,10 +363,10 @@
 
 .chat {
   flex: 1 1 auto;
-  border: 1px solid var(--color-border);
-  border-radius: 18px;
+  border: 0;
+  border-radius: 0;
   background: var(--color-bg);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -290,6 +395,18 @@
   border-radius: 0;
   background: var(--ink);
   clip-path: polygon(0 0, 100% 0, 100% 100%, 9px 100%);
+  clip-path: shape(
+    from 4px 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to 100% calc(100% - 4px),
+    curve to calc(100% - 4px) 100% with 100% 100%,
+    line to calc(9px + 4px) 100%,
+    curve to 9px calc(100% - 4px) with 9px 100%,
+    line to 0 4px,
+    curve to 4px 0 with 0 0,
+    close
+  );
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%);
   mask-image: linear-gradient(to right, transparent 0, #000 45%);
 }
@@ -321,6 +438,18 @@
   color: var(--ink-text);
 
   clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(7px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 7px) calc(100% - 4px),
+    curve to calc(calc(100% - 7px) - 4px) 100% with calc(100% - 7px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 7px 4px,
+    curve to calc(7px + 4px) 0 with 7px 0,
+    close
+  );
   font-size: 0.82rem;
   font-weight: 700;
   text-decoration: none;
@@ -335,7 +464,7 @@
 
 .chat-messages {
   flex: 1 1 auto;
-  min-height: 12rem;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -372,6 +501,18 @@
   background: var(--bubble-fill);
   color: var(--bubble-text);
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(8px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 8px) calc(100% - 4px),
+    curve to calc(calc(100% - 8px) - 4px) 100% with calc(100% - 8px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 8px 4px,
+    curve to calc(8px + 4px) 0 with 8px 0,
+    close
+  );
 }
 
 .chat-bubble-wrap {
@@ -387,6 +528,18 @@
   z-index: -1;
   background: var(--bubble-ring);
   clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(10px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 10px) calc(100% - 4px),
+    curve to calc(calc(100% - 10px) - 4px) 100% with calc(100% - 10px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 10px 4px,
+    curve to calc(10px + 4px) 0 with 10px 0,
+    close
+  );
 }
 
 .chat-row.is-mine {
@@ -459,7 +612,8 @@
   flex: 1 1 auto;
   min-height: 2.6rem;
   max-height: 8rem;
-  resize: vertical;
+  resize: none;
+  min-width: 0;
   padding: 0.55rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -483,6 +637,18 @@
   color: var(--ink-text);
 
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(8px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 8px) calc(100% - 4px),
+    curve to calc(calc(100% - 8px) - 4px) 100% with calc(100% - 8px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 8px 4px,
+    curve to calc(8px + 4px) 0 with 8px 0,
+    close
+  );
 }
 
 .chat-send:hover:not(:disabled) {
@@ -505,9 +671,30 @@
   display: none;
 }
 
-@media (max-width: 640px) {
-  .messages-main {
-    padding: 1rem 0.75rem 1rem;
+@media (min-width: 701px) {
+  [data-messages] .back-btn {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .messages-panel {
+    flex: 1 1 auto;
+    border-right: 0;
+  }
+
+  .chat-placeholder,
+  .has-conversation .messages-panel {
+    display: none;
+  }
+
+  .chat-head,
+  .chat-composer {
+    padding: 0.75rem;
+  }
+
+  .chat-head {
+    gap: 0.5rem;
   }
 
   .chat-row {

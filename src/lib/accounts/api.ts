@@ -271,6 +271,13 @@ export function toggleLike(id: string, liked: boolean): Promise<LikeResult> {
   });
 }
 
+export function quotePost(id: string, text: string): Promise<Post> {
+  return apiRequest<Post>(`/posts/${encodeURIComponent(id)}/quote`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
 export function toggleRepost(
   id: string,
   reposted: boolean,
@@ -347,12 +354,13 @@ export async function createComment(
   postId: string,
   text: string,
   parentId?: string,
+  mediaIDs?: string[],
 ): Promise<Comment> {
   const response = await apiRequest<{ comment: Comment }>(
     `/posts/${encodeURIComponent(postId)}/comments`,
     {
       method: "POST",
-      body: JSON.stringify({ text, parentId }),
+      body: JSON.stringify({ text, parentId, mediaIDs }),
     },
   );
   return response.comment;

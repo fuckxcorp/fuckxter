@@ -52,6 +52,7 @@ import {
   deleteComment,
   deletePost,
   getComments,
+  quotePost,
   getPostByID,
   getPostByPath,
   getPostsByUser,
@@ -483,7 +484,8 @@ async function route(
     }
 
     if (parts.length === 3 && method === "GET") {
-      const media = await getMedia(env, segment(parts, 2));
+      const viewer = await getOptionalUser(request, env);
+      const media = await getMedia(env, segment(parts, 2), viewer?.id ?? null);
       const headers = corsHeaders(request, env);
       headers.set("Content-Type", media.contentType);
       headers.set("Content-Length", String(media.size));
@@ -491,7 +493,8 @@ async function route(
       headers.set("X-Content-Type-Options", "nosniff");
       headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
       headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-      headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      headers.set("Cache-Control", "private, no-store");
+      headers.append("Vary", "Cookie");
       headers.set("ETag", `"${media.etag}"`);
       return new Response(media.body, { status: 200, headers });
     }
@@ -824,6 +827,23 @@ async function route(
       const postId = segment(parts, 2);
       const action = parts[3];
 
+      if (action === "quote" && method === "POST") {
+        const user = await requireUser(request, env);
+        const body = await readJson<{ text?: unknown }>(request);
+        if (body.text !== undefined && typeof body.text !== "string")
+          throw new HttpError(400, "INVALID_POST", "评论内容无效。");
+        return json(
+          await quotePost(
+            env,
+            user.id,
+            postId,
+            typeof body.text === "string" ? body.text : "",
+          ),
+          request,
+          env,
+          { status: 201 },
+        );
+      }
       if (action === "view" && method === "POST") {
         const user = await getOptionalUser(request, env);
         return json(
@@ -844,11 +864,20 @@ async function route(
 
       if (action === "comments" && method === "POST") {
         const user = await requireUser(request, env);
-        const body = await readJson<{ text?: string; parentId?: unknown }>(
-          request,
-        );
+        const body = await readJson<{
+          text?: string;
+          parentId?: unknown;
+          mediaIDs?: unknown;
+        }>(request);
         if (body.parentId !== undefined && typeof body.parentId !== "string") {
           throw new HttpError(400, "INVALID_COMMENT", "回覆的目标无效。");
+        }
+        if (
+          body.mediaIDs !== undefined &&
+          (!Array.isArray(body.mediaIDs) ||
+            body.mediaIDs.some((id) => typeof id !== "string"))
+        ) {
+          throw new HttpError(400, "INVALID_MEDIA", "图片参数无效。");
         }
         return json(
           {
@@ -858,6 +887,7 @@ async function route(
               postId,
               body.text ?? "",
               body.parentId,
+              body.mediaIDs as string[] | undefined,
             ),
           },
           request,

@@ -147,6 +147,8 @@ export interface SessionUserRow extends UserRow {
 }
 
 export interface PostRow {
+  source_post_id: string | null;
+  repost_kind: "repost" | "quote" | null;
   id: string;
   slug: string;
   text: string;

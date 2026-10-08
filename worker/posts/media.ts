@@ -1,3 +1,4 @@
+import { canViewMedia } from "./posts";
 import { HttpError } from "../shared/http";
 import type { Env, MediaRow } from "../shared/platform";
 import {
@@ -533,6 +534,7 @@ function mediaFromSource(row: MediaRow, bytes: ArrayBuffer) {
 export async function getMedia(
   env: Env,
   id: string,
+  viewerId: string | null,
 ): Promise<{
   body: ReadableStream | ArrayBuffer;
   contentType: string;
@@ -540,6 +542,9 @@ export async function getMedia(
   etag: string;
 }> {
   const row = await getMediaRow(env, id);
+  if (viewerId !== row.owner_id && !(await canViewMedia(env, viewerId, id))) {
+    throw new HttpError(404, "MEDIA_NOT_FOUND", "媒体不存在。");
+  }
   const cacheKey = `media/${row.sha256}`;
   const cached = await env.MEDIA_CACHE.get(cacheKey);
   if (cached) {

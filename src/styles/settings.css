@@ -36,6 +36,7 @@
   inset: 0.08rem 0.04rem;
   z-index: -1;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg);
 }
 

@@ -27,6 +27,9 @@ export interface PostMedia {
 }
 
 export interface Post {
+  sourcePostId?: string;
+  repostKind?: "repost" | "quote";
+  source?: Post | null;
   id: string;
 
   slug: string;
@@ -60,6 +63,8 @@ export interface LikeResult {
 }
 
 export interface RepostResult {
+  threadId?: string | null;
+  post?: Post;
   id: string;
   reposted: boolean;
   reposts: number;
@@ -90,6 +95,7 @@ export interface Comment {
   id: string;
   author: FeedUser;
   text: string;
+  media?: PostMedia[];
   createdAt: string;
 
   parent?: {

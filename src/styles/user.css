@@ -65,6 +65,9 @@
 }
 
 .user-banner {
+  position: relative;
+  isolation: isolate;
+  mask-image: linear-gradient(to right, transparent, #000 20%);
   width: calc(100% + var(--banner-bleed));
   aspect-ratio: 5 / 1;
   border: 1px solid var(--color-border);
@@ -73,6 +76,23 @@
   background-size: cover;
   box-shadow: var(--shadow-card);
   overflow: hidden;
+}
+
+.user-banner::before,
+.user-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 1;
+  width: 28%;
+  backdrop-filter: blur(6px);
+  mask-image: linear-gradient(to right, #000, transparent);
+  pointer-events: none;
+}
+
+.user-banner::after {
+  width: 16%;
+  backdrop-filter: blur(12px);
 }
 
 .user-banner.is-media-loading {
@@ -296,6 +316,18 @@ html:has(.avatar-dialog[open]) {
   color: var(--ink-text);
   font-weight: 700;
   clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(8px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 8px) calc(100% - 4px),
+    curve to calc(calc(100% - 8px) - 4px) 100% with calc(100% - 8px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 8px 4px,
+    curve to calc(8px + 4px) 0 with 8px 0,
+    close
+  );
   transition: opacity 150ms ease;
 }
 

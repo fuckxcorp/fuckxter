@@ -37,7 +37,7 @@ export function parsePostPath(
   try {
     return {
       handle: usernameKey(decodeURIComponent(match[1])),
-      slug: match[2].toLowerCase(),
+      slug: decodeURIComponent(match[2]).toLowerCase(),
     };
   } catch {
     return null;

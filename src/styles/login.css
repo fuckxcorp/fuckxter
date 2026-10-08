@@ -32,8 +32,8 @@
 
 /* 比全局 .logo-img 更具体：页面 CSS 是被内联在 Layout 样式表之前的 */
 .login-brand-panel .login-logo {
-  height: clamp(64px, 9vw, 110px);
-  width: auto;
+  height: auto;
+  width: min(460px, 100%);
   max-width: 100%;
 }
 
@@ -125,6 +125,6 @@
   }
 
   .login-brand-panel .login-logo {
-    height: clamp(44px, 12vw, 64px);
+    width: min(272px, 100%);
   }
 }

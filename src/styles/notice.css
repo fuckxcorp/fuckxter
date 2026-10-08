@@ -102,6 +102,18 @@
   cursor: pointer;
   /* 通知卡片改成平行四边形，斜度跟站上其他形状一致。 */
   clip-path: polygon(18px 0, 100% 0, calc(100% - 18px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(18px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 18px) calc(100% - 4px),
+    curve to calc(calc(100% - 18px) - 4px) 100% with calc(100% - 18px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 18px 4px,
+    curve to calc(18px + 4px) 0 with 18px 0,
+    close
+  );
   transition: background 150ms ease;
 }
 
@@ -137,6 +149,18 @@
   font-weight: 700;
   overflow: hidden;
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
+  clip-path: shape(
+    from 4px 0,
+    line to calc(calc(100% - 14px) - 4px) 0,
+    curve to calc(100% - 14px) 4px with calc(100% - 14px) 0,
+    line to 100% calc(100% - 4px),
+    curve to calc(100% - 4px) 100% with 100% 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 0 4px,
+    curve to 4px 0 with 0 0,
+    close
+  );
   mask-image: linear-gradient(90deg, #000 0 56%, transparent 100%);
 }
 

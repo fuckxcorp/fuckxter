@@ -220,7 +220,10 @@ export function mountAccountControls(
     document.removeEventListener("keydown", onMenuKeydown, true);
   };
   const onDocClick = (event: MouseEvent) => {
-    if (!accountWrap.contains(event.target as Node)) closeAccountMenu();
+    if (accountWrap.contains(event.target as Node)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeAccountMenu();
   };
   const onMenuKeydown = (event: KeyboardEvent) => {
     if (event.key === "Escape") closeAccountMenu();

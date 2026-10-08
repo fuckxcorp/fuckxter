@@ -17,6 +17,8 @@ const postSelect = (viewerID: string | null) => `
     p.created_at,
     p.view_count,
     p.visibility,
+    p.source_post_id,
+    p.repost_kind,
     u.id AS author_id,
     u.handle AS author_handle,
     u.name AS author_name,
@@ -62,6 +64,7 @@ const postSelect = (viewerID: string | null) => `
     } AS author_following
   FROM posts p
   JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
+
 `;
 
 const viewerSelectParams = (viewerID: string | null): string[] =>
@@ -91,7 +94,12 @@ function parseMedia(value: string | null): StoredMedia[] | undefined {
         typeof item.contentType === "string" &&
         typeof item.byteSize === "number",
     );
-    return valid.length ? valid.slice(0, 10) : undefined;
+    return valid.length
+      ? valid.slice(0, 10).map((item) => ({
+          ...item,
+          url: `/media/${encodeURIComponent(item.id)}?v=081`,
+        }))
+      : undefined;
   } catch {
     return undefined;
   }
@@ -198,6 +206,8 @@ function publicPost(row: PostRow, viewerId: string | null) {
   return {
     id: row.id,
     slug: row.slug,
+    sourcePostId: row.source_post_id ?? undefined,
+    repostKind: row.repost_kind ?? undefined,
     author: {
       id: row.author_id,
       name: row.author_name,
@@ -228,6 +238,28 @@ function publicPost(row: PostRow, viewerId: string | null) {
       isAuthor: viewerId === row.author_id,
     },
   };
+}
+
+type PublicPost = ReturnType<typeof publicPost> & {
+  source?: ReturnType<typeof publicPost> | null;
+};
+async function serializePost(
+  env: Env,
+  row: PostRow,
+  viewerId: string | null,
+): Promise<PublicPost> {
+  const post: PublicPost = publicPost(row, viewerId);
+  if (row.repost_kind) {
+    post.source = row.source_post_id
+      ? await getPostByID(env, viewerId, row.source_post_id, false)
+      : null;
+    if (post.source?.visibility !== "public") post.source = null;
+    if (row.repost_kind === "repost" && !post.source) {
+      post.text = "原帖已不可用。";
+      post.media = undefined;
+    }
+  }
+  return post;
 }
 
 async function allPosts<T extends PostRow>(
@@ -307,7 +339,9 @@ export async function getTimeline(
 
   return {
     tab: resolved,
-    posts: pageRows.map((row) => publicPost(row, viewerId)),
+    posts: await Promise.all(
+      pageRows.map((row) => serializePost(env, row, viewerId)),
+    ),
     nextCursor:
       hasMore && last
         ? byLikes
@@ -377,7 +411,8 @@ export async function getPostByID(
   env: Env,
   viewerId: string | null,
   id: string,
-) {
+  includeSource = true,
+): Promise<PublicPost | null> {
   const filter = viewerFilter(viewerId);
   const row = await env.DB.prepare(
     `${postSelect(viewerId)}
@@ -386,7 +421,11 @@ export async function getPostByID(
   )
     .bind(...viewerSelectParams(viewerId), id, ...filter.params)
     .first<PostRow>();
-  return row ? publicPost(row, viewerId) : null;
+  return row
+    ? includeSource
+      ? serializePost(env, row, viewerId)
+      : publicPost(row, viewerId)
+    : null;
 }
 
 export async function getPostByPath(
@@ -410,7 +449,7 @@ export async function getPostByPath(
       ...filter.params,
     )
     .first<PostRow>();
-  return row ? publicPost(row, viewerId) : null;
+  return row ? serializePost(env, row, viewerId) : null;
 }
 
 export async function getPostsByUser(
@@ -424,6 +463,7 @@ export async function getPostsByUser(
       `${postSelect(viewerId)}
        WHERE u.id = ? AND p.deleted_at IS NULL
          AND ${filter.condition}
+
        ORDER BY p.created_at DESC, p.id DESC
        LIMIT 100`,
     ).bind(
@@ -432,7 +472,7 @@ export async function getPostsByUser(
       ...filter.params,
     ),
   );
-  return rows.map((row) => publicPost(row, viewerId));
+  return Promise.all(rows.map((row) => serializePost(env, row, viewerId)));
 }
 
 export async function createPost(
@@ -442,9 +482,11 @@ export async function createPost(
   mediaIDs: string[] = [],
   visibility: PostVisibility = "public",
   hdr = false,
+  sourcePostId?: string,
 ) {
   const cleanText = text.trim();
-  if (!cleanText) throw new HttpError(400, "EMPTY_POST", "帖子内容不能为空。");
+  if (!cleanText && !sourcePostId)
+    throw new HttpError(400, "EMPTY_POST", "帖子内容不能为空。");
   if ([...cleanText].length > 1000) {
     throw new HttpError(400, "POST_TOO_LONG", "帖子不能超过 1000 个字符。");
   }
@@ -490,10 +532,21 @@ export async function createPost(
       await env.DB.prepare(
         `INSERT INTO posts (
            id, slug, author_id, text, media_json, visibility,
-           created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+           created_at, updated_at, source_post_id, repost_kind
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-        .bind(id, id, authorId, cleanText, mediaJson, visibility, now, now)
+        .bind(
+          id,
+          id,
+          authorId,
+          cleanText,
+          mediaJson,
+          visibility,
+          now,
+          now,
+          sourcePostId ?? null,
+          sourcePostId ? "quote" : null,
+        )
         .run();
       return getPostByID(env, authorId, id);
     } catch (error) {
@@ -588,6 +641,9 @@ export async function deletePost(
   )
     .bind(now, now, postId)
     .run();
+  await env.DB.prepare("DELETE FROM reposts WHERE thread_post_id = ?")
+    .bind(postId)
+    .run();
   await env.DB.prepare("DELETE FROM notifications WHERE post_id = ?")
     .bind(postId)
     .run();
@@ -635,40 +691,94 @@ export async function setLike(
   return { id: postId, liked: active, likes: Number(count?.count ?? 0) };
 }
 
+async function repostSource(
+  env: Env,
+  userId: string,
+  postId: string,
+): Promise<PublicPost> {
+  let post = await getPostByID(env, userId, postId);
+  if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
+  if (post.repostKind === "repost") post = post.source ?? null;
+  if (!post) throw new HttpError(404, "POST_NOT_FOUND", "原帖已不可用。");
+  if (post.visibility !== "public")
+    throw new HttpError(403, "REPOST_NOT_ALLOWED", "只有公开帖子可以转发。");
+  return post;
+}
+export async function quotePost(
+  env: Env,
+  userId: string,
+  postId: string,
+  text: string,
+) {
+  const source = await repostSource(env, userId, postId);
+  return createPost(env, userId, text, [], "public", false, source.id);
+}
 export async function setRepost(
   env: Env,
   userId: string,
   postId: string,
   active: boolean,
 ) {
-  const post = await env.DB.prepare(
-    "SELECT id, author_id FROM posts WHERE id = ? AND deleted_at IS NULL",
-  )
-    .bind(postId)
-    .first<{ id: string; author_id: string }>();
-  if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
+  const original = await getPostByID(env, userId, postId);
+  if (!original) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
   const eventKey = `repost:${userId}:${postId}`;
+  const existing = await env.DB.prepare(
+    "SELECT thread_post_id FROM reposts WHERE user_id = ? AND post_id = ?",
+  )
+    .bind(userId, postId)
+    .first<{ thread_post_id: string | null }>();
+  let threadId = existing?.thread_post_id ?? null;
+  const now = new Date().toISOString();
   if (active) {
-    await env.DB.prepare(
-      `INSERT INTO reposts (user_id, post_id, created_at)
-       VALUES (?, ?, ?)
-       ON CONFLICT(user_id, post_id) DO NOTHING`,
-    )
-      .bind(userId, postId, new Date().toISOString())
-      .run();
+    const source = await repostSource(env, userId, postId);
+    if (!threadId) {
+      const id = await createPostID(env);
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO posts (id, slug, author_id, text, media_json, visibility, created_at, updated_at, source_post_id, repost_kind)
+          SELECT ?, ?, ?, ?, ?, 'public', ?, ?, ?, 'repost'
+          WHERE NOT EXISTS (SELECT 1 FROM reposts WHERE user_id = ? AND post_id = ? AND thread_post_id IS NOT NULL)`,
+        ).bind(
+          id,
+          id,
+          userId,
+          source.text,
+          source.media ? JSON.stringify(source.media) : null,
+          now,
+          now,
+          source.id,
+          userId,
+          postId,
+        ),
+        env.DB.prepare(
+          `INSERT INTO reposts (user_id, post_id, created_at, thread_post_id)
+          SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM posts WHERE id = ?)
+          ON CONFLICT(user_id, post_id) DO UPDATE SET thread_post_id = excluded.thread_post_id WHERE reposts.thread_post_id IS NULL`,
+        ).bind(userId, postId, now, id, id),
+      ]);
+      const saved = await env.DB.prepare(
+        "SELECT thread_post_id FROM reposts WHERE user_id = ? AND post_id = ?",
+      )
+        .bind(userId, postId)
+        .first<{ thread_post_id: string }>();
+      threadId = saved?.thread_post_id ?? null;
+    }
     await createNotification(env, {
-      recipientId: post.author_id,
+      recipientId: original.author.id,
       actorId: userId,
       type: "repost",
       postId,
       eventKey,
     });
   } else {
-    await env.DB.prepare(
-      "DELETE FROM reposts WHERE user_id = ? AND post_id = ?",
-    )
-      .bind(userId, postId)
-      .run();
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE posts SET deleted_at = ?, updated_at = ? WHERE id = ? AND author_id = ?",
+      ).bind(now, now, threadId, userId),
+      env.DB.prepare(
+        "DELETE FROM reposts WHERE user_id = ? AND post_id = ?",
+      ).bind(userId, postId),
+    ]);
     await deleteNotification(env, eventKey);
   }
   const count = await env.DB.prepare(
@@ -680,6 +790,9 @@ export async function setRepost(
     id: postId,
     reposted: active,
     reposts: Number(count?.count ?? 0),
+    threadId,
+    post:
+      active && threadId ? await getPostByID(env, userId, threadId) : undefined,
   };
 }
 
@@ -695,7 +808,7 @@ export async function getSavedPosts(env: Env, userId: string) {
        LIMIT 200`,
     ).bind(...viewerSelectParams(userId), userId, ...filter.params),
   );
-  return rows.map((row) => publicPost(row, userId));
+  return Promise.all(rows.map((row) => serializePost(env, row, userId)));
 }
 
 export async function setSaved(
@@ -753,7 +866,12 @@ export async function searchPosts(
       pattern,
     ),
   );
-  return { query, posts: rows.map((row) => publicPost(row, viewerId)) };
+  return {
+    query,
+    posts: await Promise.all(
+      rows.map((row) => serializePost(env, row, viewerId)),
+    ),
+  };
 }
 
 export async function getComments(
@@ -761,10 +879,14 @@ export async function getComments(
   viewerId: string | null,
   postId: string,
 ) {
+  if (!(await getPostByID(env, viewerId, postId))) {
+    throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
+  }
   const result = await env.DB.prepare(
     `SELECT
        c.id,
        c.text,
+       c.media_json,
        c.created_at,
        COUNT(*) OVER() AS total_count,
        u.id AS author_id,
@@ -803,6 +925,7 @@ export async function getComments(
       id: string;
       text: string;
       created_at: string;
+      media_json: string | null;
       total_count: number;
       author_id: string;
       author_name: string;
@@ -839,6 +962,7 @@ export async function getComments(
         }),
       },
       text: row.text,
+      media: parseMedia(row.media_json),
       createdAt: row.created_at,
       parent:
         row.parent_id && row.parent_handle
@@ -869,6 +993,9 @@ export async function setCommentInteraction(
   kind: "like" | "repost",
   active: boolean,
 ) {
+  if (!(await getPostByID(env, userId, postId))) {
+    throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
+  }
   const comment = await env.DB.prepare(
     `SELECT id FROM comments
      WHERE id = ? AND post_id = ? AND deleted_at IS NULL`,
@@ -912,20 +1039,18 @@ export async function createComment(
   postId: string,
   text: string,
   parentId?: string,
+  mediaIDs: string[] = [],
 ) {
   const cleanText = text.trim();
-  if (!cleanText) {
+  if (!cleanText && !mediaIDs.length) {
     throw new HttpError(400, "EMPTY_COMMENT", "回覆内容不能为空。");
   }
   if ([...cleanText].length > 1000) {
     throw new HttpError(400, "COMMENT_TOO_LONG", "回覆不能超过 1000 个字符。");
   }
-  const post = await env.DB.prepare(
-    "SELECT id, author_id FROM posts WHERE id = ? AND deleted_at IS NULL",
-  )
-    .bind(postId)
-    .first<{ id: string; author_id: string }>();
-  if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
+  const visible = await getPostByID(env, userId, postId);
+  if (!visible) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
+  const post = { id: visible.id, author_id: visible.author.id };
 
   let parent: { id: string; author_id: string } | null = null;
   if (parentId) {
@@ -940,13 +1065,56 @@ export async function createComment(
     }
   }
 
+  if (mediaIDs.length > 4 || new Set(mediaIDs).size !== mediaIDs.length) {
+    throw new HttpError(
+      400,
+      "TOO_MANY_MEDIA",
+      "每条回帖最多附带 4 张不同的图片。",
+    );
+  }
+  const media = await Promise.all(
+    mediaIDs.map(async (mediaID) => {
+      const item = await env.DB.prepare(
+        "SELECT id, original_name, content_type, byte_size FROM media_objects WHERE id = ? AND owner_id = ? AND status = 'ready'",
+      )
+        .bind(mediaID, userId)
+        .first<{
+          id: string;
+          original_name: string;
+          content_type: string;
+          byte_size: number;
+        }>();
+      if (!item || !item.content_type.startsWith("image/")) {
+        throw new HttpError(
+          400,
+          "INVALID_MEDIA",
+          "图片不存在或不属于当前用户。",
+        );
+      }
+      return {
+        id: item.id,
+        url: `/media/${encodeURIComponent(item.id)}`,
+        alt: item.original_name,
+        contentType: item.content_type,
+        byteSize: Number(item.byte_size),
+      };
+    }),
+  );
   const id = randomID();
   const now = new Date().toISOString();
   await env.DB.prepare(
-    `INSERT INTO comments (id, post_id, author_id, text, parent_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO comments (id, post_id, author_id, text, parent_id, created_at, media_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
   )
-    .bind(id, postId, userId, cleanText, parent?.id ?? null, now)
+    .bind(
+      id,
+      postId,
+      userId,
+      cleanText,
+      parent?.id ?? null,
+      now,
+      media.length ? JSON.stringify(media) : null,
+    )
     .run();
 
   const user = await env.DB.prepare(
@@ -1001,6 +1169,7 @@ export async function createComment(
       }),
     },
     text: cleanText,
+    media,
     createdAt: now,
     stats: { likes: 0, reposts: 0 },
     viewer: { liked: false, reposted: false },
@@ -1049,4 +1218,30 @@ export async function deleteComment(
     .run();
   await Promise.all(ids.map((id) => deleteNotification(env, `reply:${id}`)));
   return ids.length;
+}
+
+export async function canViewMedia(
+  env: Env,
+  viewerId: string | null,
+  id: string,
+): Promise<boolean> {
+  const avatar = await env.DB.prepare(
+    "SELECT id FROM users WHERE avatar_media_id = ? AND deleted_at IS NULL LIMIT 1",
+  )
+    .bind(id)
+    .first<{ id: string }>();
+  if (avatar) return true;
+  const filter = viewerFilter(viewerId);
+  const items = (column: string) =>
+    `CASE WHEN json_valid(${column}) THEN CASE json_type(${column}) WHEN 'array' THEN ${column} WHEN 'object' THEN json_array(json(${column})) ELSE '[]' END ELSE '[]' END`;
+  const match = `((p.repost_kind IS NULL OR p.repost_kind != 'repost') AND EXISTS (SELECT 1 FROM json_each(${items("p.media_json")}) m WHERE CASE WHEN m.type = 'object' THEN json_extract(m.value, '$.id') END = ?)) OR EXISTS (SELECT 1 FROM comments c, json_each(${items("c.media_json")}) m WHERE c.post_id = p.id AND c.deleted_at IS NULL AND CASE WHEN m.type = 'object' THEN json_extract(m.value, '$.id') END = ?)`;
+  const row = await env.DB.prepare(
+    `SELECT p.id FROM posts p
+    JOIN users u ON u.id = p.author_id AND u.deleted_at IS NULL
+    WHERE p.deleted_at IS NULL AND ${filter.condition}
+    AND (${match}) LIMIT 1`,
+  )
+    .bind(...filter.params, id, id)
+    .first<{ id: string }>();
+  return Boolean(row);
 }

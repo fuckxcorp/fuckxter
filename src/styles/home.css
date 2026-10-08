@@ -16,11 +16,11 @@
 
 .splash.is-exit {
   pointer-events: none;
-  animation: splash-veil 200ms cubic-bezier(0.22, 0.08, 0.25, 1) both;
+  animation: splash-veil 600ms cubic-bezier(0.22, 0.08, 0.25, 1) both;
 }
 
 .splash.is-exit .splash-logo {
-  animation: splash-zoom 200ms cubic-bezier(0.16, 0, 0.2, 1) both;
+  animation: splash-zoom 600ms cubic-bezier(0.16, 0, 0.2, 1) both;
 }
 
 @keyframes splash-zoom {
@@ -98,6 +98,7 @@
 .composer-picker-btn.menu-item::before {
   inset: 0.06rem 0.04rem;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg) scaleX(1);
   opacity: 1;
 }
@@ -124,6 +125,7 @@
 
 .composer-picker-btn.menu-item.menu-expandable[aria-expanded="true"]::before {
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg) scaleX(1);
   opacity: 1;
 }
@@ -141,14 +143,63 @@
   color: color-mix(in srgb, var(--ink-text) 72%, transparent);
 }
 
-.composer-submenu {
+.composer-picker .composer-submenu {
   z-index: 70;
   right: auto;
   left: 0;
   top: auto;
   bottom: calc(100% + 10px);
+  width: max-content;
   min-width: 228px;
-  max-width: min(320px, calc(100vw - 1.5rem));
+  max-width: min(320px, calc(100vw - 3.5rem));
+  margin: 0;
+  padding: 0.4rem 24px 0.5rem;
+  border: 0;
+}
+
+.composer-picker .composer-submenu::before,
+.composer-picker .composer-submenu::after {
+  display: block;
+  inset: 0;
+  border-radius: 6px;
+  background: var(--menu-surface);
+  clip-path: none;
+  transform: skewX(-12deg);
+}
+
+@keyframes composer-picker-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+@keyframes composer-picker-out {
+  to {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+.composer-picker .composer-submenu:not([hidden]) {
+  animation: composer-picker-in 180ms ease-out both;
+}
+
+.composer-picker .composer-submenu:not([hidden])::before,
+.composer-picker .composer-submenu:not([hidden])::after,
+.composer-picker .composer-submenu:not([hidden]) > * {
+  animation: none;
+}
+
+.composer-picker .composer-submenu.is-closing {
+  animation: composer-picker-out 140ms ease-in both;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-picker .composer-submenu:not([hidden]) {
+    animation: none;
+  }
 }
 
 .tabs {
@@ -187,6 +238,7 @@
   inset: 0.5rem 0.35rem 0.4rem;
   z-index: -1;
   background: var(--tab-active-bg);
+  border-radius: 4px;
   transform: skewX(-12deg) scaleX(0);
   transform-origin: left center;
   opacity: 0;
@@ -210,6 +262,7 @@
 }
 
 .tab.is-active::before {
+  border-radius: 4px;
   transform: skewX(-12deg) scaleX(1);
   opacity: 1;
 
@@ -249,13 +302,19 @@
   min-height: 0;
   overflow: visible;
   overscroll-behavior: auto;
-  transition: transform 200ms cubic-bezier(0.42, 0, 0.9, 1);
+  filter: blur(0);
+  transition:
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 280ms cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: left center;
 }
 
 html.menu-open .main {
-  transform: translateX(calc(-1 * min(280px, 65vw)));
-  transition: transform 540ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(calc(-1 * min(12px, 2vw)));
+  filter: blur(5px);
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 480ms cubic-bezier(0.4, 0, 0.2, 1) 120ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -497,6 +556,10 @@ html.menu-open .main {
   min-height: 40vh;
 }
 
+.feed.is-switching {
+  pointer-events: none;
+}
+
 .feed-columns {
   display: flex;
   align-items: flex-start;
@@ -573,38 +636,47 @@ html.menu-open .main {
 }
 
 .feed-columns.is-masonry {
-  gap: 0.55rem;
-  padding: 1rem 1.15rem 1rem;
+  gap: 0.9rem;
+  padding: 1.25rem 1.15rem;
   background: transparent;
 }
 
 .feed-columns.is-single {
   justify-content: center;
-  padding: 1rem 1.15rem 1.15rem;
+  padding: 1.25rem 1.15rem;
   background: transparent;
 }
 
 .feed-columns.is-single .feed-col {
   flex: 0 1 auto;
   width: 100%;
-  max-width: 640px;
-  gap: 0.55rem;
+  max-width: 680px;
+  gap: 0.9rem;
 }
 
 .feed-columns .post {
   margin-bottom: 0;
   padding: 1.2rem 1.4rem 1.35rem;
-  border-radius: 0;
-  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, var(--color-border));
+  border-radius: 14px;
+  background: var(--color-bg);
+  box-shadow: var(--shadow-card);
   overflow: visible;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .feed-columns.is-masonry .post {
   margin-bottom: 0;
 }
 
-.feed-columns .post:hover {
-  background: transparent;
+.feed-columns .post:hover,
+.feed-columns .post:focus-within {
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--color-border));
+  background: color-mix(in srgb, var(--color-bg-subtle) 35%, var(--color-bg));
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--ink) 5%, transparent);
 }
 
 .feed-columns.is-masonry .post-text {
@@ -769,5 +841,75 @@ html.menu-open .main {
     flex: none;
     margin-left: auto;
     padding-inline: 1rem;
+  }
+}
+
+.feed-columns .feed-col {
+  gap: 0.9rem;
+}
+.feed-columns .post-head {
+  row-gap: 0.25rem;
+}
+.feed-columns .post-meta {
+  font-size: 0.78rem;
+}
+.feed-columns .post-text {
+  margin-top: 0.65rem;
+  line-height: 1.65;
+}
+.feed-columns .actions {
+  margin-top: 0.9rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--color-border-soft);
+}
+.feed-columns .post .media-list {
+  margin-top: 0.8rem;
+  border-radius: 10px;
+}
+.composer {
+  background: color-mix(in srgb, var(--color-bg-subtle) 45%, var(--color-bg));
+}
+.composer:focus-within {
+  background: var(--color-bg);
+}
+@media (max-width: 640px) {
+  .feed-columns.is-single,
+  .feed-columns.is-masonry {
+    padding: 0.8rem 0.6rem 1rem;
+    gap: 0.7rem;
+  }
+  .feed-columns .feed-col {
+    gap: 0.7rem;
+  }
+  .feed-columns .post {
+    padding: 1rem 0.85rem;
+    gap: 0.6rem;
+    border-radius: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-columns .post {
+    transition: none;
+  }
+}
+
+.feed-columns .post {
+  position: relative;
+}
+.feed-columns .post > .avatar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px 0 0 0;
+  font-size: 1.2rem;
+}
+.feed-columns .post > .post-body {
+  margin-left: calc(42px + 0.75rem);
+}
+@media (max-width: 640px) {
+  .feed-columns .post > .post-body {
+    margin-left: calc(42px + 0.6rem);
   }
 }

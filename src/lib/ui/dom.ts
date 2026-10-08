@@ -1,3 +1,4 @@
+import { postPath } from "../core/urls";
 import type { Post } from "../core/types";
 import { apiEndpoint } from "../core/http";
 
@@ -234,7 +235,15 @@ export function postHead(
   return head;
 }
 
-export function postMedia(post: Post): HTMLElement {
+const mediaObservers = new WeakMap<HTMLElement, ResizeObserver>();
+
+export function disposePostMedia(root: HTMLElement): void {
+  for (const node of root.querySelectorAll<HTMLElement>(".media-carousel")) {
+    mediaObservers.get(node)?.disconnect();
+  }
+}
+
+export function postMedia(post: Post, carousel = false): HTMLElement {
   const list = el("div", "media-list");
   if ((post.media?.length ?? 0) > 3) list.classList.add("is-scrollable");
   for (const media of post.media ?? []) {
@@ -255,7 +264,89 @@ export function postMedia(post: Post): HTMLElement {
     }
     list.append(node);
   }
-  return list;
+  if (!carousel || (post.media?.length ?? 0) < 2) return list;
+  list.classList.add("is-scrollable");
+  list.tabIndex = 0;
+  list.setAttribute("aria-label", "帖子图片，左右方向键切换");
+  const wrap = el("div", "media-carousel");
+  const prev = el("button", "media-nav is-prev");
+  const next = el("button", "media-nav is-next");
+  prev.type = next.type = "button";
+  prev.setAttribute("aria-label", "上一张图片");
+  next.setAttribute("aria-label", "下一张图片");
+  prev.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg>';
+  next.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg>';
+  const sync = () => {
+    const left = list.scrollLeft > 2;
+    const right = list.scrollWidth - list.clientWidth - list.scrollLeft > 2;
+    wrap.classList.toggle("has-prev", left);
+    wrap.classList.toggle("has-next", right);
+    prev.hidden = !left;
+    next.hidden = !right;
+  };
+  const move = (direction: number) => {
+    const items = [...list.children] as HTMLElement[];
+    const start = items[0].offsetLeft;
+    const positions = items.map((item) => item.offsetLeft - start);
+    const target =
+      direction > 0
+        ? positions.find((position) => position > list.scrollLeft + 2)
+        : positions.findLast((position) => position < list.scrollLeft - 2);
+    list.scrollTo({
+      left: target ?? (direction > 0 ? list.scrollWidth : 0),
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+    });
+  };
+  for (const [button, direction] of [
+    [prev, -1],
+    [next, 1],
+  ] as const) {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      move(direction);
+    });
+  }
+  list.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    event.stopPropagation();
+    move(event.key === "ArrowRight" ? 1 : -1);
+  });
+  list.addEventListener(
+    "wheel",
+    (event) => {
+      if (event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY))
+        return;
+      const delta =
+        event.deltaY *
+        (event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? list.clientWidth
+            : 1);
+      if (
+        (delta > 0 &&
+          list.scrollLeft + list.clientWidth < list.scrollWidth - 2) ||
+        (delta < 0 && list.scrollLeft > 2)
+      ) {
+        event.preventDefault();
+        list.scrollLeft += delta;
+      }
+    },
+    { passive: false },
+  );
+  list.addEventListener("scroll", sync, { passive: true });
+  list.addEventListener("load", sync, true);
+  wrap.append(list, prev, next);
+  const observer = new ResizeObserver(sync);
+  observer.observe(list);
+  mediaObservers.set(wrap, observer);
+  sync();
+  return wrap;
 }
 
 export function authorAvatar(
@@ -294,10 +385,38 @@ export function postShard(id: string): string {
   return String(Math.abs(hash) % 8);
 }
 
-export function renderPost(post: Post, showFollow = true): HTMLElement {
+export function renderPostSource(post: Post, carousel = false): HTMLElement {
+  const box = el("div", "post-source");
+  const source = post.source;
+  if (!source) {
+    box.textContent = "原帖已不可用。";
+    return box;
+  }
+  const link = el("a", "inline-link post-source-link");
+  link.href = postPath(source);
+  const author = el("strong");
+  author.textContent = `${source.author.name} @${source.author.handle}`;
+  const text = el("p", "post-source-text");
+  text.textContent = source.text;
+  link.append(author, text);
+  box.append(link);
+  if (source.media?.length) box.append(postMedia(source, carousel));
+  const open = el("a", "inline-link post-source-open");
+  open.href = postPath(source);
+  open.textContent = "查看原帖 ↗";
+  box.append(open);
+  return box;
+}
+
+export function renderPost(
+  post: Post,
+  showFollow = true,
+  carousel = false,
+): HTMLElement {
   const article = el("article", "post");
   article.dataset.postId = post.id;
   article.dataset.handle = post.author.handle;
+  if (post.sourcePostId) article.dataset.sourcePostId = post.sourcePostId;
 
   const avatar = authorAvatar(
     post.author.handle,
@@ -311,9 +430,10 @@ export function renderPost(post: Post, showFollow = true): HTMLElement {
 
   const text = el("p", "post-text");
   text.append(renderRichText(post.text));
-  body.append(text);
-
-  if (post.media?.length) body.append(postMedia(post));
+  if (post.repostKind !== "repost") body.append(text);
+  if (post.repostKind) body.append(renderPostSource(post, carousel));
+  if (post.media?.length && post.repostKind !== "repost")
+    body.append(postMedia(post, carousel));
 
   const actions = el("footer", "actions");
   actions.append(
@@ -322,6 +442,7 @@ export function renderPost(post: Post, showFollow = true): HTMLElement {
     actionButton("like", ICONS.heart, "喜欢", post.stats.likes),
     actionButton("save", ICONS.bookmark, "收藏", 0),
     actionButton("share", ICONS.share, "分享", 0),
+    actionButton("quote-post", ICONS.copy, "转发并评论", 0),
   );
   if (post.viewer?.isAuthor) {
     const edit = actionButton("edit", ICONS.edit, "编辑", 0);

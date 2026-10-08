@@ -17,4 +17,6 @@ jobs:
         with:
           wrangler: "yes"
           wrangler-apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wrangler-command: deploy --name fuckxter
+          wrangler-command: |
+            d1 migrations apply DB --remote
+            deploy --name fuckxter

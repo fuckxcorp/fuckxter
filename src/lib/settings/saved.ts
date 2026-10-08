@@ -45,7 +45,7 @@ export function mountSavedSettings(root: HTMLElement): void {
           const handle = el("span", "notice-actor-handle");
           handle.textContent = `@${post.author.handle}`;
           const action = el("span", "notice-action");
-          action.textContent = "收藏的帖子";
+          action.textContent = "留作回看";
           const time = el("time", "notice-time");
           time.dateTime = post.createdAt;
           time.textContent = relativeTime(post.createdAt);

@@ -203,7 +203,7 @@
   grid-template-columns: 52px minmax(0, 1fr);
   gap: 0.65rem 0.85rem;
   padding: 1.2rem 1.45rem 1.4rem;
-  border-radius: 0;
+  border-radius: 12px;
   box-shadow: none;
   overflow: visible;
 }
@@ -228,6 +228,7 @@
   inset: 0.05rem 0.04rem;
   z-index: -1;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg);
 }
 
@@ -330,6 +331,7 @@
   inset: 0.04rem 0.02rem;
   z-index: -1;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg);
 }
 
@@ -386,6 +388,7 @@
   inset: 0.04rem 0.02rem;
   z-index: -1;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg);
 }
 
@@ -394,7 +397,7 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 1rem 1.2rem 1.25rem;
-  border-radius: 0;
+  border-radius: 12px;
   overflow: visible;
 }
 
@@ -427,6 +430,7 @@
   inset: 0.08rem 0.04rem;
   z-index: -1;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg);
 }
 
@@ -487,8 +491,12 @@
 .post-controls,
 .hot-posts {
   padding: 1.05rem 1.2rem 1.25rem;
-  border-radius: 0;
+  border-radius: 12px;
   overflow: visible;
+}
+
+.post-controls.shard {
+  border: 0;
 }
 
 .post-info-title,
@@ -564,6 +572,7 @@
   inset: 0.08rem 0.04rem;
   z-index: -1;
   background: var(--ink);
+  border-radius: 4px;
   transform: skewX(-12deg);
 }
 
@@ -718,6 +727,18 @@
   color: var(--ink-text);
 
   clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+  clip-path: shape(
+    from calc(5px + 4px) 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 5px) calc(100% - 4px),
+    curve to calc(calc(100% - 5px) - 4px) 100% with calc(100% - 5px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 5px 4px,
+    curve to calc(5px + 4px) 0 with 5px 0,
+    close
+  );
   font-size: 0.72rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -855,129 +876,226 @@
   }
 }
 
+.thread-list .thread-reply {
+  position: relative;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 0.3rem 0.65rem;
+  margin: 0;
+  padding: 0.9rem 0 0.35rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.thread-list > .thread-reply {
+  padding: 1rem 1rem 0.6rem;
+  border: 3px solid var(--ink);
+  border-radius: 12px;
+  background: var(--color-bg);
+}
+
+.thread-list > .thread-reply > .branch-rail {
+  top: 52px;
+  left: 20px;
+}
+
+.thread-list .thread-reply > .avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.thread-list .thread-reply.is-nested > .avatar {
+  width: 28px;
+  height: 28px;
+}
+
+.thread-list .thread-reply.is-nested {
+  grid-template-columns: 28px minmax(0, 1fr);
+  padding-top: 0.7rem;
+}
+
+.thread-list .thread-kind {
+  display: none;
+}
+
+.thread-list .thread-text {
+  margin: 0.3rem 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.thread-list .thread-who strong {
+  font-size: 0.85rem;
+}
+
+.thread-list .thread-meta time,
+.thread-list .thread-handle {
+  font-size: 0.73rem;
+}
+
+.thread-list .reply-quote {
+  margin: 0.2rem 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.75rem;
+}
+
+.thread-list .reply-quote strong {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.thread-list .reply-quote:hover strong {
+  color: var(--color-text-strong);
+}
+
+.thread-list .thread-reply-actions {
+  align-items: center;
+  gap: 0.15rem 0.45rem;
+  margin: 0.35rem 0 0;
+}
+
+.thread-list .thread-link-btn {
+  padding: 0.2rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.thread-list .thread-link-btn::before {
+  display: none;
+}
+
+.thread-list .thread-link-btn.is-danger {
+  color: var(--like);
+}
+
+.thread-list .thread-reply-actions .action {
+  padding: 0.2rem 0.3rem;
+  font-size: 0.75rem;
+}
+
+.thread-list .thread-reply-actions .action svg {
+  width: 15px;
+  height: 15px;
+}
+
 .thread-children {
   grid-column: 1 / -1;
   display: grid;
-  gap: 0.32rem;
-  margin-top: 0.55rem;
-  padding-left: 0.85rem;
-  border-left: 2px solid var(--color-border);
+  gap: 0.1rem;
+  margin: 0.15rem 0 0 16px;
+  padding-left: 20px;
+  border-left: 1px solid var(--color-border);
 }
 
-/* 折叠起来的楼中楼：不再加一层缩进，展开后限高，免得又把下面的楼层顶到看不见 */
-.thread-children-rest {
-  display: grid;
-  gap: 0.32rem;
-}
-
+.thread-children[hidden],
 .thread-children-rest[hidden] {
   display: none;
 }
 
-.thread-more {
-  justify-self: start;
-  margin-top: 0.2rem;
-  padding: 0.22rem 0.7rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
-  background: var(--color-bg);
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 0.78rem;
-  cursor: pointer;
+.thread-children-rest {
+  display: grid;
+  gap: 0.1rem;
 }
 
-.thread-more:hover,
-.thread-more:focus-visible {
-  color: var(--color-text);
-  border-color: var(--color-accent);
-  outline: none;
-}
-
-/* 超过缩进上限的楼中楼：不再往右让位，平铺在同一层里显示，
-   否则每层都会叠加缩进，十几层之后内容会被挤成竖条、后面的回帖也点不到。 */
-.thread-reply.is-deep {
-  padding-left: 0;
-  padding-right: 0;
-}
-
-.thread-list .thread-reply.is-deep {
-  margin-left: 0;
+.thread-list .thread-reply.is-nested::before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 12px;
+  left: -21px;
+  width: 18px;
+  height: 12px;
+  border-left: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  border-bottom-left-radius: 10px;
+  pointer-events: none;
 }
 
 .thread-reply.is-deep > .thread-children {
+  margin-left: 0;
   padding-left: 0;
   border-left: 0;
 }
 
-/*
- * 楼中楼越深越紧凑。
- * 每深一层都要叠上「子层缩进 + 卡片内边距 + 头像列 + 列间距」，窄屏上一共约 68px，
- * 三层之后正文只剩几十像素宽，中文会被压成一条竖线，看起来像字体坏了。
- * 所以嵌套层收窄头像列和内边距，把宽度尽量留给正文。
- */
-.thread-reply.is-nested {
-  /* 不要每层再套一个 3px 粗边的盒子：楼中楼改成「一棵树」，靠左边线 + 浅底分组 */
-  border: 0;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--color-bg-subtle) 55%, transparent);
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 0.45rem 0.6rem;
-  padding: 0.75rem 0.9rem 0.85rem;
-}
-
-.thread-reply.is-nested > .avatar {
-  width: 34px;
-  height: 34px;
-  font-size: 0.82rem;
-}
-
-.thread-reply.is-nested .thread-text {
-  font-size: 0.95rem;
-  line-height: 1.58;
-}
-
-/* 嵌套层的「第 N 层」标记和操作按钮都轻量化，别每层再糊一堆黑块 */
-.thread-reply.is-nested .thread-kind {
-  padding: 0;
-  color: var(--color-text-muted);
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-}
-
-.thread-reply.is-nested .thread-kind::before {
+.thread-list .thread-reply.is-deep::before {
   display: none;
 }
 
-.thread-reply.is-nested .thread-reply-actions {
-  gap: 0.1rem 0.3rem;
-  margin-top: 0.3rem;
-  margin-left: -0.3rem;
+.branch-toggle,
+.thread-more,
+.thread-collapse {
+  justify-self: start;
+  padding: 0.3rem 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
 }
 
-.thread-reply.is-nested .thread-link-btn {
-  padding: 0.16rem 0.42rem;
-  /* 嵌套层的按钮也保持平行四边形，只是更小一号 */
+html body .thread-list .thread-more {
+  padding: 0.38rem 1.1rem;
   color: var(--ink-text);
-  font-size: 0.76rem;
   font-weight: 600;
 }
 
-.thread-reply.is-nested .thread-link-btn.is-danger {
-  color: var(--like);
+html body .thread-list .thread-more::before {
+  background: color-mix(in srgb, var(--ink) 76%, var(--color-bg));
 }
 
-.thread-reply.is-nested .reply-quote {
-  margin: 0.3rem 0 0.4rem;
-  padding: 0.1rem 0.45rem;
-  border-left-width: 2px;
+.branch-toggle:hover,
+.thread-more:hover,
+.thread-collapse:hover {
+  color: var(--color-text-strong);
+  text-decoration: underline;
+}
+
+.branch-rail {
+  position: absolute;
+  top: 48px;
+  bottom: 0.35rem;
+  left: 4px;
+  width: 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
   background: none;
-  font-size: 0.76rem;
+  cursor: pointer;
 }
 
-.thread-reply.is-nested > .thread-children {
-  padding-left: 0.6rem;
+.branch-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 12px;
+  width: 1px;
+  background: var(--color-border);
+}
+
+.branch-rail:hover::before,
+.branch-rail:focus-visible::before {
+  width: 2px;
+  background: var(--color-text-muted);
+}
+
+.thread-reply.is-collapsed > .branch-rail,
+.thread-reply.is-deep > .branch-rail {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .thread-reply[data-depth="2"] .thread-children {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .thread-reply[data-depth="2"] .branch-rail,
+  .thread-list .thread-reply[data-depth="2"] .thread-reply::before {
+    display: none;
+  }
 }
 
 /* 就地回复框：点某一层的「回复」时，输入框直接长在那条回帖下面 */
@@ -1009,16 +1127,79 @@
   flex: none;
 }
 
-/* 再深一层连头像列都不留，回帖对象靠上面的「回复 @xxx」标出 */
-.thread-reply.is-deep {
-  grid-template-columns: minmax(0, 1fr);
-  padding: 0.6rem 0.7rem 0.7rem;
+.inline-composer {
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
 }
 
-.thread-reply.is-deep > .avatar {
+.reply-media-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 0.5rem;
+}
+.reply-media-preview:empty {
   display: none;
 }
+.reply-media-tile {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+.reply-media-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.reply-media-tile button {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-strong);
+  background: var(--color-bg);
+}
+.reply-attach {
+  margin-right: auto;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+}
+.reply-media {
+  margin-block: 0.65rem;
+}
+.reply-media .media-image {
+  max-height: 320px;
+}
 
-.thread-reply.is-deep .thread-text {
-  font-size: 0.92rem;
+.reply-composer-actions {
+  flex-wrap: wrap;
+  row-gap: 0.6rem;
+}
+
+.reply-composer-actions .comment-count,
+.reply-composer-actions button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .inline-composer .reply-attach {
+    flex-basis: auto;
+    margin-right: auto;
+  }
+
+  .inline-composer .reply-composer-actions .comment-count {
+    margin-right: 0;
+  }
+}
+
+.thread-collapse[hidden] {
+  display: none;
 }

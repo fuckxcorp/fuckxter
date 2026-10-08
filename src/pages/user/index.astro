@@ -220,6 +220,7 @@ import Header from "../../components/Header.astro";
   import { ApiError, apiEndpoint } from "../../lib/core/http";
   import { onPageReady } from "../../lib/core/page";
   import { openPostShareMenu } from "../../lib/ui/share";
+  import { quotePost } from "../../lib/ui/repost";
   import type { Post, UserProfile } from "../../lib/core/types";
   import {
     conversationPath,
@@ -356,6 +357,8 @@ import Header from "../../components/Header.astro";
     root.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
 
+      if (target.closest(".inline-link, .post-repost-label")) return;
+
       const avatarLink = target.closest<HTMLElement>(".avatar-link");
       if (avatarLink?.dataset.handle) {
         event.preventDefault();
@@ -451,6 +454,16 @@ import Header from "../../components/Header.astro";
         return;
       }
 
+      if (action === "quote-post") {
+        btn.disabled = true;
+        try {
+          if (await quotePost(post)) await postList.reload?.();
+        } finally {
+          btn.disabled = false;
+        }
+        return;
+      }
+
       if (action === "like" || action === "repost") {
         const cls = action === "like" ? "is-liked" : "is-reposted";
         const willActive = !btn.classList.contains(cls);
@@ -466,6 +479,7 @@ import Header from "../../components/Header.astro";
             count > 0 ? fmtCount(count) : "";
           btn.classList.toggle(cls, willActive);
           postList.onChange();
+          if (action === "repost") await postList.reload?.();
         } catch {
           btn.classList.toggle(cls, !willActive);
         }

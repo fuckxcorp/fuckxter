@@ -19,6 +19,7 @@ import {
 } from "../accounts/auth";
 import {
   authorAvatar,
+  disposePostMedia,
   avatarGradient,
   collapseSubmenus,
   el,
@@ -34,6 +35,7 @@ import {
 } from "../ui/dom";
 import { ApiError, apiEndpoint } from "../core/http";
 import { openPostShareMenu } from "../ui/share";
+import { quotePost } from "../ui/repost";
 import type {
   FeedTab,
   Post,
@@ -380,27 +382,22 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const placeComposerSubmenu = (trigger: HTMLElement, submenu: HTMLElement) => {
     const rect = trigger.getBoundingClientRect();
-    const gap = 10;
-    const width = Math.max(228, submenu.offsetWidth || 228);
-    let left = rect.left;
-    if (left + width > window.innerWidth - 8) {
-      left = Math.max(8, window.innerWidth - width - 8);
-    }
-    submenu.style.position = "fixed";
-    submenu.style.right = "auto";
-    submenu.style.left = `${left}px`;
+    const anchor = trigger.parentElement!.getBoundingClientRect();
+    const gap = 8;
+    const width = submenu.offsetWidth;
+    const height = submenu.offsetHeight;
+    const edge = 8 + (Math.tan((12 * Math.PI) / 180) * height) / 2;
+    const left = Math.max(edge, Math.min(rect.left, innerWidth - width - edge));
     const below = rect.bottom + gap;
-    const estimated = submenu.offsetHeight || 160;
-    if (
-      below + estimated > window.innerHeight - 8 &&
-      rect.top > estimated + gap
-    ) {
-      submenu.style.top = "auto";
-      submenu.style.bottom = `${window.innerHeight - rect.top + gap}px`;
-    } else {
-      submenu.style.bottom = "auto";
-      submenu.style.top = `${below}px`;
-    }
+    const top =
+      below + height > innerHeight - 8 && rect.top > height + gap
+        ? rect.top - height - gap
+        : below;
+    submenu.style.position = "absolute";
+    submenu.style.right = "auto";
+    submenu.style.bottom = "auto";
+    submenu.style.left = `${left - anchor.left}px`;
+    submenu.style.top = `${top - anchor.top}px`;
   };
 
   const pickerWraps = [mediaStorageWrap, visibilityMenu?.parentElement].filter(
@@ -618,7 +615,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
   );
 
   const resetFeed = (head?: HTMLElement): void => {
-    for (const node of orderedPosts) viewObserver.unobserve(node);
+    for (const node of orderedPosts) {
+      viewObserver.unobserve(node);
+      disposePostMedia(node);
+    }
     orderedPosts.length = 0;
     feed.replaceChildren();
     if (head) feed.append(head);
@@ -629,7 +629,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const addPost = (post: Post): HTMLElement => {
     ensureLayout();
-    const node = renderPost(post);
+    const node = renderPost(post, true, true);
     if (post.viewer?.saved) {
       node
         .querySelector<HTMLElement>('.action[data-action="save"]')
@@ -652,7 +652,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
    */
   const addPostAtStart = (post: Post): HTMLElement => {
     feed.querySelectorAll(".status").forEach((node) => node.remove());
-    const node = renderPost(post);
+    const node = renderPost(post, true, true);
     if (post.viewer?.saved) {
       node
         .querySelector<HTMLElement>('.action[data-action="save"]')
@@ -691,20 +691,108 @@ export function mountFeed(container: HTMLElement): FeedControls {
     feed.append(row);
   };
 
-  const loadPage = async (replace: boolean) => {
+  let feedAnimations: Animation[] = [];
+
+  const frozenStyles = new Map<
+    HTMLElement,
+    { opacity: string; transform: string }
+  >();
+  const restorePostStyles = () => {
+    for (const [node, style] of frozenStyles) {
+      node.style.opacity = style.opacity;
+      node.style.transform = style.transform;
+    }
+    frozenStyles.clear();
+  };
+
+  const clearFeedMotion = (freeze = false) => {
+    const snapshots =
+      freeze && feedAnimations.length
+        ? orderedPosts.map((node) => {
+            const style = getComputedStyle(node);
+            return { node, opacity: style.opacity, transform: style.transform };
+          })
+        : [];
+    for (const animation of feedAnimations) animation.cancel();
+    feedAnimations = [];
+    for (const { node, opacity, transform } of snapshots) {
+      if (!frozenStyles.has(node)) {
+        frozenStyles.set(node, {
+          opacity: node.style.opacity,
+          transform: node.style.transform,
+        });
+      }
+      node.style.opacity = opacity;
+      node.style.transform = transform;
+    }
+    if (!freeze) restorePostStyles();
+    feed.classList.remove("is-switching");
+  };
+
+  const animatePosts = async (entering: boolean) => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const visible = orderedPosts
+      .map((node) => ({ node, rect: node.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.bottom > 0 && rect.top < innerHeight)
+      .sort(
+        (a, b) =>
+          a.rect.top + a.rect.left * 0.45 - (b.rect.top + b.rect.left * 0.45),
+      );
+    const step = Math.min(52, 320 / Math.max(1, visible.length - 1));
+    const animations = visible.map(({ node }, index) =>
+      node.animate(
+        entering
+          ? [
+              { opacity: 0, transform: "translate(-10px, -8px) scale(0.98)" },
+              { opacity: 1, transform: "none" },
+            ]
+          : [
+              {
+                opacity: getComputedStyle(node).opacity,
+                transform: getComputedStyle(node).transform,
+              },
+              { opacity: 0, transform: "translate(8px, 6px) scale(0.98)" },
+            ],
+        {
+          duration: entering ? 270 : 200,
+          delay: index * step,
+          easing: entering
+            ? "cubic-bezier(0.22, 1, 0.36, 1)"
+            : "cubic-bezier(0.4, 0, 0.6, 1)",
+          fill: "both",
+        },
+      ),
+    );
+    feedAnimations.push(...animations);
+    await Promise.allSettled(animations.map((animation) => animation.finished));
+  };
+
+  const loadPage = async (replace: boolean, transition = false) => {
     if (state.search !== null) return;
     if (!replace && (state.loading || state.done)) return;
 
     const seq = ++state.seq;
+    if (replace) clearFeedMotion(transition);
     state.loading = true;
     setSentinelBusy(true);
+    if (transition) feed.classList.add("is-switching");
     try {
-      const page = await getTimeline(state.tab, replace ? null : state.cursor);
+      const [page] = await Promise.all([
+        getTimeline(state.tab, replace ? null : state.cursor),
+        transition ? animatePosts(false) : Promise.resolve(),
+      ]);
       if (seq !== state.seq) return;
-      if (replace) resetFeed();
+      if (replace) {
+        resetFeed();
+        for (const animation of feedAnimations) animation.cancel();
+        feedAnimations = [];
+        restorePostStyles();
+      }
       for (const post of page.posts) addPost(post);
       state.cursor = page.nextCursor;
       state.done = page.nextCursor === null;
+      if (transition) await animatePosts(true);
+      if (seq !== state.seq) return;
       if (state.done && orderedPosts.length === 0) {
         feed.append(statusRow("还没有帖子，发布第一条吧。"));
       } else if (state.done) {
@@ -715,9 +803,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
         }, 0);
       }
     } catch {
-      if (seq === state.seq) renderError(() => loadPage(replace));
+      if (seq === state.seq) renderError(() => loadPage(replace, transition));
     } finally {
       if (seq === state.seq) {
+        if (replace) clearFeedMotion();
         state.loading = false;
         setSentinelBusy(false);
         if (replace) dismissHomeSplash();
@@ -749,6 +838,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       return;
     }
     const seq = ++state.seq;
+    clearFeedMotion();
     state.search = query;
     state.done = true;
     setSearchUrl(query);
@@ -848,6 +938,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
   });
 
   window.addEventListener("scroll", closeComposerPickers, { passive: true });
+  window.addEventListener("resize", closeComposerPickers);
 
   const accountMenuObserver = accountMenu
     ? new MutationObserver(() => {
@@ -876,7 +967,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
       state.cursor = null;
       state.done = false;
       for (const item of tabs) item.classList.toggle("is-active", item === tab);
-      void loadPage(true);
+      setSearchUrl(null);
+      void loadPage(true, true);
     });
   }
 
@@ -902,6 +994,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
 
   feed.addEventListener("click", async (event) => {
+    if (feed.classList.contains("is-switching")) {
+      event.preventDefault();
+      return;
+    }
     const target = event.target as HTMLElement;
     const avatarLink = target.closest<HTMLElement>(".avatar-link");
     if (avatarLink?.dataset.handle) {
@@ -912,17 +1008,20 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
     const inlineLink = target.closest<HTMLAnchorElement>(".inline-link");
     if (inlineLink) {
-      event.preventDefault();
       if (inlineLink.dataset.hashtag) {
+        event.preventDefault();
         const query = `#${inlineLink.dataset.hashtag}`;
         searchInput.value = query;
         void doSearch(query);
         window.scrollTo({ top: 0 });
       } else if (inlineLink.dataset.mention) {
+        event.preventDefault();
         void navigate(userPath(inlineLink.dataset.mention));
       }
       return;
     }
+
+    if (target.closest(".post-repost-label")) return;
 
     const followButton = target.closest<HTMLButtonElement>(".follow-btn");
     if (followButton?.dataset.handle) {
@@ -974,6 +1073,17 @@ export function mountFeed(container: HTMLElement): FeedControls {
       return;
     }
 
+    if (action === "quote-post") {
+      button.disabled = true;
+      try {
+        const created = await quotePost(post);
+        if (created) addPostAtStart(created);
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
+
     if (action === "like" || action === "repost") {
       if (!getAccount()) {
         requestAuthentication();
@@ -991,6 +1101,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
       try {
         let serverCount: number;
         let serverActive: boolean;
+        let resultPost: Post | undefined;
+        let resultThreadId: string | null | undefined;
         if (action === "like") {
           const result = await toggleLike(id, willActive);
           serverCount = result.likes;
@@ -999,12 +1111,41 @@ export function mountFeed(container: HTMLElement): FeedControls {
           const result = await toggleRepost(id, willActive);
           serverCount = result.reposts;
           serverActive = result.reposted;
+          resultPost = result.post;
+          resultThreadId = result.threadId;
         }
         button.dataset.count = String(serverCount);
         setCount(button, serverCount);
         button.classList.toggle(activeClass, serverActive);
         if (action === "repost") {
-          showToast(serverActive ? "已转发" : "已取消转发");
+          if (
+            serverActive &&
+            resultPost &&
+            !orderedPosts.some((node) => node.dataset.postId === resultPost.id)
+          ) {
+            addPostAtStart(resultPost);
+          } else if (!serverActive && resultThreadId) {
+            for (const node of orderedPosts.filter(
+              (node) => node.dataset.postId === resultThreadId,
+            )) {
+              disposePostMedia(node);
+              viewObserver.unobserve(node);
+              orderedPosts.splice(orderedPosts.indexOf(node), 1);
+              node.remove();
+            }
+            postsById.delete(resultThreadId);
+          }
+          for (const node of orderedPosts.filter(
+            (node) => node.dataset.postId === id,
+          )) {
+            const control = node.querySelector<HTMLButtonElement>(
+              '[data-action="repost"]',
+            )!;
+            control.classList.toggle("is-reposted", serverActive);
+            control.dataset.count = String(serverCount);
+            setCount(control, serverCount);
+          }
+          showToast(serverActive ? "已转发到你的动态" : "已取消转发");
         }
       } catch (error) {
         button.classList.toggle(activeClass, !willActive);
@@ -1044,9 +1185,14 @@ export function mountFeed(container: HTMLElement): FeedControls {
       try {
         await deletePost(post.id);
         postsById.delete(post.id);
-        const index = orderedPosts.indexOf(article);
-        if (index !== -1) orderedPosts.splice(index, 1);
-        article.remove();
+        for (const node of orderedPosts.filter(
+          (node) => node.dataset.postId === post.id,
+        )) {
+          disposePostMedia(node);
+          viewObserver.unobserve(node);
+          orderedPosts.splice(orderedPosts.indexOf(node), 1);
+          node.remove();
+        }
         if (orderedPosts.length === 0) {
           feed.append(statusRow("还没有帖子，发布第一条吧。"));
         }
@@ -1284,11 +1430,15 @@ export function mountFeed(container: HTMLElement): FeedControls {
   return {
     syncUser: syncComposerUser,
     dispose: () => {
+      state.seq += 1;
+      clearFeedMotion();
       observer.disconnect();
+      for (const node of orderedPosts) disposePostMedia(node);
       viewObserver.disconnect();
       accountMenuObserver?.disconnect();
       closeComposerPickers();
       window.removeEventListener("scroll", closeComposerPickers);
+      window.removeEventListener("resize", closeComposerPickers);
       for (const [query] of COLUMN_QUERIES) {
         matchMedia(query).removeEventListener("change", onMediaChange);
       }
