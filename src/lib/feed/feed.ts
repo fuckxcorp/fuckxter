@@ -50,6 +50,17 @@ import { postPath, userPath } from "../core/urls";
 const MAX_CHARS = 1000;
 const MAX_MEDIA = 10;
 
+function renderFeedPost(post: Post): HTMLElement {
+  const node = renderPost(post, true, true);
+  const fold = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  fold.classList.add("post-fold");
+  fold.setAttribute("viewBox", "0 0 44 44");
+  fold.setAttribute("aria-hidden", "true");
+  fold.innerHTML = `<path class="post-fold-paper" d="M44 0C40 13 40 25 40 36Q40 40 36 40C24 38 12 41 0 44Z"/><path class="post-fold-crease" d="M43.5.5L.5 43.5"/>`;
+  node.append(fold);
+  return node;
+}
+
 const COLUMN_STORAGE_KEY = "fk_columns";
 
 const COLUMN_QUERIES: [string, number][] = [
@@ -629,7 +640,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const addPost = (post: Post): HTMLElement => {
     ensureLayout();
-    const node = renderPost(post, true, true);
+    const node = renderFeedPost(post);
     if (post.viewer?.saved) {
       node
         .querySelector<HTMLElement>('.action[data-action="save"]')
@@ -652,7 +663,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
    */
   const addPostAtStart = (post: Post): HTMLElement => {
     feed.querySelectorAll(".status").forEach((node) => node.remove());
-    const node = renderPost(post, true, true);
+    const node = renderFeedPost(post);
     if (post.viewer?.saved) {
       node
         .querySelector<HTMLElement>('.action[data-action="save"]')

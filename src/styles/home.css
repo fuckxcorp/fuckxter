@@ -903,12 +903,39 @@ html.menu-open .main {
   width: 44px;
   height: 44px;
   border-radius: 13px 0 0 0;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
   font-size: 1.2rem;
+}
+.feed-columns .post-fold {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 44px;
+  height: 44px;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(
+    1px 1px 1px color-mix(in srgb, var(--ink) 14%, transparent)
+  );
+}
+.feed-columns .post-fold-paper {
+  fill: color-mix(in srgb, var(--color-bg-subtle) 65%, var(--color-bg));
+  stroke: color-mix(in srgb, var(--ink) 17%, transparent);
+  stroke-width: 0.7px;
+  stroke-linejoin: round;
+}
+.feed-columns .post-fold-crease {
+  fill: none;
+  stroke: color-mix(in srgb, var(--color-bg) 75%, transparent);
+  stroke-width: 0.8px;
 }
 .feed-columns .post > .post-body {
   margin-left: calc(42px + 0.75rem);
 }
 @media (max-width: 640px) {
+  .feed-columns .post > .avatar {
+    border-top-left-radius: 11px;
+  }
   .feed-columns .post > .post-body {
     margin-left: calc(42px + 0.6rem);
   }
