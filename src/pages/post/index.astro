@@ -104,7 +104,7 @@ import Header from "../../components/Header.astro";
   import { onPageReady } from "../../lib/core/page";
   import { rememberPost } from "../../lib/feed/history";
   import { openPostShareMenu } from "../../lib/ui/share";
-  import { quotePost } from "../../lib/ui/repost";
+  import { openPostRepostMenu, quotePost } from "../../lib/ui/repost";
   import type { Comment, Post, PostMedia } from "../../lib/core/types";
   import { parsePostPath, postPath, userPath } from "../../lib/core/urls";
 
@@ -215,7 +215,6 @@ import Header from "../../components/Header.astro";
       actionButton("repost", ICONS.repost, "转发", post.stats.reposts),
       actionButton("like", ICONS.heart, "喜欢", post.stats.likes),
       actionButton("share", ICONS.share, "分享", 0),
-      actionButton("quote-post", ICONS.copy, "转发并评论", 0),
     );
 
     if (post.viewer?.isAuthor) {
@@ -259,20 +258,21 @@ import Header from "../../components/Header.astro";
         return;
       }
 
-      if (action === "quote-post") {
-        btn.disabled = true;
-        try {
-          await quotePost(post);
-        } finally {
-          btn.disabled = false;
-        }
-        return;
-      }
-
       if (action === "like" || action === "repost") {
         if (!getAccount()) {
           requestAuthentication();
           return;
+        }
+        if (action === "repost") {
+          const choice = await openPostRepostMenu(
+            btn,
+            btn.classList.contains("is-reposted"),
+          );
+          if (choice === "cancelled") return;
+          if (choice === "quote") {
+            await quotePost(post);
+            return;
+          }
         }
         const activeClass = action === "like" ? "is-liked" : "is-reposted";
         const willActive = !btn.classList.contains(activeClass);

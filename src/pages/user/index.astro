@@ -12,7 +12,11 @@ import Header from "../../components/Header.astro";
     <div class="user-main">
       <div class="user-inner">
         <section class="user-head" data-role="user-head" aria-label="用户资料">
-          <section class="user-head-card" data-role="user-card">
+          <section
+            class="user-head-card is-loading"
+            data-role="user-card"
+            aria-busy="true"
+          >
             <div class="user-row">
               <button
                 type="button"
@@ -64,6 +68,13 @@ import Header from "../../components/Header.astro";
 
             <p class="user-bio" data-role="user-bio"></p>
 
+            <div class="user-meta-placeholder" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+
             <div class="user-meta">
               <span class="user-chip" data-role="user-chip-gender" hidden>
                 <span class="user-chip-label">性别</span>
@@ -109,6 +120,7 @@ import Header from "../../components/Header.astro";
             </div>
 
             <div class="user-actions">
+              <span class="user-action-placeholder" aria-hidden="true"></span>
               <button
                 type="button"
                 class="primary-btn"
@@ -220,7 +232,7 @@ import Header from "../../components/Header.astro";
   import { ApiError, apiEndpoint } from "../../lib/core/http";
   import { onPageReady } from "../../lib/core/page";
   import { openPostShareMenu } from "../../lib/ui/share";
-  import { quotePost } from "../../lib/ui/repost";
+  import { openPostRepostMenu, quotePost } from "../../lib/ui/repost";
   import type { Post, UserProfile } from "../../lib/core/types";
   import {
     conversationPath,
@@ -314,6 +326,10 @@ import Header from "../../components/Header.astro";
       follow.textContent = profile.viewer.following ? "已关注" : "关注";
       follow.classList.toggle("ghost-btn", profile.viewer.following);
     }
+    card.classList.remove("is-loading");
+    card.setAttribute("aria-busy", "false");
+    card.querySelector(".user-meta-placeholder")?.remove();
+    card.querySelector(".user-action-placeholder")?.remove();
   }
 
   /**
@@ -454,17 +470,22 @@ import Header from "../../components/Header.astro";
         return;
       }
 
-      if (action === "quote-post") {
-        btn.disabled = true;
-        try {
-          if (await quotePost(post)) await postList.reload?.();
-        } finally {
-          btn.disabled = false;
-        }
-        return;
-      }
-
       if (action === "like" || action === "repost") {
+        if (!getAccount()) {
+          requestAuthentication();
+          return;
+        }
+        if (action === "repost") {
+          const choice = await openPostRepostMenu(
+            btn,
+            btn.classList.contains("is-reposted"),
+          );
+          if (choice === "cancelled") return;
+          if (choice === "quote") {
+            if (await quotePost(post)) await postList.reload?.();
+            return;
+          }
+        }
         const cls = action === "like" ? "is-liked" : "is-reposted";
         const willActive = !btn.classList.contains(cls);
         btn.classList.toggle(cls, willActive);

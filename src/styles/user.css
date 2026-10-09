@@ -19,7 +19,7 @@
 
 .user-inner {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.5rem;
   width: 98%;
   height: auto;
@@ -46,6 +46,85 @@
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-bg-raised);
+}
+
+.user-head-card.is-loading {
+  pointer-events: none;
+}
+
+.user-head-card.is-loading .user-avatar,
+.user-head-card.is-loading [data-role="user-name"],
+.user-head-card.is-loading .user-handle,
+.user-head-card.is-loading .user-bio,
+.user-meta-placeholder span,
+.user-action-placeholder {
+  color: transparent;
+  border-color: transparent;
+  background: linear-gradient(
+    105deg,
+    var(--color-bg-subtle) 18%,
+    color-mix(in srgb, var(--color-bg-hover) 78%, var(--color-bg)) 42%,
+    var(--color-bg-subtle) 66%
+  );
+  background-size: 220% 100%;
+  animation: placeholder-shimmer 1.6s ease-in-out infinite;
+}
+
+.user-head-card.is-loading .user-avatar > * {
+  visibility: hidden;
+}
+
+.user-head-card.is-loading [data-role="user-name"] {
+  display: block;
+  width: min(12rem, 55%);
+  height: 1.35rem;
+  border-radius: 6px;
+}
+
+.user-head-card.is-loading .user-handle {
+  width: min(8rem, 40%);
+  height: 0.85rem;
+  margin-top: 0.45rem;
+  border-radius: 5px;
+}
+
+.user-head-card.is-loading .user-bio {
+  width: calc(100% - 2.5rem);
+  height: 3rem;
+  border-radius: 8px;
+}
+
+.user-meta-placeholder {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.user-meta-placeholder span {
+  height: 2.35rem;
+  border-radius: 10px;
+}
+
+.user-action-placeholder {
+  flex: 1 1 auto;
+  height: 2.15rem;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+.user-head-card.is-loading .user-meta,
+.user-head-card.is-loading .user-actions > :not(.user-action-placeholder) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .user-head-card.is-loading .user-avatar,
+  .user-head-card.is-loading [data-role="user-name"],
+  .user-head-card.is-loading .user-handle,
+  .user-head-card.is-loading .user-bio,
+  .user-meta-placeholder span,
+  .user-action-placeholder {
+    animation: none;
+  }
 }
 
 .user-head > .status {

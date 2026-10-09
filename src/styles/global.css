@@ -1891,7 +1891,19 @@ html body .post-control-actions .action:hover::before {
   color: var(--color-text-muted);
   font-size: 0.8rem;
 }
+.post-source-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+.post-source-avatar {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+}
 .post-source-link {
+  flex: 1 1 auto;
+  min-width: 0;
   display: block;
   color: var(--color-text-strong);
 }

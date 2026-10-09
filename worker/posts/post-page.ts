@@ -161,7 +161,7 @@ function renderSide(post: Post, origin: string): string {
       ? `<span class="action-count">${value}</span>`
       : '<span class="action-count"></span>';
   const action = (name: keyof typeof SIDE_ICONS, label: string, value = 0) =>
-    `<button type="button" class="action" data-action="${name}" data-count="${value}" aria-label="${label}" title="${label}">${SIDE_ICONS[name]}${count(value)}</button>`;
+    `<button type="button" class="action" data-action="${name}" data-count="${value}" aria-label="${label}" title="${label}"${name === "repost" ? ' aria-haspopup="menu"' : ""}>${SIDE_ICONS[name]}${count(value)}</button>`;
 
   return [
     `<section class="post-info shard" data-shard="${postShard(`${post.id}:info`)}">`,

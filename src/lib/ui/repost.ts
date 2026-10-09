@@ -4,6 +4,79 @@ import { postPath } from "../core/urls";
 import type { Post } from "../core/types";
 import { el, renderRichText, showToast } from "./dom";
 
+export type RepostMenuResult = "repost" | "quote" | "cancelled";
+
+export function openPostRepostMenu(
+  anchor: HTMLElement,
+  reposted: boolean,
+): Promise<RepostMenuResult> {
+  return new Promise((resolve) => {
+    document.querySelector("[data-repost-menu]")?.remove();
+
+    const menu = el("div", "submenu share-menu");
+    menu.dataset.repostMenu = "";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "转发帖子");
+    menu.hidden = true;
+    anchor.setAttribute("aria-expanded", "true");
+
+    const choice = (label: string, description: string) => {
+      const button = el("button", "menu-item share-menu-item");
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      const strong = el("strong");
+      strong.textContent = label;
+      const small = el("span");
+      small.textContent = description;
+      button.append(strong, small);
+      return button;
+    };
+    const direct = choice(
+      reposted ? "取消转发" : "直接转发",
+      reposted ? "从你的动态中移除" : "立即转发到你的动态",
+    );
+    const quote = choice("评论并转发", "添加评论后再发布");
+    menu.append(direct, quote);
+    document.body.append(menu);
+    menu.hidden = false;
+
+    const rect = anchor.getBoundingClientRect();
+    menu.style.left = `${Math.min(Math.max(8, rect.left), Math.max(8, innerWidth - menu.offsetWidth - 8))}px`;
+    menu.style.top = `${
+      rect.bottom + menu.offsetHeight + 8 <= innerHeight
+        ? rect.bottom + 8
+        : Math.max(8, rect.top - menu.offsetHeight - 8)
+    }px`;
+
+    let settled = false;
+    const finish = (result: RepostMenuResult) => {
+      if (settled) return;
+      settled = true;
+      document.removeEventListener("pointerdown", outside, true);
+      document.removeEventListener("keydown", escape, true);
+      window.removeEventListener("resize", cancel);
+      window.removeEventListener("scroll", cancel, true);
+      anchor.removeAttribute("aria-expanded");
+      menu.remove();
+      resolve(result);
+    };
+    const outside = (event: PointerEvent) => {
+      if (!menu.contains(event.target as Node)) finish("cancelled");
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") finish("cancelled");
+    };
+    const cancel = () => finish("cancelled");
+    direct.addEventListener("click", () => finish("repost"));
+    quote.addEventListener("click", () => finish("quote"));
+    document.addEventListener("pointerdown", outside, true);
+    document.addEventListener("keydown", escape, true);
+    window.addEventListener("resize", cancel);
+    window.addEventListener("scroll", cancel, true);
+    direct.focus();
+  });
+}
+
 export function quotePost(post: Post): Promise<Post | null> {
   if (!getAccount()) {
     requestAuthentication();

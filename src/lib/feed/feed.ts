@@ -35,7 +35,7 @@ import {
 } from "../ui/dom";
 import { ApiError, apiEndpoint } from "../core/http";
 import { openPostShareMenu } from "../ui/share";
-import { quotePost } from "../ui/repost";
+import { openPostRepostMenu, quotePost } from "../ui/repost";
 import type {
   FeedTab,
   Post,
@@ -1058,6 +1058,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     const button = target.closest<HTMLButtonElement>(".action");
     if (!button) {
       const article = target.closest<HTMLElement>(".post");
+      const body = article?.querySelector<HTMLElement>(":scope > .post-body");
+      if (target !== article && target !== body) return;
       const id = article?.dataset.postId;
       const post = id ? postsById.get(id) : undefined;
       if (post && article) {
@@ -1084,21 +1086,22 @@ export function mountFeed(container: HTMLElement): FeedControls {
       return;
     }
 
-    if (action === "quote-post") {
-      button.disabled = true;
-      try {
-        const created = await quotePost(post);
-        if (created) addPostAtStart(created);
-      } finally {
-        button.disabled = false;
-      }
-      return;
-    }
-
     if (action === "like" || action === "repost") {
       if (!getAccount()) {
         requestAuthentication();
         return;
+      }
+      if (action === "repost") {
+        const choice = await openPostRepostMenu(
+          button,
+          button.classList.contains("is-reposted"),
+        );
+        if (choice === "cancelled") return;
+        if (choice === "quote") {
+          const created = await quotePost(post);
+          if (created) addPostAtStart(created);
+          return;
+        }
       }
       const activeClass = action === "like" ? "is-liked" : "is-reposted";
       const willActive = !button.classList.contains(activeClass);
