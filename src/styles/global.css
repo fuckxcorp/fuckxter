@@ -1187,8 +1187,9 @@ body {
   pointer-events: none;
 }
 
-.media-image {
+img.media-image {
   display: block;
+  aspect-ratio: auto;
   /* 默认限制 260 × 400px，仍按图片自身比例展示。 */
   max-width: min(100%, 260px);
   max-height: 400px;
