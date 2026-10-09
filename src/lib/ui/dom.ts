@@ -1,3 +1,4 @@
+import { getLocale } from "../i18n";
 import { postPath } from "../core/urls";
 import type { Post } from "../core/types";
 import { apiEndpoint } from "../core/http";
@@ -43,7 +44,7 @@ export function relativeTime(iso: string): string {
   if (diffSeconds < 86_400) return `${Math.floor(diffSeconds / 3600)}小时前`;
   if (diffSeconds < 86_400 * 7)
     return `${Math.floor(diffSeconds / 86_400)}天前`;
-  return new Date(iso).toLocaleDateString("zh-CN", {
+  return new Date(iso).toLocaleDateString(getLocale(), {
     month: "numeric",
     day: "numeric",
   });
@@ -79,6 +80,31 @@ export function showPanel(panel: HTMLElement): void {
   }
   panel.classList.remove("is-closing");
   panel.hidden = false;
+  if (panel.matches(".account-menu .submenu") && innerWidth <= 640) {
+    for (const name of [
+      "max-height",
+      "overflow-y",
+      "bottom",
+      "top",
+      "transform-origin",
+    ]) {
+      panel.style.removeProperty(name);
+    }
+  }
+  if (panel.matches(".account-menu .submenu") && innerWidth > 640) {
+    const row = panel.parentElement!;
+    const trigger = row.querySelector<HTMLElement>(".menu-expandable")!;
+    const anchor = row.getBoundingClientRect();
+    panel.style.maxHeight = `${innerHeight - 16}px`;
+    panel.style.overflowY = "auto";
+    panel.style.bottom = "auto";
+    const top = Math.max(
+      8,
+      Math.min(anchor.top - 6, innerHeight - panel.offsetHeight - 8),
+    );
+    panel.style.top = `${top - anchor.top}px`;
+    panel.style.transformOrigin = `100% ${trigger.getBoundingClientRect().top + trigger.offsetHeight / 2 - top}px`;
+  }
 }
 
 export function isPanelOpen(panel: HTMLElement): boolean {
@@ -205,7 +231,7 @@ export function postMetaText(
   const stamp =
     timeMode === "relative"
       ? relativeTime(post.createdAt)
-      : new Date(post.createdAt).toLocaleString("zh-CN");
+      : new Date(post.createdAt).toLocaleString(getLocale());
   const views = post.stats.views ?? 0;
   return `@${post.author.handle} · ${stamp}${
     views > 0 ? ` · ${fmtCount(views)} 次浏览` : ""
@@ -317,29 +343,6 @@ export function postMedia(post: Post, carousel = false): HTMLElement {
     event.stopPropagation();
     move(event.key === "ArrowRight" ? 1 : -1);
   });
-  list.addEventListener(
-    "wheel",
-    (event) => {
-      if (event.ctrlKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY))
-        return;
-      const delta =
-        event.deltaY *
-        (event.deltaMode === 1
-          ? 16
-          : event.deltaMode === 2
-            ? list.clientWidth
-            : 1);
-      if (
-        (delta > 0 &&
-          list.scrollLeft + list.clientWidth < list.scrollWidth - 2) ||
-        (delta < 0 && list.scrollLeft > 2)
-      ) {
-        event.preventDefault();
-        list.scrollLeft += delta;
-      }
-    },
-    { passive: false },
-  );
   list.addEventListener("scroll", sync, { passive: true });
   list.addEventListener("load", sync, true);
   wrap.append(list, prev, next);

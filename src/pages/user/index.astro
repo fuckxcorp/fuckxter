@@ -40,7 +40,9 @@ import Header from "../../components/Header.astro";
 
               <div class="user-who">
                 <div class="user-name-line">
-                  <strong data-role="user-name">加载中…</strong>
+                  <strong data-role="user-name" data-i18n-ui>
+                    加载中…
+                  </strong>
                   <span data-role="user-verified" hidden>
                     <svg
                       class="verified"
@@ -205,6 +207,7 @@ import Header from "../../components/Header.astro";
 </Layout>
 
 <script>
+  import { confirmTranslated, getLocale } from "../../lib/i18n";
   import { navigate } from "astro:transitions/client";
   import {
     deletePost,
@@ -242,7 +245,7 @@ import Header from "../../components/Header.astro";
   } from "../../lib/core/urls";
 
   const fullTime = (iso: string) =>
-    new Date(iso).toLocaleString("zh-CN", { dateStyle: "long" });
+    new Date(iso).toLocaleString(getLocale(), { dateStyle: "long" });
 
   function setUserChip(card: HTMLElement, role: string, value: string): void {
     const chip = card.querySelector<HTMLElement>(
@@ -289,8 +292,10 @@ import Header from "../../components/Header.astro";
       : "/user.avif";
     avatarImage.alt = profile.name;
 
+    role<HTMLElement>("name").removeAttribute("data-i18n-ui");
     role<HTMLElement>("name").textContent = profile.name;
     role<HTMLElement>("handle").textContent = `@${profile.handle}`;
+    role<HTMLElement>("bio").toggleAttribute("data-i18n-ui", !profile.bio);
     role<HTMLElement>("bio").textContent =
       profile.bio || "这个人很懒，什么都没有写。";
     verified.toggleAttribute("hidden", !profile.verified);
@@ -435,7 +440,7 @@ import Header from "../../components/Header.astro";
       }
 
       if (action === "delete") {
-        if (!confirm("确定删除这条帖子吗？")) return;
+        if (!confirmTranslated("确定删除这条帖子吗？")) return;
         btn.disabled = true;
         try {
           await deletePost(post.id);

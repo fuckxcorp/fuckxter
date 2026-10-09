@@ -1,3 +1,4 @@
+import { getLocale } from "../i18n";
 import type { Account } from "../accounts/auth";
 
 export type SettingsSection = "profile" | "security" | "storage";
@@ -14,7 +15,7 @@ export function setStatus(element: HTMLElement | null, message: string): void {
 export function downloadRecoveryCodes(codes: string[]): void {
   const content = [
     "FuckXter 恢复密钥",
-    `生成时间：${new Date().toLocaleString("zh-CN")}`,
+    `生成时间：${new Date().toLocaleString(getLocale())}`,
     "",
     ...codes,
     "",

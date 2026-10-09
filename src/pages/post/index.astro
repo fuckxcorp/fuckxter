@@ -63,6 +63,7 @@ import Header from "../../components/Header.astro";
 </Layout>
 
 <script>
+  import { confirmTranslated, getLocale } from "../../lib/i18n";
   import { navigate } from "astro:transitions/client";
   import {
     createComment,
@@ -109,7 +110,7 @@ import Header from "../../components/Header.astro";
   import { parsePostPath, postPath, userPath } from "../../lib/core/urls";
 
   const fullTime = (iso: string) =>
-    new Date(iso).toLocaleString("zh-CN", {
+    new Date(iso).toLocaleString(getLocale(), {
       dateStyle: "long",
       timeStyle: "short",
     });
@@ -313,7 +314,7 @@ import Header from "../../components/Header.astro";
       }
 
       if (action === "delete") {
-        if (!confirm("确定删除这条帖子吗？")) return;
+        if (!confirmTranslated("确定删除这条帖子吗？")) return;
         btn.disabled = true;
         try {
           await deletePost(post.id);
@@ -582,7 +583,7 @@ import Header from "../../components/Header.astro";
         const message = descendantCount
           ? `这条回帖下有 ${descendantCount} 条楼中楼回复，删除后会一并删除。确定继续吗？`
           : "确定删除这条回帖吗？";
-        if (!confirm(message)) return;
+        if (!confirmTranslated(message)) return;
         remove.disabled = true;
         try {
           await deleteComment(postId, comment.id);
@@ -1038,7 +1039,7 @@ import Header from "../../components/Header.astro";
         const message = count
           ? `这条回帖下有 ${count} 条楼中楼回复，删除后会一并删除。确定继续吗？`
           : "确定删除这条回帖吗？";
-        if (!confirm(message)) return;
+        if (!confirmTranslated(message)) return;
         remove.disabled = true;
         try {
           await deleteComment(post.id, remove.dataset.commentId);
@@ -1173,7 +1174,7 @@ import Header from "../../components/Header.astro";
               toggle.textContent =
                 revealed === rest.length
                   ? "收起更多回复"
-                  : `${revealed === 0 ? "查看其余" : "继续展开"} ${hiddenReplies} 条回复`;
+                  : `${hiddenReplies} 条回复`;
             };
             const revealNext = () => {
               let added = 0;

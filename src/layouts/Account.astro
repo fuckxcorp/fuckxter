@@ -1,4 +1,6 @@
 ---
+import { languages } from "../lib/i18n";
+
 interface Props {
   columns?: boolean;
 }
@@ -221,6 +223,47 @@ const { columns = false } = Astro.props;
         </div>
       </div>
     )}
+
+    <div class="menu-row">
+      <button
+        type="button"
+        class="menu-item menu-expandable"
+        role="menuitem"
+        aria-expanded="false"
+        aria-haspopup="menu"
+        data-account-open="language"
+      >
+        语言
+        <span class="menu-arrow" aria-hidden="true">
+          ▸
+        </span>
+      </button>
+      <div
+        class="submenu language-submenu"
+        data-role="language-submenu"
+        role="menu"
+        hidden
+      >
+        {languages.map((language) => (
+          <button
+            type="button"
+            class="menu-item"
+            role="menuitemradio"
+            data-language-choice={language.code}
+            data-no-translate
+          >
+            <span class="menu-check">✓</span>
+            <span
+              data-nom-label={
+                language.code === "vi-Hani" ? language.name : undefined
+              }
+            >
+              {language.name}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
 
     <div data-role="signout-items" hidden>
       <hr class="menu-sep" />

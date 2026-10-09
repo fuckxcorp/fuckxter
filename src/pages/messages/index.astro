@@ -220,9 +220,14 @@ import Layout from "../../layouts/Layout.astro";
       top.append(name, handle, time);
 
       const preview = el("span", "thread-preview");
-      preview.textContent = thread.lastMessage
-        ? `${thread.lastMessage.mine ? "我：" : ""}${thread.lastMessage.body}`
-        : "还没有消息";
+      if (thread.lastMessage) {
+        if (thread.lastMessage.mine)
+          preview.append(document.createTextNode("我："));
+        const text = el("span");
+        text.dataset.noTranslate = "";
+        text.textContent = thread.lastMessage.body;
+        preview.append(text);
+      } else preview.textContent = "还没有消息";
 
       body.append(top, preview);
       row.append(body);

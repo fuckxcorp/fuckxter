@@ -1,3 +1,4 @@
+import { confirmTranslated } from "../i18n";
 import { navigate } from "astro:transitions/client";
 import {
   createPost,
@@ -49,17 +50,6 @@ import { postPath, userPath } from "../core/urls";
 
 const MAX_CHARS = 1000;
 const MAX_MEDIA = 10;
-
-function renderFeedPost(post: Post): HTMLElement {
-  const node = renderPost(post, true, true);
-  const fold = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  fold.classList.add("post-fold");
-  fold.setAttribute("viewBox", "0 0 44 44");
-  fold.setAttribute("aria-hidden", "true");
-  fold.innerHTML = `<path class="post-fold-paper" d="M44 0C40 13 40 25 40 36Q40 40 36 40C24 38 12 41 0 44Z"/><path class="post-fold-crease" d="M43.5.5L.5 43.5"/>`;
-  node.append(fold);
-  return node;
-}
 
 const COLUMN_STORAGE_KEY = "fk_columns";
 
@@ -155,6 +145,7 @@ function searchUsersSection(result: SearchResult): HTMLElement | null {
     const handle = el("span");
     handle.textContent = `@${user.handle}`;
     const bio = el("p");
+    bio.toggleAttribute("data-i18n-ui", !user.bio);
     bio.textContent = user.bio || "这个人很懒，什么都没有写。";
     copy.append(name, handle, bio);
     row.append(avatar, copy);
@@ -635,12 +626,13 @@ export function mountFeed(container: HTMLElement): FeedControls {
     if (head) feed.append(head);
     columnsRoot = null;
     activeColumnCount = 0;
+    renderedTab = null;
     ensureLayout();
   };
 
   const addPost = (post: Post): HTMLElement => {
     ensureLayout();
-    const node = renderFeedPost(post);
+    const node = renderPost(post, true, true);
     if (post.viewer?.saved) {
       node
         .querySelector<HTMLElement>('.action[data-action="save"]')
@@ -663,7 +655,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
    */
   const addPostAtStart = (post: Post): HTMLElement => {
     feed.querySelectorAll(".status").forEach((node) => node.remove());
-    const node = renderFeedPost(post);
+    const node = renderPost(post, true, true);
     if (post.viewer?.saved) {
       node
         .querySelector<HTMLElement>('.action[data-action="save"]')
@@ -703,6 +695,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
 
   let feedAnimations: Animation[] = [];
+  let feedMotion: { entering: boolean; finished: Promise<void> } | null = null;
+  let renderedTab: FeedTab | null = null;
+  let renderedCursor: string | null = null;
+  let renderedDone = false;
 
   const frozenStyles = new Map<
     HTMLElement,
@@ -726,6 +722,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         : [];
     for (const animation of feedAnimations) animation.cancel();
     feedAnimations = [];
+    feedMotion = null;
     for (const { node, opacity, transform } of snapshots) {
       if (!frozenStyles.has(node)) {
         frozenStyles.set(node, {
@@ -736,11 +733,16 @@ export function mountFeed(container: HTMLElement): FeedControls {
       node.style.opacity = opacity;
       node.style.transform = transform;
     }
-    if (!freeze) restorePostStyles();
-    feed.classList.remove("is-switching");
+    if (!freeze) {
+      restorePostStyles();
+      feed.classList.remove("is-switching");
+    }
   };
 
-  const animatePosts = async (entering: boolean) => {
+  const animatePosts = async (entering: boolean, resume = false) => {
+    if (feedMotion?.entering === entering) return feedMotion.finished;
+    const interrupted = feedMotion !== null || resume;
+    if (interrupted) clearFeedMotion(true);
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const visible = orderedPosts
       .map((node) => ({ node, rect: node.getBoundingClientRect() }))
@@ -749,45 +751,74 @@ export function mountFeed(container: HTMLElement): FeedControls {
         (a, b) =>
           a.rect.top + a.rect.left * 0.45 - (b.rect.top + b.rect.left * 0.45),
       );
-    const step = Math.min(52, 320 / Math.max(1, visible.length - 1));
-    const animations = visible.map(({ node }, index) =>
-      node.animate(
-        entering
-          ? [
-              { opacity: 0, transform: "translate(-10px, -8px) scale(0.98)" },
-              { opacity: 1, transform: "none" },
-            ]
-          : [
-              {
-                opacity: getComputedStyle(node).opacity,
-                transform: getComputedStyle(node).transform,
-              },
-              { opacity: 0, transform: "translate(8px, 6px) scale(0.98)" },
-            ],
+    const step = interrupted
+      ? 0
+      : Math.min(52, 320 / Math.max(1, visible.length - 1));
+    const animations = visible.map(({ node }, index) => {
+      const style = getComputedStyle(node);
+      const opacity = entering && !interrupted ? 0 : Number(style.opacity);
+      const remaining = entering ? 1 - opacity : opacity;
+      return node.animate(
+        [
+          {
+            opacity,
+            transform:
+              entering && !interrupted
+                ? "translate(-10px, -8px) scale(0.98)"
+                : style.transform,
+          },
+          {
+            opacity: entering ? 1 : 0,
+            transform: entering ? "none" : "translate(8px, 6px) scale(0.98)",
+          },
+        ],
         {
-          duration: entering ? 270 : 200,
+          duration: interrupted
+            ? remaining < 0.001
+              ? 0
+              : Math.max(80, (entering ? 270 : 200) * remaining)
+            : entering
+              ? 270
+              : 200,
           delay: index * step,
           easing: entering
             ? "cubic-bezier(0.22, 1, 0.36, 1)"
             : "cubic-bezier(0.4, 0, 0.6, 1)",
           fill: "both",
         },
-      ),
-    );
-    feedAnimations.push(...animations);
-    await Promise.allSettled(animations.map((animation) => animation.finished));
+      );
+    });
+    feedAnimations = animations;
+    const finished = Promise.allSettled(
+      animations.map((animation) => animation.finished),
+    ).then(() => {});
+    feedMotion = { entering, finished };
+    await finished;
   };
 
   const loadPage = async (replace: boolean, transition = false) => {
     if (state.search !== null) return;
-    if (!replace && (state.loading || state.done)) return;
+    if (!replace && (state.loading || state.done || state.tab !== renderedTab))
+      return;
 
     const seq = ++state.seq;
-    if (replace) clearFeedMotion(transition);
+    const interrupted = feedMotion !== null;
+    if (replace && !transition) clearFeedMotion();
     state.loading = true;
     setSentinelBusy(true);
     if (transition) feed.classList.add("is-switching");
     try {
+      if (
+        transition &&
+        interrupted &&
+        renderedTab === state.tab &&
+        orderedPosts.length
+      ) {
+        state.cursor = renderedCursor;
+        state.done = renderedDone;
+        await animatePosts(true, true);
+        return;
+      }
       if (state.tab === "following" && !getAccount()) {
         resetFeed();
         state.cursor = null;
@@ -802,13 +833,15 @@ export function mountFeed(container: HTMLElement): FeedControls {
       if (seq !== state.seq) return;
       if (replace) {
         resetFeed();
-        for (const animation of feedAnimations) animation.cancel();
-        feedAnimations = [];
-        restorePostStyles();
+        clearFeedMotion();
+        if (transition) feed.classList.add("is-switching");
       }
       for (const post of page.posts) addPost(post);
       state.cursor = page.nextCursor;
       state.done = page.nextCursor === null;
+      renderedTab = state.tab;
+      renderedCursor = state.cursor;
+      renderedDone = state.done;
       if (transition) await animatePosts(true);
       if (seq !== state.seq) return;
       if (state.done && orderedPosts.length === 0) {
@@ -827,7 +860,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
         }, 0);
       }
     } catch {
-      if (seq === state.seq) renderError(() => loadPage(replace, transition));
+      if (seq === state.seq) {
+        if (transition) await animatePosts(true, true);
+        if (seq === state.seq) renderError(() => loadPage(replace, transition));
+      }
     } finally {
       if (seq === state.seq) {
         if (replace) clearFeedMotion();
@@ -1071,8 +1107,15 @@ export function mountFeed(container: HTMLElement): FeedControls {
     const button = target.closest<HTMLButtonElement>(".action");
     if (!button) {
       const article = target.closest<HTMLElement>(".post");
-      const body = article?.querySelector<HTMLElement>(":scope > .post-body");
-      if (target !== article && target !== body) return;
+      if (
+        !article ||
+        target.closest(
+          "a, button, input, textarea, .media-strip, .media-carousel, .post-source",
+        ) ||
+        (window.getSelection()?.toString() &&
+          article.contains(window.getSelection()?.anchorNode ?? null))
+      )
+        return;
       const id = article?.dataset.postId;
       const post = id ? postsById.get(id) : undefined;
       if (post && article) {
@@ -1207,7 +1250,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
     }
 
     if (action === "delete") {
-      if (!post.viewer?.isAuthor || !confirm("确定删除这条帖子吗？")) return;
+      if (!post.viewer?.isAuthor || !confirmTranslated("确定删除这条帖子吗？"))
+        return;
       button.disabled = true;
       try {
         await deletePost(post.id);

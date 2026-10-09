@@ -39,6 +39,7 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
+  import { getLocale } from "../lib/i18n";
   import { getUserList } from "../lib/accounts/api";
   import { authorAvatar, el, statusRow } from "../lib/ui/dom";
   import { onPageReady } from "../lib/core/page";
@@ -68,6 +69,7 @@ import Layout from "../layouts/Layout.astro";
 
       const details = el("div", "user-list-details");
       const bio = el("p");
+      bio.toggleAttribute("data-i18n-ui", !user.bio);
       bio.textContent = user.bio || "这个人很懒，什么都没有写。";
       const stats = el("div", "user-list-stats");
       const stat = (label: string, value: number) => {
@@ -80,7 +82,7 @@ import Layout from "../layouts/Layout.astro";
       stat("关注", user.stats.following);
       const joined = el("time", "user-list-joined");
       joined.dateTime = user.createdAt;
-      joined.textContent = `加入于 ${new Date(user.createdAt).toLocaleDateString("zh-CN")}`;
+      joined.textContent = `加入于 ${new Date(user.createdAt).toLocaleDateString(getLocale())}`;
       details.append(bio, stats, joined);
 
       row.append(avatar, identity, details);

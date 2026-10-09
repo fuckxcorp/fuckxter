@@ -21,7 +21,7 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
     <meta name="description" content="FuckXter 是一个开放、轻量的社交平台。" />
     <meta name="theme-color" content="#ffffff" />
     <meta property="og:site_name" content="FuckXter" />
-    <link rel="icon" type="image/avif" href="/fuckxter_logo.avif" />
+    <link rel="icon" type="image/avif" href="/fuckxter_logo.avif?v=rounded" />
     <meta name="generator" content={Astro.generator} />
     <title>{documentTitle}</title>
     <ClientRouter />
@@ -86,6 +86,10 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
         },
         true,
       );
+    </script>
+    <script>
+      import { installI18n } from "../lib/i18n";
+      installI18n();
     </script>
   </body>
 </html>

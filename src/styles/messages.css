@@ -742,3 +742,25 @@
     max-width: 88%;
   }
 }
+
+.new-chat-icon,
+.thread .thread-avatar,
+.quick-start-avatar,
+.chat-user .chat-avatar {
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 9px) 100%, 0 100%);
+  clip-path: shape(
+    from 4px 0,
+    line to calc(100% - 4px) 0,
+    curve to 100% 4px with 100% 0,
+    line to calc(100% - 9px) calc(100% - 4px),
+    curve to calc(100% - 13px) 100% with calc(100% - 9px) 100%,
+    line to 4px 100%,
+    curve to 0 calc(100% - 4px) with 0 100%,
+    line to 0 4px,
+    curve to 4px 0 with 0 0,
+    close
+  );
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 45%);
+  mask-image: linear-gradient(to left, transparent 0, #000 45%);
+}

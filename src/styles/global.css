@@ -193,10 +193,6 @@ body {
   display: block;
 }
 
-.logo-dark {
-  filter: invert(1);
-}
-
 .search {
   position: relative;
   isolation: isolate;
@@ -1758,6 +1754,7 @@ html body .post-control-actions .action:hover::before {
 }
 
 .media-carousel .media-list {
+  scroll-snap-type: none;
   scrollbar-width: none;
   touch-action: pan-x pan-y;
 }
@@ -1921,4 +1918,61 @@ html body .post-control-actions .action:hover::before {
   display: inline-block;
   margin-top: 0.5rem;
   font-size: 0.75rem;
+}
+
+@font-face {
+  font-family: "FuckXter Nôm";
+  src: url("/fonts/nom-ui.woff2") format("woff2");
+  font-display: swap;
+}
+html[lang="vi-Hani"] body,
+html[lang="vi-Hani"] body * {
+  font-family:
+    system-ui,
+    -apple-system,
+    "FuckXter Nôm",
+    sans-serif;
+}
+[data-i18n-rendered] {
+  display: inline;
+  min-width: 0;
+}
+.nom-glyph {
+  display: inline-block;
+  position: relative;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.08em;
+  color: inherit;
+}
+.nom-glyph > span {
+  opacity: 0;
+}
+.nom-glyph::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  mask: var(--nom-image) center / contain no-repeat;
+}
+[data-language-choice="vi-Hani"] {
+  font-family: system-ui, "FuckXter Nôm", sans-serif;
+}
+.language-submenu {
+  --slab-left: 54px;
+  --slab-top-right: 54px;
+  min-width: 280px;
+  top: -0.4rem;
+}
+@media (max-width: 640px) {
+  .account-menu {
+    max-height: calc(100dvh - 80px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .language-submenu {
+    min-width: 0;
+    max-height: 280px;
+    overflow-y: auto;
+  }
 }

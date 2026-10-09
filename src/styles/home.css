@@ -328,6 +328,8 @@ html.menu-open .main {
 }
 
 .composer {
+  width: min(100%, 880px);
+  margin-inline: auto;
   display: flex;
   gap: 0.75rem;
   padding: 1rem 1.25rem;
@@ -831,43 +833,35 @@ html.menu-open .main {
   position: absolute;
   top: 0;
   left: 0;
-  width: 44px;
-  height: 44px;
+  width: 60px;
+  height: 60px;
   border-radius: 13px 0 0 0;
-  clip-path: polygon(0 0, 100% 0, 0 100%);
+  mask-image: radial-gradient(
+    circle at 10px 10px,
+    #000 30%,
+    rgb(0 0 0 / 85%) 45%,
+    transparent 72%
+  );
   font-size: 1.2rem;
 }
-.feed-columns .post-fold {
+.feed-columns .post > .avatar::after {
+  content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 44px;
-  height: 44px;
-  overflow: visible;
+  inset: 0;
+  z-index: 2;
   pointer-events: none;
-  filter: drop-shadow(
-    1px 1px 1px color-mix(in srgb, var(--ink) 14%, transparent)
-  );
-}
-.feed-columns .post-fold-paper {
-  fill: color-mix(in srgb, var(--color-bg-subtle) 65%, var(--color-bg));
-  stroke: color-mix(in srgb, var(--ink) 17%, transparent);
-  stroke-width: 0.7px;
-  stroke-linejoin: round;
-}
-.feed-columns .post-fold-crease {
-  fill: none;
-  stroke: color-mix(in srgb, var(--color-bg) 75%, transparent);
-  stroke-width: 0.8px;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  mask-image: linear-gradient(135deg, transparent 25%, #000 70%);
 }
 .feed-columns .post > .post-body {
-  margin-left: calc(42px + 0.75rem);
+  margin-left: calc(58px + 0.75rem);
 }
 @media (max-width: 640px) {
   .feed-columns .post > .avatar {
     border-top-left-radius: 11px;
   }
   .feed-columns .post > .post-body {
-    margin-left: calc(42px + 0.6rem);
+    margin-left: calc(58px + 0.6rem);
   }
 }

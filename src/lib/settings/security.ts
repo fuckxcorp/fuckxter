@@ -1,3 +1,4 @@
+import { confirmTranslated } from "../i18n";
 import {
   beginTwoFactor,
   changeEmail,
@@ -354,7 +355,7 @@ export function mountSecuritySettings(
   );
   deleteButton?.addEventListener("click", async () => {
     if (
-      !confirm(
+      !confirmTranslated(
         "确定要删除账号吗？3 天内登录回来可以取消，超过 3 天账号和数据会被永久删除。",
       )
     ) {

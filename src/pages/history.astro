@@ -1,5 +1,6 @@
 ---
 import "../styles/notice.css";
+import "../styles/home.css";
 import Notice from "../layouts/Notice.astro";
 ---
 
@@ -11,38 +12,58 @@ import Notice from "../layouts/Notice.astro";
   <button slot="actions" type="button" class="ghost-btn" data-clear-history>
     清空历史
   </button>
-  <div class="history-list" data-history-list></div>
+  <div class="feed-columns is-single history-feed">
+    <div class="feed-col history-list" data-history-list></div>
+  </div>
 </Notice>
 
 <style>
-  .history-list {
-    display: grid;
-    gap: 0.75rem;
+  .history-feed {
+    padding: 0;
   }
-  .history-list :global(a) {
-    display: grid;
+  .history-feed :global(.feed-col) {
+    max-width: none;
+  }
+  .history-list :global(.post) {
+    cursor: pointer;
+  }
+  .history-list :global(.history-foot) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
-    padding: 1rem;
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    color: var(--color-text);
-    text-decoration: none;
-    overflow-wrap: anywhere;
-  }
-  .history-list :global(a:hover) {
-    border-color: var(--ink);
-  }
-  .history-list :global(time) {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border-soft);
     color: var(--color-text-muted);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
+  }
+  .history-list :global(.history-open) {
+    color: inherit;
+    text-decoration: none;
+  }
+  .history-list :global(.history-open:hover) {
+    color: var(--color-text-strong);
   }
 </style>
 
 <script>
+  import { confirmTranslated, getLocale } from "../lib/i18n";
+  import { getPostByPath } from "../lib/accounts/api";
+  import { navigate } from "astro:transitions/client";
+  import { parsePostPath } from "../lib/core/urls";
+  import type { Post } from "../lib/core/types";
   import { hydrateSession } from "../lib/accounts/auth";
   import { onPageReady } from "../lib/core/page";
   import { clearHistory, readHistory } from "../lib/feed/history";
-  import { el, statusRow, showToast } from "../lib/ui/dom";
+  import {
+    disposePostMedia,
+    el,
+    renderPost,
+    statusRow,
+    showToast,
+  } from "../lib/ui/dom";
 
   onPageReady(() => {
     const root = document.querySelector<HTMLElement>("[data-history]");
@@ -52,34 +73,93 @@ import Notice from "../layouts/Notice.astro";
     const clear = root.querySelector<HTMLButtonElement>(
       "[data-clear-history]",
     )!;
+    let seq = 0;
+    let observer: IntersectionObserver | null = null;
     const render = () => {
+      const current = ++seq;
+      observer?.disconnect();
+      disposePostMedia(list);
       const visits = readHistory();
       clear.disabled = !visits.length;
-      list.replaceChildren(
-        ...visits.map((visit) => {
-          const link = el("a");
-          link.href = visit.path;
-          const author = el("strong");
-          author.textContent = visit.name;
-          const text = el("span");
-          text.textContent = visit.text;
-          const time = el("time");
-          time.dateTime = visit.at;
-          time.textContent = `浏览于 ${new Date(visit.at).toLocaleString("zh-CN")}`;
-          link.append(author, text, time);
-          return link;
-        }),
+      const card = (visit: (typeof visits)[number], post: Post | null) => {
+        const path = parsePostPath(visit.path);
+        const node = renderPost(
+          post ?? {
+            id: visit.id,
+            slug: path?.slug ?? "",
+            author: { id: "", handle: path?.handle ?? "", name: visit.name },
+            text: "正在加载帖子…",
+            createdAt: visit.at,
+            stats: { replies: 0, reposts: 0, likes: 0, views: 0 },
+          },
+          false,
+          true,
+        );
+        if (!post) {
+          node.querySelector(".post-meta")?.remove();
+          node.querySelector<HTMLElement>(".post-text")!.dataset.i18nUi = "";
+        }
+        node.querySelector(".actions")?.remove();
+        node.dataset.path = visit.path;
+        const foot = el("footer", "history-foot");
+        const time = el("time");
+        time.dateTime = visit.at;
+        time.textContent = `浏览于 ${new Date(visit.at).toLocaleString(getLocale())}`;
+        const open = el("a", "history-open");
+        open.href = visit.path;
+        open.textContent = "查看帖子 →";
+        foot.append(time, open);
+        node.querySelector(".post-body")!.append(foot);
+        return node;
+      };
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            observer?.unobserve(entry.target);
+            const node = entry.target as HTMLElement;
+            const visit = visits.find(
+              (item) => item.id === node.dataset.postId,
+            );
+            const path = visit && parsePostPath(visit.path);
+            if (!visit || !path) continue;
+            void getPostByPath(path.handle, path.slug)
+              .then((post) => {
+                if (seq !== current || !node.isConnected) return;
+                if (post) node.replaceWith(card(visit, post));
+                else
+                  node.querySelector(".post-text")!.textContent =
+                    "原帖已删除或不可查看";
+              })
+              .catch(() => {
+                if (seq === current && node.isConnected)
+                  node.querySelector(".post-text")!.textContent =
+                    "帖子加载失败，点击查看帖子重试";
+              });
+          }
+        },
+        { rootMargin: "200px" },
       );
+      list.replaceChildren(...visits.map((visit) => card(visit, null)));
+      for (const node of list.children) observer.observe(node);
       if (!visits.length)
         list.append(statusRow("还没有浏览记录，打开帖子后会显示在这里。"));
     };
+    list.addEventListener("click", (event) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("a, button, .media-list")) return;
+      if (window.getSelection()?.toString()) return;
+      const path = target.closest<HTMLElement>(".post")?.dataset.path;
+      if (path) void navigate(path);
+    });
+
     root
       .querySelector("[data-role=back]")!
       .addEventListener("click", () =>
         history.length > 1 ? history.back() : location.assign("/"),
       );
     clear.addEventListener("click", () => {
-      if (!confirm("清空此账号在本浏览器中的浏览历史？")) return;
+      if (!confirmTranslated("清空此账号在本浏览器中的浏览历史？")) return;
       try {
         clearHistory();
         render();
@@ -91,6 +171,9 @@ import Notice from "../layouts/Notice.astro";
     document.addEventListener(
       "astro:before-swap",
       () => {
+        seq++;
+        observer?.disconnect();
+        disposePostMedia(list);
         document.removeEventListener("fuckxter:account-change", render);
       },
       { once: true },

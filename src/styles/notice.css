@@ -186,20 +186,28 @@
   display: grid;
   place-items: center;
   width: 96px;
-  height: 42px;
+  height: 84px;
   flex: 0 0 auto;
   border-radius: 0;
   color: #fff;
   font-size: 0.72rem;
   font-weight: 700;
   overflow: hidden;
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 100%, 0 100%);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 14px) 0,
+    100% 50%,
+    calc(100% - 14px) 100%,
+    0 100%
+  );
   clip-path: shape(
     from 4px 0,
-    line to calc(calc(100% - 14px) - 4px) 0,
+    line to calc(100% - 18px) 0,
     curve to calc(100% - 14px) 4px with calc(100% - 14px) 0,
-    line to 100% calc(100% - 4px),
-    curve to calc(100% - 4px) 100% with 100% 100%,
+    line to calc(100% - 1px) calc(50% - 4px),
+    curve to calc(100% - 1px) calc(50% + 4px) with calc(100% + 1px) 50%,
+    line to calc(100% - 14px) calc(100% - 4px),
+    curve to calc(100% - 18px) 100% with calc(100% - 14px) 100%,
     line to 4px 100%,
     curve to 0 calc(100% - 4px) with 0 100%,
     line to 0 4px,

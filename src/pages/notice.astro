@@ -225,6 +225,7 @@ import Notice from "../layouts/Notice.astro";
         const actorNameLine = el("div", "notice-actor-name");
         const actorName = el("strong");
         actorName.textContent = notice.actor?.name ?? "系统";
+        if (notice.actor) actorName.dataset.noTranslate = "";
         actorNameLine.append(actorName);
         if (notice.actor?.verified) {
           actorNameLine.insertAdjacentHTML("beforeend", ICONS.verified);
@@ -233,6 +234,7 @@ import Notice from "../layouts/Notice.astro";
         actorMeta.textContent = notice.actor
           ? `@${notice.actor.handle}`
           : "FuckXter 官方通知";
+        if (notice.actor) actorMeta.dataset.noTranslate = "";
         const time = el("time", "notice-time");
         time.dateTime = notice.createdAt;
         time.textContent = relativeTime(notice.createdAt);
@@ -243,6 +245,8 @@ import Notice from "../layouts/Notice.astro";
 
         const content = el("div", "notice-content");
         const detail = el("p", "notice-text");
+        if (["reply", "like", "repost"].includes(notice.type) && message.detail)
+          detail.dataset.noTranslate = "";
         detail.textContent =
           message.detail || (target ? "点击查看详情" : "暂无更多内容");
         content.append(detail);

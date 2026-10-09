@@ -40,9 +40,11 @@ export function mountSavedSettings(root: HTMLElement): void {
           const actorCopy = el("div", "notice-actor-copy");
           const nameLine = el("div", "notice-actor-name");
           const name = el("strong");
+          name.dataset.noTranslate = "";
           name.textContent = post.author.name;
           nameLine.append(name);
           const handle = el("span", "notice-actor-handle");
+          handle.dataset.noTranslate = "";
           handle.textContent = `@${post.author.handle}`;
           const action = el("span", "notice-action");
           action.textContent = "留作回看";
@@ -54,6 +56,7 @@ export function mountSavedSettings(root: HTMLElement): void {
 
           const content = el("div", "notice-content");
           const text = el("p", "notice-text");
+          if (post.text) text.dataset.noTranslate = "";
           text.textContent = post.text || "（图片帖子）";
           const actions = el("footer", "saved-actions");
           const remove = el("button", "saved-remove");

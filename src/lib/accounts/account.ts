@@ -1,3 +1,9 @@
+import {
+  confirmTranslated,
+  getLanguage,
+  setLanguage,
+  type Language,
+} from "../i18n";
 import { navigate } from "astro:transitions/client";
 import { getAccount, signOut, type Account } from "./auth";
 import { getUnreadMessageCount, getUnreadNotificationCount } from "./api";
@@ -76,6 +82,22 @@ export function mountAccountControls(
   const themeSubmenu = accountMenu.querySelector<HTMLElement>(
     "[data-role=theme-submenu]",
   )!;
+
+  const languageTrigger = accountMenu.querySelector<HTMLButtonElement>(
+    "[data-account-open=language]",
+  )!;
+  const languageSubmenu = accountMenu.querySelector<HTMLElement>(
+    "[data-role=language-submenu]",
+  )!;
+  const syncLanguageMenu = () => {
+    for (const item of languageSubmenu.querySelectorAll<HTMLElement>(
+      "[data-language-choice]",
+    ))
+      item.setAttribute(
+        "aria-checked",
+        String(item.dataset.languageChoice === getLanguage()),
+      );
+  };
 
   let account: Account | null = getAccount();
   let unreadRequestId = 0;
@@ -200,11 +222,13 @@ export function mountAccountControls(
     }
     options.onAccountChange();
     syncThemeMenu();
+    syncLanguageMenu();
   };
 
   const closeSubmenu = () => {
-    hidePanel(themeSubmenu);
+    collapseSubmenus(accountMenu);
     themeTrigger.setAttribute("aria-expanded", "false");
+    languageTrigger.setAttribute("aria-expanded", "false");
   };
 
   const setPeeled = (open: boolean) => {
@@ -254,6 +278,22 @@ export function mountAccountControls(
     themeTrigger.setAttribute("aria-expanded", String(willOpen));
   });
 
+  languageTrigger.addEventListener("click", () => {
+    const open = !isPanelOpen(languageSubmenu);
+    if (open) collapseSubmenus(accountMenu, languageSubmenu);
+    if (open) showPanel(languageSubmenu);
+    else hidePanel(languageSubmenu);
+    languageTrigger.setAttribute("aria-expanded", String(open));
+  });
+  languageSubmenu.addEventListener("click", (event) => {
+    const item = (event.target as HTMLElement).closest<HTMLElement>(
+      "[data-language-choice]",
+    );
+    if (!item) return;
+    setLanguage(item.dataset.languageChoice as Language);
+    syncLanguageMenu();
+  });
+
   themeSubmenu.addEventListener("click", (event) => {
     const item = (event.target as HTMLElement).closest<HTMLButtonElement>(
       "[data-theme-choice]",
@@ -298,7 +338,7 @@ export function mountAccountControls(
       ?.dataset.accountAction;
     if (action === "signout") {
       const name = account?.profile.handle;
-      const ok = confirm(
+      const ok = confirmTranslated(
         name
           ? `确定要注销 @${name} 吗？注销后需要重新登录。`
           : "确定要注销吗？注销后需要重新登录。",
@@ -312,6 +352,14 @@ export function mountAccountControls(
     }
   });
 
+  const repositionSubmenus = () => {
+    for (const submenu of accountMenu.querySelectorAll<HTMLElement>(
+      ".submenu",
+    )) {
+      if (isPanelOpen(submenu)) showPanel(submenu);
+    }
+  };
+  window.addEventListener("resize", repositionSubmenus);
   renderAccountUI();
 
   return {
@@ -321,6 +369,7 @@ export function mountAccountControls(
     },
     dispose: () => {
       setPeeled(false);
+      window.removeEventListener("resize", repositionSubmenus);
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("keydown", onMenuKeydown, true);
     },
