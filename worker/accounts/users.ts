@@ -8,9 +8,14 @@ import {
   headerObjectKey,
 } from "./avatar";
 import {
-  createNotification,
-  deleteNotification,
-} from "../notifications/notifications";
+  enqueueNotification as createNotification,
+  enqueueNotificationDelete as deleteNotification,
+} from "../shared/jobs";
+import {
+  cacheProfile,
+  clearProfileCache,
+  getCachedProfile,
+} from "./profile-cache";
 
 interface ProfileRow {
   id: string;
@@ -120,6 +125,13 @@ export async function getUserProfile(
   viewerId: string | null,
   handle: string,
 ) {
+  if (!viewerId) {
+    const cached = await getCachedProfile<ReturnType<typeof publicProfile>>(
+      env,
+      handle,
+    );
+    if (cached) return cached;
+  }
   const row = await env.DB.prepare(
     `SELECT
        u.id,
@@ -168,7 +180,7 @@ export async function getUserProfile(
     )
     .first<ProfileRow>();
   if (!row) return null;
-  return publicProfile(
+  const profile = publicProfile(
     row,
     buildHeaderUrl({
       handle: row.handle,
@@ -176,6 +188,8 @@ export async function getUserProfile(
       exists: await headerExists(env, row.handle),
     }),
   );
+  if (!viewerId) await cacheProfile(env, row.handle, profile);
+  return profile;
 }
 
 export async function searchUsers(env: Env, query: string, limit = 10) {
@@ -280,6 +294,7 @@ export async function setFollow(
   )
     .bind(target.id)
     .first<{ count: number }>();
+  await clearProfileCache(env, followerId, target.id);
   return {
     handle,
     following: active,
@@ -342,6 +357,8 @@ export async function setBlock(
       .run();
   }
 
+  await clearProfileCache(env, blockerId, target.id);
+
   return { handle: target.id, blocked: active };
 }
 
@@ -357,6 +374,7 @@ export async function clearAvatar(env: Env, userId: string) {
     .bind(new Date().toISOString(), userId)
     .run();
   if (user?.avatar_key) await env.MEDIA_CACHE.delete(user.avatar_key);
+  await clearProfileCache(env, userId);
 }
 
 export async function clearHeader(env: Env, handle: string) {
@@ -364,4 +382,5 @@ export async function clearHeader(env: Env, handle: string) {
   await env.DB.prepare("UPDATE users SET updated_at = ? WHERE id = ?")
     .bind(new Date().toISOString(), usernameKey(handle))
     .run();
+  await clearProfileCache(env, handle);
 }

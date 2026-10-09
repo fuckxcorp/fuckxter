@@ -10,6 +10,7 @@ import { randomID, randomToken } from "../shared/crypto";
 import { getStorageConfig } from "./storage";
 import { usernameKey } from "../accounts/usernames";
 import { headerObjectKey } from "../accounts/avatar";
+import { clearProfileCache } from "../accounts/profile-cache";
 
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 const STREAM_FALLBACK_BYTES = 25 * 1024 * 1024;
@@ -390,6 +391,7 @@ export async function uploadAvatar(
   if (current?.avatar_key && current.avatar_key !== objectKey) {
     await env.MEDIA_CACHE.delete(current.avatar_key);
   }
+  await clearProfileCache(env, handle);
   return `/avatars/${encodeURIComponent(handle)}`;
 }
 
@@ -408,6 +410,7 @@ export async function uploadHeader(
   await env.DB.prepare("UPDATE users SET updated_at = ? WHERE id = ?")
     .bind(new Date().toISOString(), userId)
     .run();
+  await clearProfileCache(env, handle);
   return `/headers/${encodeURIComponent(handle)}`;
 }
 

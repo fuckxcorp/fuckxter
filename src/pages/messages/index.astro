@@ -44,7 +44,17 @@ import Layout from "../../layouts/Layout.astro";
           </div>
           <div class="quick-start-list" data-role="quick-start-list"></div>
         </div>
-        <div class="thread-list" data-role="thread-list"></div>
+        <div class="thread-list" data-role="thread-list" aria-busy="true">
+          {[0, 1, 2, 3].map(() => (
+            <div class="thread thread-skeleton" aria-hidden="true">
+              <span class="thread-skeleton-avatar"></span>
+              <span class="thread-skeleton-copy">
+                <span></span>
+                <span></span>
+              </span>
+            </div>
+          ))}
+        </div>
         <p class="status" data-role="threads-empty" hidden>
           还没有私信，点击「发起聊天」或去对方主页开始会话。
         </p>
@@ -183,6 +193,7 @@ import Layout from "../../layouts/Layout.astro";
     threads: Conversation[],
   ): void {
     container.replaceChildren();
+    container.setAttribute("aria-busy", "false");
     if (threads.length === 0) return;
     for (const thread of threads) {
       const row = el("a", "thread");

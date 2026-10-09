@@ -4,9 +4,9 @@ import { randomID } from "../shared/crypto";
 import { usernameKey } from "../accounts/usernames";
 import { buildAvatarUrl } from "../accounts/avatar";
 import {
-  createNotification,
-  deleteNotification,
-} from "../notifications/notifications";
+  enqueueNotification as createNotification,
+  enqueueNotificationDelete as deleteNotification,
+} from "../shared/jobs";
 
 const postSelect = (viewerID: string | null) => `
   SELECT

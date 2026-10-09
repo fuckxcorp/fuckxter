@@ -14,7 +14,25 @@ import Layout from "../layouts/Layout.astro";
           <h1 data-role="connections-title">用户关系</h1>
           <p data-role="connections-summary">正在加载…</p>
         </header>
-        <div class="user-list" data-role="connections-list"></div>
+        <div
+          class="user-list connections-skeleton-list"
+          data-role="connections-list"
+          aria-busy="true"
+        >
+          {[0, 1, 2, 3].map(() => (
+            <div class="user-list-item connections-skeleton" aria-hidden="true">
+              <span class="connections-skeleton-avatar"></span>
+              <span class="connections-skeleton-copy">
+                <span></span>
+                <span></span>
+              </span>
+              <span class="connections-skeleton-detail">
+                <span></span>
+                <span></span>
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
     </main>
   </div>
@@ -110,6 +128,8 @@ import Layout from "../layouts/Layout.astro";
       .then((users) => {
         summary.textContent = `${users.length} 个用户`;
         list.replaceChildren(renderUsers(users));
+        list.classList.remove("connections-skeleton-list");
+        list.setAttribute("aria-busy", "false");
       })
       .catch((error) => {
         summary.textContent =

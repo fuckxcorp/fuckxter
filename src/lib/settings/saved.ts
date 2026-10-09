@@ -74,6 +74,8 @@ export function mountSavedSettings(root: HTMLElement): void {
       savedEmpty.textContent =
         error instanceof Error ? error.message : "收藏加载失败";
       savedEmpty.hidden = false;
+    } finally {
+      savedList.setAttribute("aria-busy", "false");
     }
   };
 

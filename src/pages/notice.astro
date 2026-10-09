@@ -17,7 +17,18 @@ import Notice from "../layouts/Notice.astro";
   >
     全部已读
   </button>
-  <div class="notice-list" data-role="notice-list"></div>
+  <div class="notice-list" data-role="notice-list" aria-busy="true">
+    {[0, 1, 2].map(() => (
+      <article class="notice-skeleton" aria-hidden="true">
+        <span class="notice-skeleton-avatar"></span>
+        <span class="notice-skeleton-copy">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </article>
+    ))}
+  </div>
   <button type="button" class="notice-more" data-role="notice-more" hidden>
     加载更早
   </button>
@@ -34,6 +45,9 @@ import Notice from "../layouts/Notice.astro";
   import { userPath } from "../lib/core/urls";
 
   function noticeTarget(notice: Notification): string | null {
+    if (notice.type === "system" && typeof notice.data.handle === "string") {
+      return `/messages/${encodeURIComponent(notice.data.handle)}`;
+    }
     if (
       notice.post &&
       (notice.type === "reply" ||
@@ -193,6 +207,7 @@ import Notice from "../layouts/Notice.astro";
         noticeById.clear();
         list.replaceChildren();
         unread = 0;
+        list.setAttribute("aria-busy", "false");
       }
       for (const notice of notices) {
         if (seen.has(notice.id)) continue;

@@ -8,9 +8,14 @@ import Notice from "../layouts/Notice.astro";
   root="data-edit"
   subtitle="修改内容后保存，返回帖子查看结果"
 >
-  <p role="status" data-edit-status>
-    正在加载帖子…
-  </p>
+  <div class="edit-skeleton" role="status" data-edit-status>
+    <span class="edit-skeleton-label"></span>
+    <span class="edit-skeleton-input"></span>
+    <span class="edit-skeleton-label is-short"></span>
+    <span class="edit-skeleton-select"></span>
+    <span class="edit-skeleton-actions"></span>
+    <span class="sr-only">正在加载帖子…</span>
+  </div>
   <form class="edit-form" hidden>
     <label for="edit-text">帖子内容</label>
     <textarea
@@ -73,6 +78,42 @@ import Notice from "../layouts/Notice.astro";
   }
   #edit-count {
     color: var(--color-text-muted);
+  }
+  .edit-skeleton {
+    display: grid;
+    gap: 0.8rem;
+    max-width: 760px;
+  }
+  .edit-skeleton > :not(.sr-only) {
+    display: block;
+    border-radius: 8px;
+    background: linear-gradient(
+      105deg,
+      var(--color-bg-subtle) 18%,
+      var(--color-bg-hover) 42%,
+      var(--color-bg-subtle) 66%
+    );
+    background-size: 220% 100%;
+    animation: placeholder-shimmer 1.6s ease-in-out infinite;
+  }
+  .edit-skeleton-label {
+    width: 7rem;
+    height: 1rem;
+  }
+  .edit-skeleton-label.is-short {
+    width: 5rem;
+  }
+  .edit-skeleton-input {
+    height: 12rem;
+  }
+  .edit-skeleton-select {
+    width: min(16rem, 100%);
+    height: 2.75rem;
+  }
+  .edit-skeleton-actions {
+    justify-self: end;
+    width: 12rem;
+    height: 2.5rem;
   }
 </style>
 

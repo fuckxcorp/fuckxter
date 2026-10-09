@@ -134,6 +134,47 @@
   gap: 0;
 }
 
+.thread-skeleton {
+  pointer-events: none;
+}
+
+.thread-skeleton-avatar,
+.thread-skeleton-copy span {
+  background: linear-gradient(
+    105deg,
+    var(--color-bg-subtle) 18%,
+    var(--color-bg-hover) 42%,
+    var(--color-bg-subtle) 66%
+  );
+  background-size: 220% 100%;
+  animation: placeholder-shimmer 1.6s ease-in-out infinite;
+}
+
+.thread-skeleton-avatar {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.thread-skeleton-copy {
+  display: grid;
+  flex: 1;
+  gap: 0.5rem;
+}
+
+.thread-skeleton-copy span {
+  height: 0.75rem;
+  border-radius: 5px;
+}
+
+.thread-skeleton-copy span:first-child {
+  width: 45%;
+}
+.thread-skeleton-copy span:last-child {
+  width: 75%;
+}
+
 .messages-panel > .status {
   padding: 1rem;
   line-height: 1.6;

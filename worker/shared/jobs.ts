@@ -1,13 +1,31 @@
 import type { Env } from "./platform";
+import type { NotificationInput } from "../notifications/notifications";
 
 /**
  * 队列任务。只放「不进关键路径」的活：
  * 失败能重试、晚几秒做完也没关系的那些。
  */
-export type Job = { type: "notification.welcome"; userId: string };
+export type Job =
+  | { type: "notification.welcome"; userId: string }
+  | { type: "notification.create"; input: NotificationInput }
+  | { type: "notification.delete"; eventKey: string };
 
 export async function enqueueJob(env: Env, job: Job): Promise<void> {
   await env.JOBS.send(job);
+}
+
+export function enqueueNotification(
+  env: Env,
+  input: NotificationInput,
+): Promise<void> {
+  return enqueueJob(env, { type: "notification.create", input });
+}
+
+export function enqueueNotificationDelete(
+  env: Env,
+  eventKey: string,
+): Promise<void> {
+  return enqueueJob(env, { type: "notification.delete", eventKey });
 }
 
 export interface QueueMessage<T> {

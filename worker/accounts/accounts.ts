@@ -19,6 +19,7 @@ import {
   verifyTotp,
 } from "./two-factor";
 import { usernameKey, validateUsername } from "./usernames";
+import { clearProfileCache } from "./profile-cache";
 
 const RESERVED_HANDLES = new Set(["user", "post", "settings", "api", "assets"]);
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -328,7 +329,7 @@ export async function updateProfile(
         username.handleKey,
         username.handle,
         input.name?.trim() || "User",
-        input.bio?.trim() ?? "",
+        input.bio ?? "",
         input.region?.trim() ?? "",
         input.gender?.trim() ?? "",
         birthday,
@@ -339,6 +340,7 @@ export async function updateProfile(
   } catch {
     throw new HttpError(409, "USERNAME_TAKEN", "用户名已被使用。");
   }
+  await clearProfileCache(env, current.handle, username.handle);
   return getAccount(env, username.handleKey);
 }
 

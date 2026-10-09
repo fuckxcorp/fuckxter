@@ -88,6 +88,51 @@
   gap: 0.65rem;
 }
 
+.notice-skeleton {
+  display: flex;
+  gap: 0.85rem;
+  min-height: 5.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-bg-raised);
+}
+
+.notice-skeleton-avatar,
+.notice-skeleton-copy span {
+  background: linear-gradient(
+    105deg,
+    var(--color-bg-subtle) 18%,
+    var(--color-bg-hover) 42%,
+    var(--color-bg-subtle) 66%
+  );
+  background-size: 220% 100%;
+  animation: placeholder-shimmer 1.6s ease-in-out infinite;
+}
+
+.notice-skeleton-avatar {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.notice-skeleton-copy {
+  display: grid;
+  flex: 1;
+  gap: 0.45rem;
+}
+
+.notice-skeleton-copy span {
+  height: 0.8rem;
+  border-radius: 5px;
+}
+
+.notice-skeleton-copy span:first-child {
+  width: 35%;
+}
+.notice-skeleton-copy span:last-child {
+  width: 65%;
+}
+
 .notice-item {
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);

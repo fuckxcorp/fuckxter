@@ -19,7 +19,7 @@
 
 .user-inner {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 1.5rem;
   width: 98%;
   height: auto;
@@ -307,6 +307,8 @@ html:has(.avatar-dialog[open]) {
   color: var(--color-text);
   font-size: 0.92rem;
   line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .user-deleted {
@@ -472,6 +474,48 @@ html:has(.avatar-dialog[open]) {
   border: 1px solid var(--color-border-soft);
   border-radius: 12px;
   background: var(--color-bg);
+}
+
+.connections-skeleton {
+  pointer-events: none;
+}
+
+.connections-skeleton-avatar,
+.connections-skeleton-copy span,
+.connections-skeleton-detail span {
+  background: linear-gradient(
+    105deg,
+    var(--color-bg-subtle) 18%,
+    var(--color-bg-hover) 42%,
+    var(--color-bg-subtle) 66%
+  );
+  background-size: 220% 100%;
+  animation: placeholder-shimmer 1.6s ease-in-out infinite;
+}
+
+.connections-skeleton-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.connections-skeleton-copy,
+.connections-skeleton-detail {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.connections-skeleton-copy span,
+.connections-skeleton-detail span {
+  height: 0.75rem;
+  border-radius: 5px;
+}
+
+.connections-skeleton-copy span:first-child {
+  width: 70%;
+}
+.connections-skeleton-detail span:last-child {
+  width: 55%;
 }
 
 .user-list-identity {

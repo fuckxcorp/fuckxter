@@ -6,7 +6,7 @@ import { randomID } from "../shared/crypto";
 export type NotificationType =
   "reply" | "like" | "repost" | "follow" | "system";
 
-interface NotificationInput {
+export interface NotificationInput {
   recipientId: string;
   actorId?: string | null;
   type: NotificationType;

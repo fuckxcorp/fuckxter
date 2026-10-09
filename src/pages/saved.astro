@@ -5,7 +5,18 @@ import Notice from "../layouts/Notice.astro";
 ---
 
 <Notice title="收藏" root="data-saved" subtitle="你保存的帖子">
-  <div class="notice-list" data-role="saved-list"></div>
+  <div class="notice-list" data-role="saved-list" aria-busy="true">
+    {[0, 1, 2].map(() => (
+      <article class="post user-post-skeleton" aria-hidden="true">
+        <span class="skeleton skeleton-avatar"></span>
+        <span class="skeleton-copy">
+          <span class="skeleton skeleton-line is-short"></span>
+          <span class="skeleton skeleton-line"></span>
+          <span class="skeleton skeleton-line is-medium"></span>
+        </span>
+      </article>
+    ))}
+  </div>
   <p class="status" data-role="saved-empty" hidden>
     还没有收藏内容
   </p>

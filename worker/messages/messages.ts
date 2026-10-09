@@ -4,6 +4,7 @@ import type { Env } from "../shared/platform";
 import { randomID } from "../shared/crypto";
 import { usernameKey } from "../accounts/usernames";
 import { isBlockedBetween } from "../accounts/users";
+import { enqueueNotification } from "../shared/jobs";
 
 const MAX_BODY_LENGTH = 1000;
 const THREAD_PAGE_SIZE = 50;
@@ -404,15 +405,27 @@ export async function sendMessage(
   }
 
   // 插消息 + 更新会话时间，一次往返
+  const messageId = randomID();
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO dm_messages (id, thread_id, sender_id, body, created_at)
        VALUES (?, ?, ?, ?, ?)`,
-    ).bind(randomID(), threadId, userId, body, now),
+    ).bind(messageId, threadId, userId, body, now),
     env.DB.prepare(
       "UPDATE dm_threads SET last_message_at = ? WHERE id = ?",
     ).bind(now, threadId),
   ]);
+  await enqueueNotification(env, {
+    recipientId: person.id,
+    actorId: userId,
+    type: "system",
+    eventKey: `message:${messageId}`,
+    data: {
+      title: "新私信",
+      body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+      handle: userId,
+    },
+  });
 
   const messages = await loadMessages(env, threadId, userId);
   return {
