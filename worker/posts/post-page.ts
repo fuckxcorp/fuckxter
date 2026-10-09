@@ -185,7 +185,11 @@ export async function withPostPageHtml(
   url: URL,
   response: Response,
 ): Promise<Response> {
-  if (request.method !== "GET") return response;
+  if (
+    request.method !== "GET" ||
+    request.headers.get("Sec-Fetch-Dest") === "empty"
+  )
+    return response;
   const match = POST_PATH.exec(url.pathname);
   if (!match) return response;
 

@@ -788,6 +788,13 @@ export function mountFeed(container: HTMLElement): FeedControls {
     setSentinelBusy(true);
     if (transition) feed.classList.add("is-switching");
     try {
+      if (state.tab === "following" && !getAccount()) {
+        resetFeed();
+        state.cursor = null;
+        state.done = true;
+        feed.append(statusRow("登录后才能查看关注的人的帖子。"));
+        return;
+      }
       const [page] = await Promise.all([
         getTimeline(state.tab, replace ? null : state.cursor),
         transition ? animatePosts(false) : Promise.resolve(),
@@ -805,7 +812,13 @@ export function mountFeed(container: HTMLElement): FeedControls {
       if (transition) await animatePosts(true);
       if (seq !== state.seq) return;
       if (state.done && orderedPosts.length === 0) {
-        feed.append(statusRow("还没有帖子，发布第一条吧。"));
+        feed.append(
+          statusRow(
+            state.tab === "following"
+              ? "关注的人还没有帖子，去发现更多用户吧。"
+              : "还没有帖子，发布第一条吧。",
+          ),
+        );
       } else if (state.done) {
         feed.append(statusRow("你已看完全部内容"));
       } else if (sentinelReached()) {

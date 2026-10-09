@@ -1395,6 +1395,7 @@ import Header from "../../components/Header.astro";
 
     void Promise.all([postRequest, sessionPromise])
       .then(([post]) => {
+        if (!container.isConnected) return;
         if (!post) {
           host.replaceChildren(
             statusRow("没有找到这条帖子，可能还未加载或已失效。"),
@@ -1457,6 +1458,7 @@ import Header from "../../components/Header.astro";
         side.hidden = false;
         let hotPosts: Post[] | null = null;
         let hotLimit = 0;
+        let renderedHotLimit = -1;
         const refreshHotPosts = () => {
           const candidates = (hotPosts ?? []).filter(
             (item) => item.id !== post.id,
@@ -1468,6 +1470,8 @@ import Header from "../../components/Header.astro";
           }
 
           const replaceHot = (limit: number) => {
+            if (renderedHotLimit === limit) return;
+            renderedHotLimit = limit;
             const next = renderHotPosts(hotPosts, post.id, limit);
             hot.replaceWith(next);
             hot = next;
@@ -1492,7 +1496,13 @@ import Header from "../../components/Header.astro";
             }
           });
         };
-        const hotSizeObserver = new ResizeObserver(() => {
+        let hotWidth = 0;
+        let hotHeight = 0;
+        const hotSizeObserver = new ResizeObserver(([entry]) => {
+          const { width, height } = entry.contentRect;
+          if (width === hotWidth && height === hotHeight) return;
+          hotWidth = width;
+          hotHeight = height;
           if (hotPosts) refreshHotPosts();
         });
         hotSizeObserver.observe(side);
@@ -1513,9 +1523,12 @@ import Header from "../../components/Header.astro";
         void recordPostView(post.id)
           .then((result) => {
             post.stats.views = result.views;
-            side
-              .querySelector<HTMLElement>(".post-info")
-              ?.replaceWith(renderPostInfo(post));
+            const stats = side.querySelector<HTMLElement>(
+              ".post-info-rows dd:last-child",
+            );
+            if (stats) {
+              stats.textContent = `${post.stats.replies} 回帖 · ${post.stats.reposts} 转发 · ${post.stats.likes} 喜欢 · ${fmtCount(post.stats.views)} 次浏览`;
+            }
           })
           .catch(() => {});
       })
