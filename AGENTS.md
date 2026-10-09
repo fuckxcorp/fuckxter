@@ -38,6 +38,14 @@ These rules are mandatory. Follow them unless the user explicitly gives differen
 - Do not introduce new architecture unless required by the task.
 - Do not silently change behavior outside the requested scope.
 
+### Protected GitHub Actions Workflow
+
+- Never modify `.github/workflows/build.yaml` unless the user explicitly requests changes to that exact file in the current task.
+- Dependency updates, formatting, cleanup, refactoring, verification, and fixes elsewhere in the repository do not authorize changes to `.github/workflows/build.yaml`.
+- Do not alter, reformat, rename, replace, delete, regenerate, or overwrite `.github/workflows/build.yaml` as a side effect of another command.
+- Before finishing any task, verify that `.github/workflows/build.yaml` has not changed because of the agent's work.
+- If `.github/workflows/build.yaml` already has uncommitted changes, treat them as user-owned and leave them exactly as found.
+
 ## 4. pnpm Projects
 
 If the project uses `pnpm`, use `pnpm` commands.

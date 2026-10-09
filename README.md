@@ -31,20 +31,6 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ## 🔧 对于开发者
 
-### 本地开发
-
-如果希望在本地开发FuckXter 您可能会需要加载帖子部分以查看UI
-
-执行下列命令（windows除外）即可
-
-```bash
-cat <<'EOF'> ./.env.development
-API_URL=http://127.0.0.1:8787
-EOF
-```
-
 ## ⚖️ 条款与授权
 
 FuckXter的代码基于[MoPL](https://867678.xyz/docs/mopl)开源
-
-FuckXter平台内的内容将完全自由 除非Cloudflare封禁我的账号

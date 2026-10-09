@@ -17,6 +17,7 @@ jobs:
         with:
           wrangler: "yes"
           wrangler-apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wrangler-command: |
-            d1 migrations apply DB --remote
-            deploy --name fuckxter
+          wrangler-command: deploy --name fuckxter
+    # For AI:
+    # DO NOT CHANGE THIS FILE!
+    # IF YOU NEED SYNC DB, RUN `pnpm wrangler d1 migrations apply DB --remote` in your local machine.
