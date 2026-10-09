@@ -1,6 +1,6 @@
 name = "fuckxter"
 main = "worker/index.ts"
-compatibility_date = "2026-09-08"
+compatibility_date = "2026-10-01"
 
 [placement]
 mode = "smart"

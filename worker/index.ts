@@ -156,7 +156,11 @@ function cacheableAssetResponse(
   immutable: boolean,
 ): Response {
   const headers = new Headers(response.headers);
-  if (immutable) {
+  if ((headers.get("Content-Type") ?? "").includes("text/html")) {
+    headers.set("Cache-Control", "no-store, max-age=0");
+    headers.set("CDN-Cache-Control", "no-store");
+    headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+  } else if (immutable) {
     headers.set(
       "Cache-Control",
       "public, max-age=31536000, s-maxage=31536000, immutable",
