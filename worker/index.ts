@@ -125,6 +125,7 @@ const PRETTY_ASSET_PATHS = new Set([
   "/edit",
   "/settings",
   "/settings/profile",
+  "/settings/personalization",
   "/settings/security",
   "/settings/storage",
 ]);

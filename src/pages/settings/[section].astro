@@ -3,7 +3,7 @@ import "../../styles/settings.css";
 
 import Settings from "../../layouts/Settings.astro";
 
-type SettingsSection = "profile" | "security" | "storage";
+type SettingsSection = "profile" | "security" | "storage" | "personalization";
 
 interface Props {
   section: SettingsSection;
@@ -11,6 +11,10 @@ interface Props {
 
 export function getStaticPaths() {
   return [
+    {
+      params: { section: "personalization" },
+      props: { section: "personalization" },
+    },
     { params: { section: "profile" }, props: { section: "profile" } },
     { params: { section: "security" }, props: { section: "security" } },
     { params: { section: "storage" }, props: { section: "storage" } },

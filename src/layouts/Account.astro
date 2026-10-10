@@ -1,13 +1,3 @@
----
-import { languages } from "../lib/i18n";
-
-interface Props {
-  columns?: boolean;
-}
-
-const { columns = false } = Astro.props;
----
-
 <div class="account" data-account>
   <button
     type="button"
@@ -84,6 +74,22 @@ const { columns = false } = Astro.props;
       </button>
       <button
         type="button"
+        class="menu-item"
+        role="menuitem"
+        data-account-open="saved"
+      >
+        收藏
+      </button>
+      <button
+        type="button"
+        class="menu-item"
+        role="menuitem"
+        data-account-open="history"
+      >
+        历史
+      </button>
+      <button
+        type="button"
         class="menu-item notice-menu-item"
         role="menuitem"
         data-account-open="messages"
@@ -96,174 +102,24 @@ const { columns = false } = Astro.props;
           hidden
         ></span>
       </button>
-      <button
-        type="button"
-        class="menu-item"
-        role="menuitem"
-        data-account-open="saved"
-      >
-        收藏
-      </button>
-      <button
-        type="button"
-        class="menu-item"
-        role="menuitem"
-        data-account-open="settings"
-      >
-        设置
-      </button>
     </div>
-
     <button
       type="button"
       class="menu-item"
       role="menuitem"
       data-account-open="history"
+      data-role="guest-history"
     >
       历史
     </button>
-
-    <div class="menu-row">
-      <button
-        type="button"
-        class="menu-item menu-expandable"
-        role="menuitem"
-        aria-expanded="false"
-        aria-haspopup="menu"
-        data-account-open="theme"
-      >
-        主题{" "}
-        <span class="menu-arrow" aria-hidden="true">
-          ▸
-        </span>
-      </button>
-      <div class="submenu" data-role="theme-submenu" role="menu" hidden>
-        <button
-          type="button"
-          class="menu-item"
-          role="menuitemradio"
-          data-theme-choice="auto"
-        >
-          <span class="menu-check">✓</span>跟随系统
-        </button>
-        <button
-          type="button"
-          class="menu-item"
-          role="menuitemradio"
-          data-theme-choice="light"
-        >
-          <span class="menu-check">✓</span>浅色
-        </button>
-        <button
-          type="button"
-          class="menu-item"
-          role="menuitemradio"
-          data-theme-choice="dark"
-        >
-          <span class="menu-check">✓</span>深色
-        </button>
-      </div>
-    </div>
-
-    {columns && (
-      <div class="menu-row">
-        <button
-          type="button"
-          class="menu-item menu-expandable"
-          role="menuitem"
-          aria-expanded="false"
-          aria-haspopup="menu"
-          data-role="columns-trigger"
-        >
-          列数
-          <span class="columns-value" data-role="columns-value">
-            2 列
-          </span>
-          <span class="menu-arrow" aria-hidden="true">
-            ▸
-          </span>
-        </button>
-        <div class="submenu" data-role="columns-submenu" role="menu" hidden>
-          <button
-            type="button"
-            class="menu-item"
-            role="menuitemradio"
-            aria-checked="false"
-            data-columns-choice="3"
-          >
-            <span class="menu-check">✓</span>3 列
-          </button>
-          <button
-            type="button"
-            class="menu-item"
-            role="menuitemradio"
-            aria-checked="true"
-            data-columns-choice="2"
-          >
-            <span class="menu-check">✓</span>2 列
-          </button>
-          <button
-            type="button"
-            class="menu-item"
-            role="menuitemradio"
-            aria-checked="false"
-            data-columns-choice="1"
-          >
-            <span class="menu-check">✓</span>1 列
-          </button>
-          <button
-            type="button"
-            class="menu-item"
-            role="menuitemradio"
-            aria-checked="false"
-            data-columns-choice="auto"
-          >
-            <span class="menu-check">✓</span>自动
-          </button>
-        </div>
-      </div>
-    )}
-
-    <div class="menu-row">
-      <button
-        type="button"
-        class="menu-item menu-expandable"
-        role="menuitem"
-        aria-expanded="false"
-        aria-haspopup="menu"
-        data-account-open="language"
-      >
-        语言
-        <span class="menu-arrow" aria-hidden="true">
-          ▸
-        </span>
-      </button>
-      <div
-        class="submenu language-submenu"
-        data-role="language-submenu"
-        role="menu"
-        hidden
-      >
-        {languages.map((language) => (
-          <button
-            type="button"
-            class="menu-item"
-            role="menuitemradio"
-            data-language-choice={language.code}
-            data-no-translate
-          >
-            <span class="menu-check">✓</span>
-            <span
-              data-nom-label={
-                language.code === "vi-Hani" ? language.name : undefined
-              }
-            >
-              {language.name}
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
+    <button
+      type="button"
+      class="menu-item"
+      role="menuitem"
+      data-account-open="settings"
+    >
+      设置
+    </button>
 
     <div data-role="signout-items" hidden>
       <hr class="menu-sep" />
@@ -300,12 +156,13 @@ const { columns = false } = Astro.props;
       },
       { once: true },
     );
+    controls = mountAccountControls(container, {
+      onAccountChange: () =>
+        document.dispatchEvent(new Event("fuckxter:account-change")),
+    });
     void hydrateSession().then(() => {
       if (disposed || !account.isConnected) return;
-      controls = mountAccountControls(container, {
-        onAccountChange: () =>
-          document.dispatchEvent(new Event("fuckxter:account-change")),
-      });
+      controls?.sync();
     });
   };
 

@@ -1,12 +1,3 @@
-import en from "./locales/en.json";
-import ja from "./locales/ja.json";
-import es from "./locales/es.json";
-import traditional from "./locales/zh-Hant.json";
-import cantonese from "./locales/yue-Hant.json";
-import nom from "./locales/vi-Hani.json";
-import xiang from "./locales/hsn.json";
-import dalian from "./locales/zh-x-dalian.json";
-
 export const languages = [
   { code: "zh-CN", name: "简中" },
   { code: "zh-Hant", name: "繁中" },
@@ -19,16 +10,35 @@ export const languages = [
   { code: "es", name: "Español" },
 ] as const;
 export type Language = (typeof languages)[number]["code"];
-const catalogs: Record<string, Record<string, string>> = {
-  en,
-  ja,
-  es,
-  "zh-Hant": traditional,
-  "yue-Hant": cantonese,
-  "vi-Hani": nom,
-  hsn: xiang,
-  "zh-x-dalian": dalian,
+const catalogs: Record<string, Record<string, string>> = {};
+const loaders = {
+  en: () => import("./locales/en.json"),
+  ja: () => import("./locales/ja.json"),
+  es: () => import("./locales/es.json"),
+  "zh-Hant": () => import("./locales/zh-Hant.json"),
+  "yue-Hant": () => import("./locales/yue-Hant.json"),
+  "vi-Hani": () => import("./locales/vi-Hani.json"),
+  hsn: () => import("./locales/hsn.json"),
+  "zh-x-dalian": () => import("./locales/zh-x-dalian.json"),
 };
+const catalogRequests = new Map<string, Promise<void>>();
+function loadCatalog(language: Language): Promise<void> {
+  if (language === "zh-CN" || catalogs[language]) return Promise.resolve();
+  const pending = catalogRequests.get(language);
+  if (pending) return pending;
+  const request = loaders[language as keyof typeof loaders]()
+    .then(({ default: strings }) => {
+      catalogs[language] = strings;
+      if (language === "vi-Hani") {
+        for (const char of Object.values(strings).join("")) {
+          if (/\p{Script=Han}/u.test(char)) nomChars.add(char);
+        }
+      }
+    })
+    .finally(() => catalogRequests.delete(language));
+  catalogRequests.set(language, request);
+  return request;
+}
 export function getLanguage(): Language {
   try {
     const value = localStorage.getItem("fk-language");
@@ -44,32 +54,36 @@ export function getLocale(): string {
       ? "zh-CN"
       : language;
 }
-const templates = Object.keys(en)
-  .filter((key) => /\{\d+\}/.test(key))
-  .map((key) => ({
-    key,
-    pattern: new RegExp(
-      "^" +
-        key
-          .split(/(\{\d+\})/)
-          .map((part) =>
-            /^\{\d+\}$/.test(part)
-              ? "(.+?)"
-              : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-          )
-          .join("") +
-        "$",
-      "u",
-    ),
-  }))
-  .sort(
-    (a, b) =>
-      b.key.replace(/\{\d+\}/g, "").length -
-      a.key.replace(/\{\d+\}/g, "").length,
-  );
-const fragments = Object.keys(en)
-  .filter((key) => !/\{\d+\}/.test(key))
-  .sort((a, b) => b.length - a.length);
+let templates: { key: string; pattern: RegExp }[] = [];
+let fragments: string[] = [];
+function prepareCatalog(strings: Record<string, string>): void {
+  templates = Object.keys(strings)
+    .filter((key) => /\{\d+\}/.test(key))
+    .map((key) => ({
+      key,
+      pattern: new RegExp(
+        "^" +
+          key
+            .split(/(\{\d+\})/)
+            .map((part) =>
+              /^\{\d+\}$/.test(part)
+                ? "(.+?)"
+                : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            )
+            .join("") +
+          "$",
+        "u",
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        b.key.replace(/\{\d+\}/g, "").length -
+        a.key.replace(/\{\d+\}/g, "").length,
+    );
+  fragments = Object.keys(strings)
+    .filter((key) => !/\{\d+\}/.test(key))
+    .sort((a, b) => b.length - a.length);
+}
 export function t(source: string): string {
   const language = getLanguage();
   const strings = catalogs[language];
@@ -171,10 +185,9 @@ const attributes = new WeakMap<
 const wrappers = new WeakMap<Element, string>();
 const glyphs = new Map<string, boolean>();
 const nomChars = new Set(
-  [
-    ...(Object.values(nom).join("") +
-      languages.find((item) => item.code === "vi-Hani")!.name),
-  ].filter((char) => /\p{Script=Han}/u.test(char)),
+  [...languages.find((item) => item.code === "vi-Hani")!.name].filter((char) =>
+    /\p{Script=Han}/u.test(char),
+  ),
 );
 const canvas =
   typeof document === "undefined" ? null : document.createElement("canvas");
@@ -346,6 +359,14 @@ export function setLanguage(language: Language): void {
     localStorage.setItem("fk-language", language);
   } catch {}
   syncLanguage();
+  void loadCatalog(language)
+    .then(() => {
+      if (getLanguage() === language) applyLanguage(language);
+    })
+    .catch((error: unknown) => console.error("Language load failed", error));
+}
+function applyLanguage(language: Language): void {
+  prepareCatalog(catalogs[language] ?? {});
   translateTree(document.head);
   translateTree(document.body);
   for (const label of document.querySelectorAll<HTMLElement>(
@@ -376,6 +397,7 @@ export function installI18n(): void {
   const pending = new Set<Node>();
   let frame = 0;
   const observer = new MutationObserver((mutations) => {
+    if (getLanguage() === "zh-CN") return;
     for (const mutation of mutations) {
       if (mutation.type === "childList")
         for (const node of mutation.addedNodes) pending.add(node);

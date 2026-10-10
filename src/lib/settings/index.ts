@@ -1,5 +1,6 @@
 import { navigate } from "astro:transitions/client";
 import { getAccount, hydrateSession, type Account } from "../accounts/auth";
+import { mountPersonalizationSettings } from "./personalization";
 import { mountProfileSettings } from "./profile";
 import { mountSecuritySettings } from "./security";
 import { type SettingsContext, type SettingsSection } from "./shared";
@@ -18,6 +19,13 @@ async function bootSettings(
   root: HTMLElement,
   initialTab: SettingsSection,
 ): Promise<void> {
+  if (initialTab === "personalization") {
+    root
+      .querySelector<HTMLButtonElement>("[data-role=back]")
+      ?.addEventListener("click", () => void navigate("/"));
+    mountPersonalizationSettings(root);
+    return;
+  }
   let account: Account | null = getAccount();
   if (account) {
     void hydrateSession().then((next) => {

@@ -13,7 +13,7 @@ import Header from "../../components/Header.astro";
       <div class="user-inner">
         <section class="user-head" data-role="user-head" aria-label="用户资料">
           <section
-            class="user-head-card is-loading"
+            class="user-head-card"
             data-role="user-card"
             aria-busy="true"
           >
@@ -31,6 +31,7 @@ import Header from "../../components/Header.astro";
                 </span>
                 <img
                   class="avatar-image"
+                  src="/user.avif"
                   data-role="user-avatar-image"
                   alt=""
                   loading="eager"
@@ -41,7 +42,7 @@ import Header from "../../components/Header.astro";
               <div class="user-who">
                 <div class="user-name-line">
                   <strong data-role="user-name" data-i18n-ui>
-                    加载中…
+                    用户资料
                   </strong>
                   <span data-role="user-verified" hidden>
                     <svg
@@ -68,14 +69,9 @@ import Header from "../../components/Header.astro";
               </div>
             </div>
 
-            <p class="user-bio" data-role="user-bio"></p>
-
-            <div class="user-meta-placeholder" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
+            <p class="user-bio" data-role="user-bio" data-i18n-ui>
+              这个人很懒，什么都没有写。
+            </p>
 
             <div class="user-meta">
               <span class="user-chip" data-role="user-chip-gender" hidden>
@@ -122,7 +118,6 @@ import Header from "../../components/Header.astro";
             </div>
 
             <div class="user-actions">
-              <span class="user-action-placeholder" aria-hidden="true"></span>
               <button
                 type="button"
                 class="primary-btn"
@@ -179,14 +174,9 @@ import Header from "../../components/Header.astro";
             data-role="user-posts"
             aria-label="该用户的帖子"
           >
-            <article class="post user-post-skeleton" aria-hidden="true">
-              <span class="skeleton skeleton-avatar"></span>
-              <div class="skeleton-copy">
-                <span class="skeleton skeleton-line is-short"></span>
-                <span class="skeleton skeleton-line"></span>
-                <span class="skeleton skeleton-line is-medium"></span>
-              </div>
-            </article>
+            <div class="status" data-role="user-post-empty">
+              还没有发过帖子。
+            </div>
           </section>
         </div>
       </div>
@@ -331,10 +321,7 @@ import Header from "../../components/Header.astro";
       follow.textContent = profile.viewer.following ? "已关注" : "关注";
       follow.classList.toggle("ghost-btn", profile.viewer.following);
     }
-    card.classList.remove("is-loading");
     card.setAttribute("aria-busy", "false");
-    card.querySelector(".user-meta-placeholder")?.remove();
-    card.querySelector(".user-action-placeholder")?.remove();
   }
 
   /**
@@ -361,7 +348,10 @@ import Header from "../../components/Header.astro";
     if (reload) postList.reload = reload;
     root.replaceChildren(
       ...(posts.length === 0
-        ? [statusRow("还没有发过帖子。")]
+        ? [
+            root.querySelector<HTMLElement>("[data-role=user-post-empty]") ??
+              statusRow("还没有发过帖子。"),
+          ]
         : posts.map((post) => {
             const article = renderPost(post, false);
             article.classList.add("user-post-link");
@@ -378,7 +368,12 @@ import Header from "../../components/Header.astro";
     root.addEventListener("click", async (event) => {
       const target = event.target as HTMLElement;
 
-      if (target.closest(".inline-link, .post-repost-label")) return;
+      if (
+        target.closest(
+          ".inline-link, .post-repost-label, .media-list, .media-carousel",
+        )
+      )
+        return;
 
       const avatarLink = target.closest<HTMLElement>(".avatar-link");
       if (avatarLink?.dataset.handle) {
@@ -418,6 +413,7 @@ import Header from "../../components/Header.astro";
       if (!post) return;
 
       if (!btn) {
+        if (target.closest("a, button, input, textarea")) return;
         navigate(postPath(post));
         return;
       }
@@ -711,7 +707,7 @@ import Header from "../../components/Header.astro";
           })
           .catch((error: unknown) => {
             bannerHost.hidden = true;
-            card.hidden = true;
+            card.setAttribute("aria-busy", "false");
             userStatus.hidden = false;
             userStatus.textContent =
               error instanceof Error ? error.message : "用户加载失败。";
@@ -733,11 +729,10 @@ import Header from "../../components/Header.astro";
       })
       .catch((error: unknown) => {
         bannerHost.hidden = true;
-        card.hidden = true;
+        card.setAttribute("aria-busy", "false");
         userStatus.hidden = false;
         userStatus.textContent =
           error instanceof Error ? error.message : "用户加载失败。";
-        postsRoot.replaceChildren();
       });
 
     void sessionPromise.then((account) => {

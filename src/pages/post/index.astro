@@ -18,24 +18,41 @@ import Header from "../../components/Header.astro";
               <p>发起与回帖按时间排列</p>
             </header>
 
-            <article
-              class="thread-post thread-origin post-skeleton shard"
-              data-shard="0"
-            >
-              <span class="skeleton skeleton-pill"></span>
-              <span class="skeleton skeleton-avatar"></span>
-              <div class="skeleton-copy">
-                <span class="skeleton skeleton-line is-short"></span>
-                <span class="skeleton skeleton-line"></span>
-                <span class="skeleton skeleton-line is-medium"></span>
+            <div class="status" data-role="post-empty">
+              没有找到这条帖子，可能还未加载或已失效。
+            </div>
+            <section class="thread-composer shard" data-shard="0">
+              <span class="avatar"></span>
+              <div class="composer-body">
+                <textarea
+                  class="comment-input side-comment-input"
+                  placeholder="登录后才能回复"
+                  aria-label="回复内容"
+                  disabled
+                ></textarea>
+                <div class="thread-composer-actions reply-composer-actions">
+                  <button
+                    type="button"
+                    class="primary-btn comment-submit"
+                    disabled
+                  >
+                    回复
+                  </button>
+                </div>
               </div>
-            </article>
+            </section>
 
             <section class="thread-replies">
               <header class="replies-head">
                 <h2>回帖</h2>
-                <span>加载中</span>
+                <span>0</span>
               </header>
+              <div class="comments-list thread-list">
+                <div class="comments-empty">
+                  <strong>还没有回帖</strong>
+                  <span>来发布第一条回帖吧。</span>
+                </div>
+              </div>
             </section>
           </section>
         </div>
@@ -43,19 +60,11 @@ import Header from "../../components/Header.astro";
       <aside class="post-side" data-role="post-side" aria-label="帖子信息">
         <section class="post-info">
           <h4 class="post-info-title">详情</h4>
-          <div class="detail-skeleton">
-            <span class="skeleton skeleton-avatar is-small"></span>
-            <span class="skeleton skeleton-line is-medium"></span>
-            <span class="skeleton skeleton-line"></span>
-          </div>
+          <p class="status">没有找到这条帖子，可能还未加载或已失效。</p>
         </section>
         <section class="post-controls">
           <h4 class="post-controls-title">互动</h4>
-          <div class="control-skeleton">
-            <span class="skeleton skeleton-button"></span>
-            <span class="skeleton skeleton-button"></span>
-            <span class="skeleton skeleton-button"></span>
-          </div>
+          <p class="status">0</p>
         </section>
       </aside>
     </div>
@@ -606,6 +615,7 @@ import Header from "../../components/Header.astro";
     canModerate: boolean,
     onReplyCountChange: (count: number) => void,
     initialReplies?: HTMLElement,
+    initialComposer?: HTMLElement,
   ): { thread: HTMLElement; composer: HTMLElement } {
     const thread = el("section", "thread");
     const head = el("header", "thread-head");
@@ -615,8 +625,6 @@ import Header from "../../components/Header.astro";
     hint.textContent = "发起与回帖按时间排列";
     head.append(title, hint);
 
-    // 直达帖子页时，Worker 已将回帖渲染进 HTML。复用该节点而不是
-    // 再请求一次并替换它，首屏内容便始终是静态 HTML，不会闪成 JS 加载。
     const replies = initialReplies ?? el("section", "thread-replies");
     let repliesHead = replies.querySelector<HTMLElement>(".replies-head");
     let repliesCount = repliesHead?.querySelector<HTMLElement>("span");
@@ -776,8 +784,8 @@ import Header from "../../components/Header.astro";
     );
     input.disabled = !me;
     submit.disabled = !me;
-    const composer = el("section", "thread-composer shard");
-    composer.dataset.shard = postShard(`${post.id}:composer`);
+    const composer = initialComposer ?? el("section", "thread-composer shard");
+    composer.dataset.shard ??= postShard(`${post.id}:composer`);
     const composerAvatar = me
       ? authorAvatar(me.profile.handle, me.profile.name, "avatar", me.avatarUrl)
       : el("span", "avatar");
@@ -796,7 +804,7 @@ import Header from "../../components/Header.astro";
       el("div", "comments-list thread-list");
 
     composerBody.append(status, composerActions);
-    composer.append(composerAvatar, composerBody);
+    composer.replaceChildren(composerAvatar, composerBody);
 
     const resizeCommentInput = () => {
       input.style.height = "auto";
@@ -1079,6 +1087,7 @@ import Header from "../../components/Header.astro";
         total > comments.length ? `仅显示最近 ${comments.length} 条回帖` : "";
       onReplyCountChange(total);
       if (comments.length === 0) {
+        if (list.querySelector(".comments-empty")) return;
         const empty = el("div", "comments-empty");
         const emptyTitle = el("strong");
         emptyTitle.textContent = "还没有回帖";
@@ -1398,9 +1407,6 @@ import Header from "../../components/Header.astro";
       .then(([post]) => {
         if (!container.isConnected) return;
         if (!post) {
-          host.replaceChildren(
-            statusRow("没有找到这条帖子，可能还未加载或已失效。"),
-          );
           return;
         }
         if (!parsedPath) {
@@ -1425,6 +1431,7 @@ import Header from "../../components/Header.astro";
               count > 0 ? fmtCount(count) : "";
           },
           initialReplies ?? undefined,
+          host.querySelector<HTMLElement>(".thread-composer") ?? undefined,
         );
         const me = getAccount()?.profile.handle;
         if (me) {

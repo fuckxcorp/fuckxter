@@ -45,7 +45,6 @@ import type {
   SearchResult,
   StorageOption,
 } from "../core/types";
-import { isHdrImage } from "../core/hdr";
 import { dismissHomeSplash } from "../ui/splash";
 import { postPath, userPath } from "../core/urls";
 
@@ -85,12 +84,6 @@ function readColumnChoice(): ColumnChoice {
   // 未保存偏好时始终采用自适应列数；具体列数再由 autoColumnCount
   // 按当前视口决定，不能把首次访问固化成 1 列或 2 列偏好。
   return "auto";
-}
-
-function storeColumnChoice(choice: ColumnChoice): void {
-  try {
-    localStorage.setItem(COLUMN_STORAGE_KEY, choice);
-  } catch {}
 }
 
 interface FeedState {
@@ -163,15 +156,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const tabs = [...container.querySelectorAll<HTMLButtonElement>(".tab")];
   const accountMenu = container.querySelector<HTMLElement>(
     "[data-role=account-menu]",
-  );
-  const columnsTrigger = container.querySelector<HTMLButtonElement>(
-    "[data-role=columns-trigger]",
-  );
-  const columnsSubmenu = container.querySelector<HTMLElement>(
-    "[data-role=columns-submenu]",
-  );
-  const columnsValue = container.querySelector<HTMLElement>(
-    "[data-role=columns-value]",
   );
   const composer = container.querySelector<HTMLElement>(".composer")!;
   const composerInput =
@@ -569,29 +553,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
     matchMedia(query).addEventListener("change", onMediaChange);
   }
 
-  const syncColumnsMenu = () => {
-    if (columnsValue) {
-      columnsValue.textContent =
-        columnPreference === "auto" ? "自动" : `${columnPreference} 列`;
-    }
-    columnsSubmenu
-      ?.querySelectorAll<HTMLButtonElement>("[data-columns-choice]")
-      .forEach((item) => {
-        item.setAttribute(
-          "aria-checked",
-          String(item.dataset.columnsChoice === columnPreference),
-        );
-      });
-  };
-
-  const applyColumnChoice = (choice: ColumnChoice) => {
-    columnPreference = choice;
-    storeColumnChoice(choice);
-    syncColumnsMenu();
-    activeColumnCount = 0;
-    ensureLayout();
-  };
-
   const viewedPosts = new Set<string>();
   const viewObserver = new IntersectionObserver(
     (entries) => {
@@ -933,31 +894,6 @@ export function mountFeed(container: HTMLElement): FeedControls {
     void doSearch(searchInput.value);
   });
 
-  const collapseColumnsSubmenu = () => {
-    if (!columnsSubmenu) return;
-    hidePanel(columnsSubmenu);
-    columnsTrigger?.setAttribute("aria-expanded", "false");
-  };
-
-  columnsTrigger?.addEventListener("click", () => {
-    if (!columnsSubmenu) return;
-    const willOpen = !isPanelOpen(columnsSubmenu);
-    if (willOpen) collapseSubmenus(container, columnsSubmenu);
-    if (willOpen) showPanel(columnsSubmenu);
-    else hidePanel(columnsSubmenu);
-    columnsTrigger.setAttribute("aria-expanded", String(willOpen));
-  });
-
-  columnsSubmenu?.addEventListener("click", (event) => {
-    const item = (event.target as HTMLElement).closest<HTMLButtonElement>(
-      "[data-columns-choice]",
-    );
-    const choice = item?.dataset.columnsChoice;
-    if (choice !== "auto" && choice !== "1" && choice !== "2" && choice !== "3")
-      return;
-    applyColumnChoice(choice);
-  });
-
   mediaStorageTrigger.addEventListener("click", () => {
     const account = getAccount();
     if (!account) {
@@ -1003,16 +939,13 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const accountMenuObserver = accountMenu
     ? new MutationObserver(() => {
-        if (accountMenu.hidden) collapseColumnsSubmenu();
-        else closeComposerPickers();
+        if (!accountMenu.hidden) closeComposerPickers();
       })
     : null;
   accountMenuObserver?.observe(accountMenu!, {
     attributes: true,
     attributeFilter: ["hidden"],
   });
-
-  syncColumnsMenu();
 
   for (const tab of tabs) {
     tab.addEventListener("click", () => {
@@ -1359,6 +1292,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       localStorage.getItem("fk-upload-mode") === "direct" ? "direct" : "proxy";
     const results = await Promise.allSettled(
       files.map(async (file, index) => {
+        const { isHdrImage } = await import("../core/hdr");
         const hdr = await isHdrImage(file);
         const media = await uploadMedia(
           file,

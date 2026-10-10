@@ -36,30 +36,34 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
       <img alt="" />
     </dialog>
     <script is:inline>
-      document.addEventListener("click", (event) => {
-        const target = event.target;
-        const viewer = document.querySelector("[data-media-viewer]");
-        if (!(viewer instanceof HTMLDialogElement)) return;
-        if (
-          target instanceof HTMLImageElement &&
-          target.matches(".media-image")
-        ) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          const image = viewer.querySelector("img");
-          image.src = target.currentSrc || target.src;
-          image.alt = target.alt;
-          viewer.showModal();
-          return;
-        }
-        if (
-          target === viewer ||
-          (target instanceof HTMLButtonElement &&
-            target.closest("[data-media-viewer]"))
-        ) {
-          viewer.close();
-        }
-      });
+      document.addEventListener(
+        "click",
+        (event) => {
+          const target = event.target;
+          const viewer = document.querySelector("[data-media-viewer]");
+          if (!(viewer instanceof HTMLDialogElement)) return;
+          if (
+            target instanceof HTMLImageElement &&
+            target.matches(".media-image")
+          ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const image = viewer.querySelector("img");
+            image.src = target.currentSrc || target.src;
+            image.alt = target.alt;
+            viewer.showModal();
+            return;
+          }
+          if (
+            target === viewer ||
+            (target instanceof HTMLButtonElement &&
+              target.closest("[data-media-viewer]"))
+          ) {
+            viewer.close();
+          }
+        },
+        true,
+      );
       document.addEventListener(
         "error",
         (event) => {

@@ -24,7 +24,9 @@ export function mountSecuritySettings(
     "[data-settings-pane=security]",
   )!;
   const formGroups = [
-    ...securityPane.querySelectorAll<HTMLElement>(".security-forms"),
+    ...securityPane.querySelectorAll<HTMLElement>(
+      ".security-forms:not(.security-advanced)",
+    ),
   ];
   if (formGroups.length > 0) {
     const cards = formGroups.flatMap((group) => [

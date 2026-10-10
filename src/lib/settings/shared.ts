@@ -1,7 +1,8 @@
 import { getLocale } from "../i18n";
 import type { Account } from "../accounts/auth";
 
-export type SettingsSection = "profile" | "security" | "storage";
+export type SettingsSection =
+  "profile" | "security" | "storage" | "personalization";
 
 export interface SettingsContext {
   getAccount: () => Account | null;

@@ -1,19 +1,8 @@
-import {
-  confirmTranslated,
-  getLanguage,
-  setLanguage,
-  type Language,
-} from "../i18n";
+import { confirmTranslated } from "../i18n";
 import { navigate } from "astro:transitions/client";
 import { getAccount, signOut, type Account } from "./auth";
 import { getUnreadMessageCount, getUnreadNotificationCount } from "./api";
-import {
-  avatarGradient,
-  collapseSubmenus,
-  hidePanel,
-  isPanelOpen,
-  showPanel,
-} from "../ui/dom";
+import { avatarGradient, hidePanel, isPanelOpen, showPanel } from "../ui/dom";
 import { apiEndpoint } from "../core/http";
 import { userPath } from "../core/urls";
 
@@ -76,29 +65,6 @@ export function mountAccountControls(
   const messageMenuBadge = accountMenu.querySelector<HTMLElement>(
     "[data-role=message-menu-badge]",
   )!;
-  const themeTrigger = accountMenu.querySelector<HTMLButtonElement>(
-    "[data-account-open=theme]",
-  )!;
-  const themeSubmenu = accountMenu.querySelector<HTMLElement>(
-    "[data-role=theme-submenu]",
-  )!;
-
-  const languageTrigger = accountMenu.querySelector<HTMLButtonElement>(
-    "[data-account-open=language]",
-  )!;
-  const languageSubmenu = accountMenu.querySelector<HTMLElement>(
-    "[data-role=language-submenu]",
-  )!;
-  const syncLanguageMenu = () => {
-    for (const item of languageSubmenu.querySelectorAll<HTMLElement>(
-      "[data-language-choice]",
-    ))
-      item.setAttribute(
-        "aria-checked",
-        String(item.dataset.languageChoice === getLanguage()),
-      );
-  };
-
   let account: Account | null = getAccount();
   let unreadRequestId = 0;
   let messageRequestId = 0;
@@ -157,27 +123,6 @@ export function mountAccountControls(
     } catch {}
   };
 
-  const applyThemeChoice = (mode: string) => {
-    localStorage.setItem("theme", mode);
-    const dark =
-      mode === "dark" ||
-      (mode === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.dataset.themeMode = mode;
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-  };
-
-  const syncThemeMenu = () => {
-    const current = localStorage.getItem("theme") ?? "auto";
-    for (const item of themeSubmenu.querySelectorAll<HTMLButtonElement>(
-      "[data-theme-choice]",
-    )) {
-      item.setAttribute(
-        "aria-checked",
-        item.dataset.themeChoice === current ? "true" : "false",
-      );
-    }
-  };
-
   const renderAccountUI = () => {
     if (account) {
       accountAvatar.hidden = false;
@@ -221,14 +166,9 @@ export function mountAccountControls(
       accountBtn.title = "登录或注册";
     }
     options.onAccountChange();
-    syncThemeMenu();
-    syncLanguageMenu();
-  };
-
-  const closeSubmenu = () => {
-    collapseSubmenus(accountMenu);
-    themeTrigger.setAttribute("aria-expanded", "false");
-    languageTrigger.setAttribute("aria-expanded", "false");
+    accountMenu.querySelector<HTMLElement>(
+      "[data-role=guest-history]",
+    )!.hidden = Boolean(account);
   };
 
   const setPeeled = (open: boolean) => {
@@ -239,7 +179,7 @@ export function mountAccountControls(
     hidePanel(accountMenu);
     setPeeled(false);
     accountBtn.setAttribute("aria-expanded", "false");
-    closeSubmenu();
+
     document.removeEventListener("click", onDocClick, true);
     document.removeEventListener("keydown", onMenuKeydown, true);
   };
@@ -270,39 +210,6 @@ export function mountAccountControls(
     }
   });
 
-  themeTrigger.addEventListener("click", () => {
-    const willOpen = !isPanelOpen(themeSubmenu);
-    if (willOpen) collapseSubmenus(accountMenu, themeSubmenu);
-    if (willOpen) showPanel(themeSubmenu);
-    else hidePanel(themeSubmenu);
-    themeTrigger.setAttribute("aria-expanded", String(willOpen));
-  });
-
-  languageTrigger.addEventListener("click", () => {
-    const open = !isPanelOpen(languageSubmenu);
-    if (open) collapseSubmenus(accountMenu, languageSubmenu);
-    if (open) showPanel(languageSubmenu);
-    else hidePanel(languageSubmenu);
-    languageTrigger.setAttribute("aria-expanded", String(open));
-  });
-  languageSubmenu.addEventListener("click", (event) => {
-    const item = (event.target as HTMLElement).closest<HTMLElement>(
-      "[data-language-choice]",
-    );
-    if (!item) return;
-    setLanguage(item.dataset.languageChoice as Language);
-    syncLanguageMenu();
-  });
-
-  themeSubmenu.addEventListener("click", (event) => {
-    const item = (event.target as HTMLElement).closest<HTMLButtonElement>(
-      "[data-theme-choice]",
-    );
-    if (!item) return;
-    applyThemeChoice(item.dataset.themeChoice!);
-    syncThemeMenu();
-  });
-
   accountMenu.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     const authOpen = target.closest<HTMLButtonElement>("[data-auth-open]");
@@ -328,9 +235,9 @@ export function mountAccountControls(
       } else if (open.dataset.accountOpen === "saved" && account) {
         closeAccountMenu();
         navigate("/saved");
-      } else if (open.dataset.accountOpen === "settings" && account) {
+      } else if (open.dataset.accountOpen === "settings") {
         closeAccountMenu();
-        navigate("/settings/profile");
+        navigate(account ? "/settings/profile" : "/settings/personalization");
       }
       return;
     }
