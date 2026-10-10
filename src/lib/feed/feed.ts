@@ -1,3 +1,4 @@
+import { preloadPost } from "./post-request";
 import { confirmTranslated } from "../i18n";
 import { navigate } from "astro:transitions/client";
 import {
@@ -1120,7 +1121,8 @@ export function mountFeed(container: HTMLElement): FeedControls {
       const post = id ? postsById.get(id) : undefined;
       if (post && article) {
         article.classList.add("is-opening");
-        window.setTimeout(() => void navigate(postPath(post)), 140);
+        preloadPost(post);
+        void navigate(postPath(post));
       }
       return;
     }
@@ -1239,6 +1241,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         requestAuthentication();
         return;
       }
+      preloadPost(post);
       void navigate(`${postPath(post)}#reply`);
       return;
     }

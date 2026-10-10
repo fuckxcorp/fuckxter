@@ -154,7 +154,8 @@ import Notice from "../layouts/Notice.astro";
       const link = el("a", "primary-btn notice-login");
       link.href = "/";
       link.textContent = "返回首页登录";
-      list.append(link);
+      list.replaceChildren(link);
+      list.setAttribute("aria-busy", "false");
       return;
     }
 
@@ -203,6 +204,7 @@ import Notice from "../layouts/Notice.astro";
 
     const render = (notices: Notification[], append: boolean) => {
       if (!append) {
+        readObserver.disconnect();
         seen.clear();
         noticeById.clear();
         list.replaceChildren();
@@ -313,6 +315,8 @@ import Notice from "../layouts/Notice.astro";
       try {
         await markNotificationsRead();
         unread = 0;
+        readObserver.disconnect();
+        for (const notice of noticeById.values()) notice.read = true;
         for (const item of list.querySelectorAll(".notice-item")) {
           item.classList.remove("is-unread");
         }

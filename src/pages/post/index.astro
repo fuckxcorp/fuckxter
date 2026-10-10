@@ -72,7 +72,6 @@ import Header from "../../components/Header.astro";
     deleteComment,
     deletePost,
     getComments,
-    getPostByPath,
     getTimeline,
     recordPostView,
     setFollow,
@@ -103,6 +102,7 @@ import Header from "../../components/Header.astro";
   } from "../../lib/ui/dom";
   import { ApiError, apiEndpoint } from "../../lib/core/http";
   import { onPageReady } from "../../lib/core/page";
+  import { loadPost } from "../../lib/feed/post-request";
   import { rememberPost } from "../../lib/feed/history";
   import { openPostShareMenu } from "../../lib/ui/share";
   import { openPostRepostMenu, quotePost } from "../../lib/ui/repost";
@@ -1391,7 +1391,7 @@ import Header from "../../components/Header.astro";
     const side = container.querySelector<HTMLElement>("[data-role=post-side]")!;
 
     const postRequest = parsedPath
-      ? getPostByPath(parsedPath.handle, parsedPath.slug)
+      ? loadPost(parsedPath.handle, parsedPath.slug)
       : Promise.resolve(null);
 
     void Promise.all([postRequest, sessionPromise])

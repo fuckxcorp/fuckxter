@@ -134,6 +134,15 @@
 }
 
 .notice-item {
+  --notice-ink: #000;
+  --notice-paper: #fff;
+  --menu-surface: var(--notice-paper);
+  --menu-text: var(--notice-ink);
+  --menu-muted: color-mix(in srgb, var(--menu-text) 70%, var(--menu-surface));
+  --menu-line: color-mix(in srgb, var(--menu-text) 25%, var(--menu-surface));
+  --menu-accent: var(--menu-text);
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 0;
@@ -141,8 +150,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  /* 跟头像菜单同一块墨色：浅色主题黑底，深色主题深灰浮起。 */
-  background: var(--menu-surface);
+  background: var(--notice-ink);
   color: var(--menu-text);
   cursor: pointer;
   /* 通知卡片改成平行四边形，斜度跟站上其他形状一致。 */
@@ -162,14 +170,30 @@
   transition: background 150ms ease;
 }
 
-.notice-item:hover,
-.notice-item:focus-visible {
+[data-theme="dark"] .notice-item {
+  --notice-ink: #fff;
+  --notice-paper: #000;
+}
+
+.notice-item::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  background: var(--menu-surface);
+  clip-path: inherit;
+  pointer-events: none;
+  transition: background 150ms ease;
+}
+
+.notice-item:hover::before,
+.notice-item:focus-visible::before {
   background: color-mix(in srgb, var(--menu-text) 10%, var(--menu-surface));
-  outline: none;
 }
 
 .notice-item.is-unread {
-  background: color-mix(in srgb, var(--menu-accent) 22%, var(--menu-surface));
+  --menu-surface: var(--notice-ink);
+  --menu-text: var(--notice-paper);
 }
 
 .notice-actor {
