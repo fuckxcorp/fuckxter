@@ -1,6 +1,6 @@
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
-import type { S3Config } from "../accounts/s3";
+import { validateStorageInput, type S3Config } from "../accounts/s3";
 import { decryptSecret, encryptSecret, randomID } from "../shared/crypto";
 
 interface StorageRow {
@@ -13,6 +13,7 @@ interface StorageRow {
   secret_ciphertext: string;
   path_style: number;
   is_default: number;
+  enabled: number;
 }
 
 async function storageFromRow(env: Env, row: StorageRow): Promise<S3Config> {
@@ -30,6 +31,7 @@ async function storageFromRow(env: Env, row: StorageRow): Promise<S3Config> {
     ),
     pathStyle: Boolean(row.path_style),
     isDefault: Boolean(row.is_default),
+    enabled: Boolean(row.enabled),
   };
 }
 
@@ -53,7 +55,7 @@ export async function getStorageOptions(env: Env, userId: string) {
   const result = await env.DB.prepare(
     `SELECT id, name, bucket, is_default
      FROM s3_configs
-     WHERE user_id = ?
+     WHERE user_id = ? AND enabled = 1
      ORDER BY is_default DESC, created_at ASC`,
   )
     .bind(userId)
@@ -75,21 +77,14 @@ export async function getStorageConfig(
   env: Env,
   userId: string,
   configId?: string,
+  allowDisabled = false,
 ): Promise<S3Config | null> {
-  const row = configId
-    ? await env.DB.prepare(
-        "SELECT * FROM s3_configs WHERE id = ? AND user_id = ?",
-      )
-        .bind(configId, userId)
-        .first<StorageRow>()
-    : await env.DB.prepare(
-        `SELECT * FROM s3_configs
-         WHERE user_id = ?
-         ORDER BY is_default DESC, created_at ASC
-         LIMIT 1`,
-      )
-        .bind(userId)
-        .first<StorageRow>();
+  if (!configId || configId === "platform") return null;
+  const row = await env.DB.prepare(
+    `SELECT * FROM s3_configs WHERE id = ? AND user_id = ? ${allowDisabled ? "" : "AND enabled = 1"}`,
+  )
+    .bind(configId, userId)
+    .first<StorageRow>();
   return row ? storageFromRow(env, row) : null;
 }
 
@@ -104,14 +99,8 @@ export async function saveStorageConfig(
   const region = input.region?.trim() || "auto";
   const bucket = input.bucket?.trim() ?? "";
   const accessKeyId = input.accessKeyId?.trim() ?? "";
-  if (!/^https?:\/\//.test(endpoint)) {
-    throw new HttpError(
-      400,
-      "INVALID_ENDPOINT",
-      "Endpoint 必须以 http(s):// 开头。",
-    );
-  }
-  if (!bucket) throw new HttpError(400, "BUCKET_REQUIRED", "必须填写 Bucket。");
+  validateStorageInput({ ...input, endpoint, bucket });
+  const enabled = input.enabled !== false;
 
   const existing = await env.DB.prepare(
     `SELECT id, secret_ciphertext, is_default FROM s3_configs
@@ -135,15 +124,7 @@ export async function saveStorageConfig(
     throw new HttpError(400, "SECRET_REQUIRED", "必须填写 Secret Access Key。");
   }
 
-  const count = await env.DB.prepare(
-    "SELECT COUNT(*) AS count FROM s3_configs WHERE user_id = ?",
-  )
-    .bind(userId)
-    .first<{ count: number }>();
-  const isDefault =
-    Boolean(input.isDefault) ||
-    Number(count?.count ?? 0) === 0 ||
-    Boolean(existing?.is_default);
+  const isDefault = enabled && Boolean(input.isDefault);
   const now = new Date().toISOString();
 
   if (isDefault) {
@@ -159,7 +140,7 @@ export async function saveStorageConfig(
       `UPDATE s3_configs
        SET name = ?, endpoint = ?, region = ?, bucket = ?,
            access_key_id = ?, secret_ciphertext = ?, path_style = ?,
-           is_default = ?, updated_at = ?
+           is_default = ?, enabled = ?, updated_at = ?
        WHERE id = ? AND user_id = ?`,
     )
       .bind(
@@ -171,6 +152,7 @@ export async function saveStorageConfig(
         secretCiphertext,
         input.pathStyle ? 1 : 0,
         isDefault ? 1 : 0,
+        enabled ? 1 : 0,
         now,
         id,
         userId,
@@ -181,8 +163,8 @@ export async function saveStorageConfig(
       await env.DB.prepare(
         `INSERT INTO s3_configs (
            id, user_id, name, endpoint, region, bucket, access_key_id,
-           secret_ciphertext, path_style, is_default, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           secret_ciphertext, path_style, is_default, enabled, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
         .bind(
           id,
@@ -195,6 +177,7 @@ export async function saveStorageConfig(
           secretCiphertext,
           input.pathStyle ? 1 : 0,
           isDefault ? 1 : 0,
+          enabled ? 1 : 0,
           now,
           now,
         )
@@ -204,7 +187,7 @@ export async function saveStorageConfig(
     }
   }
 
-  const config = await getStorageConfig(env, userId, id);
+  const config = await getStorageConfig(env, userId, id, true);
   if (!config) {
     throw new HttpError(500, "STORAGE_SAVE_FAILED", "保存存储配置失败。");
   }
@@ -215,7 +198,7 @@ export async function deleteStorageConfig(
   env: Env,
   userId: string,
   configId: string,
-): Promise<void> {
+): Promise<{ archived: boolean }> {
   const row = await env.DB.prepare(
     "SELECT is_default FROM s3_configs WHERE id = ? AND user_id = ?",
   )
@@ -230,23 +213,15 @@ export async function deleteStorageConfig(
     .bind(configId)
     .first<{ id: string }>();
   if (used) {
-    throw new HttpError(409, "STORAGE_IN_USE", "该存储配置已被现有媒体使用。");
+    await env.DB.prepare(
+      "UPDATE s3_configs SET enabled = 0, is_default = 0 WHERE id = ? AND user_id = ?",
+    )
+      .bind(configId, userId)
+      .run();
+    return { archived: true };
   }
   await env.DB.prepare("DELETE FROM s3_configs WHERE id = ? AND user_id = ?")
     .bind(configId, userId)
     .run();
-  if (row.is_default) {
-    await env.DB.prepare(
-      `UPDATE s3_configs
-       SET is_default = 1
-       WHERE id = (
-         SELECT id FROM s3_configs
-         WHERE user_id = ?
-         ORDER BY created_at ASC
-         LIMIT 1
-       )`,
-    )
-      .bind(userId)
-      .run();
-  }
+  return { archived: false };
 }

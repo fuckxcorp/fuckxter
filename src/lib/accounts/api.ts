@@ -28,9 +28,11 @@ const query = (values: Record<string, string | null>): string => {
 export function getTimeline(
   tab: FeedTab,
   cursor: string | null,
+  signal?: AbortSignal,
 ): Promise<FeedPage> {
   return apiRequest<FeedPage>(
     `/timeline?${query({ tab, cursor, limit: "10" })}`,
+    { signal },
   );
 }
 
@@ -81,7 +83,7 @@ async function proxyUploadMedia(
     "Content-Type": file.type,
     "X-File-Name": encodeURIComponent(file.name),
   };
-  if (storageConfigId) headers["X-Storage-Config-Id"] = storageConfigId;
+  headers["X-Storage-Config-Id"] = storageConfigId || "platform";
   const response = await apiRequest<{ media: PostMedia }>("/media", {
     method: "POST",
     headers,
@@ -211,9 +213,13 @@ export function getConversations(): Promise<ConversationListPage> {
   return apiRequest<ConversationListPage>("/messages");
 }
 
-export function getConversation(handle: string): Promise<ConversationPage> {
+export function getConversation(
+  handle: string,
+  before: string | null = null,
+  after: string | null = null,
+): Promise<ConversationPage> {
   return apiRequest<ConversationPage>(
-    `/messages/${encodeURIComponent(handle)}`,
+    `/messages/${encodeURIComponent(handle)}?${query({ before, after })}`,
   );
 }
 
@@ -344,9 +350,13 @@ export async function getUserList(
   return response.users;
 }
 
-export function getComments(postId: string): Promise<CommentPage> {
+export function getComments(
+  postId: string,
+  cursor: string | null = null,
+  focus: string | null = null,
+): Promise<CommentPage> {
   return apiRequest<CommentPage>(
-    `/posts/${encodeURIComponent(postId)}/comments`,
+    `/posts/${encodeURIComponent(postId)}/comments?${query({ cursor, focus })}`,
   );
 }
 
@@ -528,5 +538,14 @@ export async function removeAvatar(): Promise<void> {
 export async function removeHeader(): Promise<void> {
   await apiRequest("/me/header", {
     method: "DELETE",
+  });
+}
+
+export function recordPostViews(
+  ids: string[],
+): Promise<{ views: { id: string; views: number; counted: boolean }[] }> {
+  return apiRequest("/posts/views", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
   });
 }

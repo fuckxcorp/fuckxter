@@ -8,7 +8,11 @@
 
 可以直接修改对应 JSON 的译文，保留 `{0}` 等参数，刷新预览即可看到修改。菜单使用「简中」「繁中」的短名称，English 与 Español 排在最后。
 
-用词核对参考：[长沙话词汇](https://zh.wikipedia.org/wiki/%E9%95%BF%E6%B2%99%E8%AF%9D)、[大连话词汇](https://zh.wikipedia.org/wiki/%E5%A4%A7%E8%BF%9E%E8%AF%9D)。译文按界面含义改写，不使用谐音字模拟口音。
+用词核对参考：[湖南长沙方言](https://www.hunan.gov.cn/hnszf/jxxx/hxwh/jfy/201711/t20171111_4685270.html)、[大连话词汇](https://zh.wikipedia.org/wiki/%E5%A4%A7%E8%BF%9E%E8%AF%9D)。译文按界面含义改写，不使用谐音字模拟口音。
+
+## 闽南语与韩语
+
+`locales/nan-Hant.json` 使用闽南语汉字口语，参考常见台湾台语书写，词汇与句式可继续按地区习惯校订；汉字用法参考 [国家教育研究院台湾台语文语料库](https://tggl.naer.edu.tw/grammars?n=50&page=1)。`locales/ko.json` 使用韩语。两套词典均覆盖全部界面词条，闽南语的日期格式使用台湾地区设置，韩语使用韩语地区设置。语言菜单以「湘语」显示湘语选项，不附片区括注。
 
 ## 喃字
 

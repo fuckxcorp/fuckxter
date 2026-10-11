@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60">
+  <defs>
+    <radialGradient id="curve" gradientUnits="userSpaceOnUse" cx="10" cy="10" r="82.5">
+      <stop offset="30%" stop-color="white"/>
+      <stop offset="45%" stop-color="#d9d9d9"/>
+      <stop offset="72%" stop-color="black"/>
+    </radialGradient>
+    <linearGradient id="straight" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="60" y2="60">
+      <stop offset="46.666667%" stop-color="white"/>
+      <stop offset="60%" stop-color="#d9d9d9"/>
+      <stop offset="83.333333%" stop-color="black"/>
+    </linearGradient>
+    <linearGradient id="edge" gradientUnits="userSpaceOnUse" x1="46" y1="0" x2="60" y2="0">
+      <stop offset="0" stop-color="white"/>
+      <stop offset="1" stop-color="black"/>
+    </linearGradient>
+    <linearGradient id="bottom" gradientUnits="userSpaceOnUse" x1="0" y1="46" x2="0" y2="60">
+      <stop offset="0" stop-color="white"/>
+      <stop offset="1" stop-color="black"/>
+    </linearGradient>
+    <mask id="frame" maskUnits="userSpaceOnUse" x="0" y="0" width="60" height="60" mask-type="luminance">
+      <rect width="60" height="60" fill="url(#bottom)"/>
+      <path d="M0 0H60V60Z" fill="url(#edge)"/>
+    </mask>
+    <mask id="fade" maskUnits="userSpaceOnUse" x="0" y="0" width="60" height="60" mask-type="luminance">
+      <rect width="60" height="60" fill="url(#curve)"/>
+      <path d="M0 0H60V60Z" fill="url(#straight)"/>
+    </mask>
+  </defs>
+  <g mask="url(#frame)">
+    <rect width="60" height="60" fill="white" mask="url(#fade)"/>
+  </g>
+</svg>

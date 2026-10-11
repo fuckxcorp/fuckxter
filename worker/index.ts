@@ -1,3 +1,5 @@
+import { rateLimit, limitLogin, cleanSecurityState } from "./shared/rate-limit";
+import type { SecurityProof } from "./accounts/accounts";
 import {
   beginTwoFactor,
   changeEmail,
@@ -60,6 +62,7 @@ import {
   getTimeline,
   normalizeVisibility,
   recordPostView,
+  recordPostViews,
   searchPosts,
   setCommentInteraction,
   setLike,
@@ -284,12 +287,14 @@ async function route(
         code?: string;
         recoveryCode?: string;
       }>(request);
+      await limitLogin(env, request, body.identifier ?? "");
       const result = await loginOrRegister(
         env,
         body.identifier ?? "",
         body.password ?? "",
         body.code,
         body.recoveryCode,
+        request.headers.get("CF-Connecting-IP") || "unknown",
       );
       const response = json(
         { account: result.account, restored: Boolean(result.restored) },
@@ -361,7 +366,13 @@ async function route(
     if (parts.length === 3) {
       const handle = segment(parts, 2);
       if (method === "GET") {
-        const conversation = await getConversation(env, user.id, handle);
+        const conversation = await getConversation(
+          env,
+          user.id,
+          handle,
+          url.searchParams.get("before"),
+          url.searchParams.get("after"),
+        );
         return json(
           { ...conversation, unread: await countUnreadMessages(env, user.id) },
           request,
@@ -419,6 +430,7 @@ async function route(
   if (parts[1] === "media") {
     if (parts.length === 3 && parts[2] === "uploads" && method === "POST") {
       const user = await requireUser(request, env);
+      await rateLimit(env, `upload:${user.id}`, 100, 3600);
       const body = await readJson<{
         storageConfigId?: unknown;
         fileName?: unknown;
@@ -480,6 +492,7 @@ async function route(
 
     if (parts.length === 2 && method === "POST") {
       const user = await requireUser(request, env);
+      await rateLimit(env, `upload:${user.id}`, 100, 3600);
       return json(
         { media: await uploadMedia(request, env, user.id) },
         request,
@@ -490,7 +503,12 @@ async function route(
 
     if (parts.length === 3 && method === "GET") {
       const viewer = await getOptionalUser(request, env);
-      const media = await getMedia(env, segment(parts, 2), viewer?.id ?? null);
+      const media = await getMedia(
+        env,
+        segment(parts, 2),
+        viewer?.id ?? null,
+        url.searchParams.get("preview") === "640",
+      );
       const headers = corsHeaders(request, env);
       headers.set("Content-Type", media.contentType);
       headers.set("Content-Length", String(media.size));
@@ -559,6 +577,8 @@ async function route(
 
   if (parts[1] === "me") {
     const user = await requireUser(request, env);
+    if (!["GET", "HEAD"].includes(method))
+      await rateLimit(env, `security:${user.id}`, 30, 600);
 
     if (parts.length === 2 && method === "PATCH") {
       const body = await readJson<Record<string, string>>(request);
@@ -608,7 +628,10 @@ async function route(
     if (parts[2] === "password" && parts.length === 3 && method === "PUT") {
       const body = await readJson<{ current?: string; next?: string }>(request);
       await changePassword(env, user.id, body.current ?? "", body.next ?? "");
-      return json({ ok: true }, request, env);
+      return withCookie(
+        json({ ok: true }, request, env),
+        await createSession(env, user.id, request),
+      );
     }
 
     if (parts[2] === "saved" && parts.length === 3 && method === "GET") {
@@ -648,13 +671,18 @@ async function route(
     }
 
     if (parts[2] === "2fa" && parts[3] === "setup" && method === "POST") {
-      return json(await beginTwoFactor(env, user.id), request, env);
+      const proof = await readJson<SecurityProof>(request);
+      return json(
+        await beginTwoFactor(env, user.id, user.session_id, proof),
+        request,
+        env,
+      );
     }
 
     if (parts[2] === "2fa" && parts[3] === "confirm" && method === "POST") {
       const body = await readJson<{ code?: string }>(request);
       return json(
-        await confirmTwoFactor(env, user.id, body.code ?? ""),
+        await confirmTwoFactor(env, user.id, user.session_id, body.code ?? ""),
         request,
         env,
       );
@@ -665,7 +693,12 @@ async function route(
       parts[3] === "recovery-codes" &&
       method === "POST"
     ) {
-      return json(await replaceRecoveryCodes(env, user.id), request, env);
+      const proof = await readJson<SecurityProof>(request);
+      return json(
+        await replaceRecoveryCodes(env, user.id, proof),
+        request,
+        env,
+      );
     }
 
     if (parts[2] === "storage" && parts[3] === "options" && method === "GET") {
@@ -701,6 +734,7 @@ async function route(
               pathStyle: Boolean(body.pathStyle),
               name: String(body.name ?? ""),
               isDefault: Boolean(body.isDefault),
+              enabled: body.enabled !== false,
             }),
           },
           request,
@@ -726,6 +760,7 @@ async function route(
               pathStyle: Boolean(body.pathStyle),
               name: String(body.name ?? ""),
               isDefault: Boolean(body.isDefault),
+              enabled: body.enabled !== false,
             }),
           },
           request,
@@ -733,8 +768,8 @@ async function route(
         );
       }
       if (method === "DELETE") {
-        await deleteStorageConfig(env, user.id, configId);
-        return json({ ok: true }, request, env);
+        const result = await deleteStorageConfig(env, user.id, configId);
+        return json({ ok: true, ...result }, request, env);
       }
     }
 
@@ -758,6 +793,32 @@ async function route(
   }
 
   if (parts[1] === "posts") {
+    if (parts[2] === "views" && parts.length === 3 && method === "POST") {
+      const body = await readJson<{ ids?: unknown }>(request);
+      if (
+        !Array.isArray(body.ids) ||
+        body.ids.length > 20 ||
+        body.ids.some((id) => typeof id !== "string")
+      )
+        throw new HttpError(400, "INVALID_POST", "帖子参数无效。");
+      const viewer = await getOptionalUser(request, env);
+      await rateLimit(
+        env,
+        `views:${viewer?.id ?? request.headers.get("CF-Connecting-IP") ?? "unknown"}`,
+        120,
+        60,
+      );
+      return json(
+        await recordPostViews(
+          env,
+          request,
+          viewer?.id ?? null,
+          body.ids as string[],
+        ),
+        request,
+        env,
+      );
+    }
     if (parts.length === 2 && method === "POST") {
       const user = await requireUser(request, env);
       const body = await readJson<{ text?: unknown; mediaIDs?: unknown }>(
@@ -861,7 +922,13 @@ async function route(
       if (action === "comments" && method === "GET") {
         const user = await getOptionalUser(request, env);
         return json(
-          await getComments(env, user?.id ?? null, postId),
+          await getComments(
+            env,
+            user?.id ?? null,
+            postId,
+            url.searchParams.get("cursor"),
+            url.searchParams.get("focus"),
+          ),
           request,
           env,
         );
@@ -1139,6 +1206,7 @@ export default {
   },
 
   async scheduled(_event: unknown, env: Env): Promise<void> {
+    await cleanSecurityState(env);
     const purged = await purgeDeletedAccounts(env);
     if (purged > 0) console.log("Purged deleted accounts", purged);
   },

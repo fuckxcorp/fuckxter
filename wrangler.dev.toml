@@ -1,0 +1,35 @@
+name = "fuckxter"
+main = "worker/index.ts"
+compatibility_date = "2026-09-08"
+compatibility_flags = ["global_fetch_strictly_public"]
+
+[cache]
+enabled = true
+
+[vars]
+FUCKXTER_ORIGINS = "http://localhost:4321,http://127.0.0.1:4321,https://api.fuckxter.site,https://fuckxter.site,https://www.fuckxter.site"
+FUCKXTER_DEV = "true"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fuckxter"
+database_id = "6c654dd2-9ac1-4028-99d0-ee268874c498"
+migrations_dir = "worker/databases"
+
+[[r2_buckets]]
+binding = "MEDIA_CACHE"
+bucket_name = "fuckxter"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "04ae5aae580845bc9b923315aefab1fc"
+
+[[queues.producers]]
+binding = "JOBS"
+queue = "fuckxchat"
+
+[[queues.consumers]]
+queue = "fuckxchat"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3

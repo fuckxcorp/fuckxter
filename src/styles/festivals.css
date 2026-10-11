@@ -1,0 +1,375 @@
+:root[data-festival="christmas"] {
+  --festival-primary: #bd3c50;
+  --festival-secondary: #36866a;
+  --festival-art: url("/festivals/christmas.svg");
+  --festival-background: url("/festivals/christmas-background.webp");
+}
+
+:root[data-festival="halloween"] {
+  --festival-primary: #cb6b22;
+  --festival-secondary: #8465b2;
+  --festival-art: url("/festivals/halloween.svg");
+  --festival-background: url("/festivals/halloween-background.webp");
+}
+
+:root[data-festival="double-ten"] {
+  --festival-primary: #bf3e52;
+  --festival-secondary: #416bb1;
+  --festival-art: url("/festivals/double-ten.svg");
+  --festival-background: url("/festivals/double-ten-background.webp");
+}
+
+:root[data-festival="spring"] {
+  --festival-primary: #b93841;
+  --festival-secondary: #c29b44;
+  --festival-art: url("/festivals/spring.svg");
+  --festival-background: url("/festivals/spring-background.webp");
+}
+
+:root[data-festival="lantern"] {
+  --festival-primary: #b74849;
+  --festival-secondary: #e5a23d;
+  --festival-art: url("/festivals/lantern.svg");
+  --festival-background: url("/festivals/lantern-background.webp");
+}
+
+:root[data-festival="qingming"] {
+  --festival-primary: #417f69;
+  --festival-secondary: #83a86d;
+  --festival-art: url("/festivals/qingming.svg");
+  --festival-background: url("/festivals/qingming-background.webp");
+}
+
+:root[data-festival="dragon-boat"] {
+  --festival-primary: #287e6c;
+  --festival-secondary: #b6a34c;
+  --festival-art: url("/festivals/dragon-boat.svg");
+  --festival-background: url("/festivals/dragon-boat-background.webp");
+}
+
+:root[data-festival="qixi"] {
+  --festival-primary: #82639e;
+  --festival-secondary: #d389a6;
+  --festival-art: url("/festivals/qixi.svg");
+  --festival-background: url("/festivals/qixi-background.webp");
+}
+
+:root[data-festival="ghost"] {
+  --festival-primary: #56768e;
+  --festival-secondary: #ad945f;
+  --festival-art: url("/festivals/ghost.svg");
+  --festival-background: url("/festivals/ghost-background.webp");
+}
+
+:root[data-festival="mid-autumn"] {
+  --festival-primary: #927035;
+  --festival-secondary: #597b9f;
+  --festival-art: url("/festivals/mid-autumn.svg");
+  --festival-background: url("/festivals/mid-autumn-background.webp");
+}
+
+:root[data-festival="chongyang"] {
+  --festival-primary: #a35e40;
+  --festival-secondary: #b5a552;
+  --festival-art: url("/festivals/chongyang.svg");
+  --festival-background: url("/festivals/chongyang-background.webp");
+}
+
+:root[data-festival="winter"] {
+  --festival-primary: #537b98;
+  --festival-secondary: #a56e56;
+  --festival-art: url("/festivals/winter.svg");
+  --festival-background: url("/festivals/winter-background.webp");
+}
+
+:root[data-festival="laba"] {
+  --festival-primary: #9b555e;
+  --festival-secondary: #bd955e;
+  --festival-art: url("/festivals/laba.svg");
+  --festival-background: url("/festivals/laba-background.webp");
+}
+
+:root[data-festival]:not([data-festival="none"]) {
+  --color-bg: color-mix(in srgb, var(--festival-primary) 3%, white);
+  --color-bg-subtle: color-mix(in srgb, var(--festival-secondary) 6%, #f5f6f8);
+  --color-bg-hover: color-mix(in srgb, var(--festival-primary) 9%, #eef0f3);
+  --color-bg-raised: color-mix(in srgb, var(--festival-secondary) 4%, #f8f9fa);
+  --color-border: color-mix(in srgb, var(--festival-primary) 20%, #e3e6ea);
+  --color-border-soft: color-mix(
+    in srgb,
+    var(--festival-secondary) 10%,
+    #eef0f3
+  );
+  --color-accent: color-mix(in srgb, var(--festival-primary) 70%, #101215);
+  --color-accent-hover: color-mix(
+    in srgb,
+    var(--festival-primary) 60%,
+    #101215
+  );
+  --color-accent-soft: color-mix(in srgb, var(--festival-primary) 9%, white);
+  --ink: color-mix(in srgb, var(--festival-primary) 34%, #101215);
+  --menu-accent: color-mix(in srgb, var(--festival-secondary) 45%, white);
+}
+:root[data-theme="dark"][data-festival]:not([data-festival="none"]) {
+  --color-bg: color-mix(in srgb, var(--festival-primary) 5%, black);
+  --color-bg-subtle: #121212;
+  --color-bg-hover: color-mix(in srgb, var(--festival-primary) 10%, #1a1a1a);
+  --color-bg-raised: color-mix(in srgb, var(--festival-secondary) 5%, #0f0f0f);
+  --color-border: color-mix(in srgb, var(--festival-primary) 27%, #262626);
+  --color-border-soft: color-mix(
+    in srgb,
+    var(--festival-secondary) 15%,
+    #171717
+  );
+  --color-accent: color-mix(in srgb, var(--festival-primary) 50%, white);
+  --color-accent-hover: color-mix(in srgb, var(--festival-primary) 35%, white);
+  --color-accent-soft: color-mix(in srgb, var(--festival-primary) 15%, #121212);
+  --ink: color-mix(in srgb, var(--festival-secondary) 15%, #f2f4f6);
+}
+:root[data-festival]:not([data-festival="none"]) .app {
+  background-image:
+    radial-gradient(
+      ellipse 600px 240px at 5% 0,
+      color-mix(in srgb, var(--festival-primary) 9%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      ellipse 500px 240px at 95% 0,
+      color-mix(in srgb, var(--festival-secondary) 9%, transparent),
+      transparent
+    );
+}
+:root[data-festival]:not([data-festival="none"]) .topbar {
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--festival-primary) 50%,
+    var(--color-border)
+  );
+}
+:root[data-festival]:not([data-festival="none"]) .topbar {
+  background-image: var(--festival-art), var(--festival-art);
+  background-repeat: no-repeat;
+  background-size:
+    22px 22px,
+    16px 16px;
+  background-position:
+    190px -3px,
+    221px -2px;
+}
+:root[data-festival]:not([data-festival="none"]) .brand {
+  margin-block: 0;
+  padding-block: 0.15rem;
+}
+:root[data-festival]:not([data-festival="none"]) .brand .logo-img {
+  height: 42px;
+  width: 126px;
+  object-fit: contain;
+}
+:root[data-theme="dark"][data-festival]:not([data-festival="none"]) .logo-dark {
+  filter: brightness(1.2) drop-shadow(0 0 1px #e7e2dc);
+}
+:root[data-festival]:not([data-festival="none"]) .app[data-app] {
+  isolation: isolate;
+}
+:root[data-festival]:not([data-festival="none"]) .app[data-app]::before {
+  content: "";
+  position: fixed;
+  inset: calc(var(--topbar-height) - 18px) -18px -18px;
+  z-index: -1;
+  background: var(--festival-background) center / cover no-repeat;
+  filter: none;
+  opacity: 0.62;
+  pointer-events: none;
+}
+:root[data-theme="dark"][data-festival]:not([data-festival="none"])
+  .app[data-app]::before {
+  filter: none;
+  opacity: 0.5;
+}
+.festival-settings {
+  padding: 0;
+  margin: 1.5rem 0 0;
+  border: 0;
+  min-width: 0;
+}
+.festival-settings legend {
+  margin-bottom: 0;
+}
+.festival-modes,
+.festival-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+.festival-modes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.festival-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.festival-choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-bg-raised);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.festival-choice:hover {
+  border-color: var(--color-accent);
+}
+.festival-choice:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+.festival-choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.festival-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.festival-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.festival-copy strong {
+  color: var(--color-text-strong);
+  font-size: 0.9rem;
+}
+.festival-copy small {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+.festival-art {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--festival-primary) 9%, var(--color-bg));
+}
+.festival-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.festival-swatches {
+  position: absolute;
+  display: flex;
+  gap: 3px;
+  right: 10px;
+  bottom: 8px;
+}
+.festival-swatches i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--festival-primary);
+}
+.festival-swatches i + i {
+  background: var(--festival-secondary);
+}
+.festival-status {
+  margin: 1rem 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+.festival-status strong {
+  color: var(--color-text-strong);
+  margin-left: 0.4em;
+}
+@media (max-width: 640px) {
+  .festival-modes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .festival-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+  .festival-choice {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+  .festival-copy strong {
+    font-size: 0.83rem;
+  }
+  :root[data-festival]:not([data-festival="none"]) .topbar {
+    background-position:
+      160px -3px,
+      184px -2px;
+    background-size:
+      17px 17px,
+      13px 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .festival-choice {
+    transition: none;
+  }
+}
+
+:root[data-festival]:not([data-festival="none"]) [data-app] .feed-columns .post,
+:root[data-festival]:not([data-festival="none"]) [data-app] .composer {
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+:root[data-festival]:not([data-festival="none"]) [data-app] .composer {
+  background: color-mix(in srgb, var(--feed-surface) 76%, transparent);
+}
+:root[data-festival]:not([data-festival="none"])
+  [data-app]
+  .feed-columns
+  .post {
+  background: color-mix(in srgb, var(--feed-surface) 25%, transparent);
+}
+:root[data-theme="dark"][data-festival]:not([data-festival="none"])
+  [data-app]
+  .composer {
+  background: color-mix(in srgb, #121212 82%, transparent);
+}
+:root[data-theme="dark"][data-festival]:not([data-festival="none"])
+  [data-app]
+  .feed-columns
+  .post {
+  background: color-mix(in srgb, #121212 35%, transparent);
+}
+.festival-birthday-note {
+  display: none;
+}
+:root[data-festival="double-ten"] .festival-birthday-note {
+  display: block;
+  font-size: 0.5rem;
+  line-height: 1.2;
+  color: var(--color-text-muted);
+}
+:root[data-festival="double-ten"] .brand {
+  flex-direction: column;
+  gap: 0;
+}
+:root[data-festival="double-ten"] .brand .logo-img {
+  height: 34px;
+}
+
+:root[data-festival]:not([data-festival="none"])
+  [data-app]
+  .feed-columns
+  .post {
+  border-color: transparent;
+}

@@ -1,15 +1,150 @@
-<script is:inline>
-  (() => {
-    const mq = matchMedia("(prefers-color-scheme: dark)");
-    const applyTheme = () => {
-      const mode = localStorage.getItem("theme") ?? "auto";
-      const dark = mode === "dark" || (mode === "auto" && mq.matches);
-      document.documentElement.dataset.themeMode = mode;
-      document.documentElement.dataset.theme = dark ? "dark" : "light";
-    };
+---
+import { festivals } from "../lib/ui/festivals";
+import solarTerms from "../lib/ui/solar-terms.json";
+import lunarMonths from "../lib/ui/lunar-months.json";
+---
 
+<script is:inline define:vars={{ festivals, solarTerms, lunarMonths }}>
+  (() => {
+    if (window.__fkThemeMounted) return;
+    window.__fkThemeMounted = true;
+    const mq = matchMedia("(prefers-color-scheme: dark)");
+    const day = 86400000;
+    const offset = 8 * 3600000;
+    const lunar = new Intl.DateTimeFormat("en-u-ca-chinese", {
+      timeZone: "Asia/Shanghai",
+      month: "numeric",
+      day: "numeric",
+    });
+    let mode = "auto";
+    let festivalMode = "auto";
+    let timer;
+    const lunarDate = (time) => {
+      const civil = new Date(time + offset);
+      const year = civil.getUTCFullYear();
+      const today = Date.UTC(year, civil.getUTCMonth(), civil.getUTCDate());
+      if (lunarMonths[year]) {
+        let start;
+        for (const y of [year - 1, year]) {
+          const entries = lunarMonths[y] ?? "";
+          for (let i = 0; i < entries.length; i += 6) {
+            const date = Date.UTC(
+              y,
+              Number(entries.slice(i, i + 2)) - 1,
+              Number(entries.slice(i + 2, i + 4)),
+            );
+            if (date <= today)
+              start = { date, month: Number(entries.slice(i + 4, i + 6)) };
+          }
+        }
+        return start
+          ? {
+              month: start.month,
+              day: Math.round((today - start.date) / day) + 1,
+            }
+          : { month: 0, day: 0 };
+      }
+      const parts = lunar.formatToParts(new Date(time));
+      return {
+        month: Number(parts.find((part) => part.type === "month")?.value),
+        day: Number(parts.find((part) => part.type === "day")?.value),
+      };
+    };
+    const activeFestival = (time) => {
+      const civil = new Date(time + offset);
+      const month = civil.getUTCMonth() + 1;
+      const date = civil.getUTCDate();
+      const year = civil.getUTCFullYear();
+      const lunarNow = lunarDate(time);
+      const tomorrow = lunarDate(time + day);
+      const eve =
+        lunarNow.month === 12 && tomorrow.month === 1 && tomorrow.day === 1;
+      return (
+        festivals.find((festival) => {
+          if (festival.calendar === "solar")
+            return (
+              month === festival.month &&
+              date >= festival.start &&
+              date <= festival.end
+            );
+          if (festival.calendar === "term") {
+            const center = solarTerms[year]?.[festival.term];
+            return (
+              month === festival.month &&
+              center !== undefined &&
+              Math.abs(date - center) <= 1
+            );
+          }
+          return (
+            (festival.code === "spring" && eve) ||
+            (lunarNow.month === festival.month &&
+              lunarNow.day >= festival.start &&
+              lunarNow.day <= festival.end)
+          );
+        })?.code ?? "none"
+      );
+    };
+    const applyTheme = () => {
+      try {
+        mode = localStorage.getItem("theme") ?? "auto";
+        festivalMode = localStorage.getItem("fk-festival") ?? "auto";
+      } catch {}
+      if (!["auto", "light", "dark"].includes(mode)) mode = "auto";
+      if (
+        ![
+          "auto",
+          "none",
+          ...festivals.map((festival) => festival.code),
+        ].includes(festivalMode)
+      )
+        festivalMode = "auto";
+      const root = document.documentElement;
+      root.dataset.themeMode = mode;
+      root.dataset.theme =
+        mode === "dark" || (mode === "auto" && mq.matches) ? "dark" : "light";
+      root.dataset.festivalMode = festivalMode;
+      root.dataset.festival =
+        festivalMode === "auto" ? activeFestival(Date.now()) : festivalMode;
+      const icon = document.querySelector('link[rel="icon"]');
+      if (icon) {
+        const festive = root.dataset.festival !== "none";
+        icon.setAttribute("type", festive ? "image/svg+xml" : "image/avif");
+        icon.setAttribute(
+          "href",
+          festive
+            ? `/festivals/${root.dataset.festival}-icon-${root.dataset.theme}.svg`
+            : "/fuckxter_logo.avif?v=rounded",
+        );
+      }
+      for (const logo of document.querySelectorAll(".logo-img, .splash-logo")) {
+        logo.dataset.originalSrc ??= logo.getAttribute("src");
+        const src =
+          root.dataset.festival === "none"
+            ? logo.dataset.originalSrc
+            : `/festivals/${root.dataset.festival}-logo.webp`;
+        if (logo.getAttribute("src") !== src) logo.setAttribute("src", src);
+      }
+      document.dispatchEvent(new Event("fuckxter:festival-change"));
+      clearTimeout(timer);
+      const now = Date.now();
+      timer = setTimeout(applyTheme, day - ((now + offset) % day) + 50);
+    };
     applyTheme();
     mq.addEventListener("change", applyTheme);
+    document.addEventListener("DOMContentLoaded", applyTheme, { once: true });
     document.addEventListener("astro:after-swap", applyTheme);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) applyTheme();
+    });
+    window.addEventListener("focus", applyTheme);
+    window.addEventListener("storage", (event) => {
+      if (event.key === null || ["theme", "fk-festival"].includes(event.key))
+        applyTheme();
+    });
+    document.addEventListener("fuckxter:theme-update", (event) => {
+      if (event.detail?.theme) mode = event.detail.theme;
+      if (event.detail?.festival) festivalMode = event.detail.festival;
+      applyTheme();
+    });
   })();
 </script>

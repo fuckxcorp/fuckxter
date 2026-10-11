@@ -49,11 +49,14 @@ export function mountStorageSettings(root: HTMLElement): void {
       secretAccessKey: String(data.get("secretAccessKey") ?? ""),
       pathStyle: data.get("pathStyle") === "on",
       isDefault: data.get("isDefault") === "on",
+      enabled: data.get("enabled") === "on",
     };
   };
 
   const fillForm = (config: S3Config | null) => {
     form.reset();
+    form.querySelector<HTMLInputElement>("[name=enabled]")!.checked =
+      config?.enabled !== false;
     selectedId = config?.id ?? null;
     for (const [key, value] of Object.entries(config ?? {})) {
       const field = form.querySelector<HTMLInputElement>(`[name=${key}]`);
@@ -79,7 +82,8 @@ export function mountStorageSettings(root: HTMLElement): void {
         const option = document.createElement("option");
         option.value = config.id!;
         option.textContent =
-          config.name || config.bucket || config.endpoint || "S3";
+          (config.name || config.bucket || config.endpoint || "S3") +
+          (config.enabled === false ? " · 已停用" : "");
         return option;
       }),
     );
@@ -101,10 +105,13 @@ export function mountStorageSettings(root: HTMLElement): void {
     if (!selectedId) return;
     deleteButton.disabled = true;
     try {
-      await deleteS3Config(selectedId);
+      const result = await deleteS3Config(selectedId);
       selectedId = null;
       await refresh();
-      setStatus(status, "已删除");
+      setStatus(
+        status,
+        result.archived ? "已停用，旧媒体仍可读取。" : "已删除",
+      );
     } catch (error) {
       setStatus(status, error instanceof Error ? error.message : "删除失败");
     } finally {

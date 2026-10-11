@@ -119,13 +119,13 @@ export function apiRequest<T>(
 ): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
   const key = `${method}:${path}`;
-  if (method === "GET") {
+  if (method === "GET" && !options.signal) {
     const existing = inFlightRequests.get(key);
     if (existing) return existing as Promise<T>;
   }
 
   const request = performRequest<T>(path, options);
-  if (method !== "GET") return request;
+  if (method !== "GET" || options.signal) return request;
 
   inFlightRequests.set(key, request);
   const clear = () => {

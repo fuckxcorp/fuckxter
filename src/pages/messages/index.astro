@@ -315,13 +315,48 @@ import Layout from "../../layouts/Layout.astro";
   function renderMessages(
     container: HTMLElement,
     messages: DirectMessage[],
+    follow = false,
   ): void {
-    container.replaceChildren();
-    if (messages.length === 0) {
-      container.append(statusRow("还没有消息，打个招呼吧。"));
+    const top = container.scrollTop;
+    const anchor = [
+      ...container.querySelectorAll<HTMLElement>(".chat-row"),
+    ].find(
+      (node) =>
+        node.getBoundingClientRect().bottom >
+        container.getBoundingClientRect().top,
+    );
+    const offset = anchor?.getBoundingClientRect().top ?? 0;
+    const bottom = container.scrollHeight - top - container.clientHeight < 80;
+    container.querySelectorAll(".status").forEach((node) => node.remove());
+    const ids = new Set(messages.map((message) => message.id));
+    const rows = new Map(
+      [...container.querySelectorAll<HTMLElement>(".chat-row")].map((node) => [
+        node.dataset.id!,
+        node,
+      ]),
+    );
+    for (const [id, node] of rows) if (!ids.has(id)) node.remove();
+    let previous: HTMLElement | null = container.querySelector(".chat-more");
+    for (const message of messages) {
+      const node = rows.get(message.id) ?? messageRow(message);
+      const body = node.querySelector<HTMLElement>(".chat-bubble")!;
+      if (body.textContent !== message.body) body.textContent = message.body;
+      if (
+        previous
+          ? previous.nextElementSibling !== node
+          : container.firstElementChild !== node
+      ) {
+        if (previous) previous.after(node);
+        else container.prepend(node);
+      }
+      previous = node;
     }
-    for (const message of messages) container.append(messageRow(message));
-    container.scrollTop = container.scrollHeight;
+    if (!messages.length)
+      container.append(statusRow("还没有消息，打个招呼吧。"));
+    if (follow || bottom) container.scrollTop = container.scrollHeight;
+    else if (anchor?.isConnected)
+      container.scrollTop = top + anchor.getBoundingClientRect().top - offset;
+    else container.scrollTop = top;
   }
 
   async function mountConversation(
@@ -385,45 +420,137 @@ import Layout from "../../layouts/Layout.astro";
     let sending = false;
     let composing = false;
     let compositionEndedAt = 0;
-    let lastRendered: string | null = null;
-
-    const applyConversation = (user: FeedUser, messages: DirectMessage[]) => {
+    const stored = new Map<string, DirectMessage>();
+    let olderCursor: string | null = null;
+    let latestCursor: string | null = null;
+    let loading = false;
+    let paging = false;
+    let initialized = false;
+    const more = el("button", "ghost-btn chat-more");
+    more.type = "button";
+    more.textContent = "加载更早消息";
+    more.hidden = true;
+    const notice = el("button", "ghost-btn chat-new");
+    notice.type = "button";
+    notice.textContent = "有新消息";
+    notice.hidden = true;
+    list.before(notice);
+    notice.onclick = () => {
+      list.scrollTop = list.scrollHeight;
+      notice.hidden = true;
+    };
+    list.addEventListener(
+      "scroll",
+      () => {
+        if (list.scrollHeight - list.clientHeight - list.scrollTop < 80)
+          notice.hidden = true;
+      },
+      { passive: true },
+    );
+    const applyConversation = (
+      user: FeedUser,
+      messages: DirectMessage[],
+      follow = false,
+      recent = true,
+    ) => {
+      if (!root.isConnected) return;
       userLink.href = userPath(user.handle);
       profileLink.href = userPath(user.handle);
       fillAvatar(headAvatar, user);
       headName.textContent = user.name;
       headHandle.textContent = `@${user.handle}`;
-      const signature = messages.map((message) => message.id).join(",");
-      if (signature !== lastRendered) {
-        lastRendered = signature;
-        renderMessages(list, messages);
+      const away = list.scrollHeight - list.clientHeight - list.scrollTop >= 80;
+      const incoming = messages.some(
+        (message) => !message.mine && !stored.has(message.id),
+      );
+      if (recent && !messages.length) stored.clear();
+      if (recent && messages.length) {
+        const first = messages[0];
+        const ids = new Set(messages.map((message) => message.id));
+        for (const [id, message] of stored)
+          if (
+            (message.createdAt > first.createdAt ||
+              (message.createdAt === first.createdAt && id >= first.id)) &&
+            !ids.has(id)
+          )
+            stored.delete(id);
       }
+      messages.forEach((message) => stored.set(message.id, message));
+      if (!more.isConnected) list.prepend(more);
+      renderMessages(
+        list,
+        [...stored.values()].sort(
+          (a, b) =>
+            a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+        ),
+        follow || !initialized,
+      );
+      if (initialized && incoming && away && !follow) notice.hidden = false;
+      if (follow) notice.hidden = true;
+      initialized = true;
     };
 
     const load = async (silent: boolean) => {
+      if (loading || paging) return;
+      loading = true;
       try {
+        if (silent && latestCursor) {
+          let after: string | null = latestCursor;
+          do {
+            const update = await getConversation(handle, null, after);
+            if (!root.isConnected) return;
+            applyConversation(update.user, update.messages, false, false);
+            latestCursor = update.latestCursor ?? latestCursor;
+            after = update.nextAfter ?? null;
+          } while (after);
+        }
         const page = await getConversation(handle);
+        if (!root.isConnected) return;
+        if (!initialized) olderCursor = page.nextCursor ?? null;
+        latestCursor = page.latestCursor ?? latestCursor;
+        more.hidden = !olderCursor;
         applyConversation(page.user, page.messages);
         canSend = page.canSend !== false;
         input.disabled = !canSend;
         input.placeholder = canSend ? "写点私信…" : "对方设置了私信权限";
         syncSendState();
-        if (page.unread > 0) {
-          await markConversationRead(handle);
-        }
-        if (!canSend) {
+        if (page.unread > 0) await markConversationRead(handle);
+        if (!canSend)
           setStatus(page.hint ?? "对方设置了私信权限，暂时不能发消息。");
-        } else if (!silent) setStatus("");
+        else if (!silent) setStatus("");
       } catch (error) {
         if (!silent) {
           const message =
             error instanceof ApiError && error.status === 404
               ? "找不到这个用户。"
               : "私信加载失败，稍后再试。";
-          list.replaceChildren(statusRow(message));
+          if (!initialized) list.replaceChildren(statusRow(message));
           setStatus(message);
         }
+      } finally {
+        loading = false;
       }
+    };
+    more.onclick = () => {
+      if (!olderCursor || paging || loading) return;
+      paging = true;
+      more.disabled = true;
+      void getConversation(handle, olderCursor)
+        .then((page) => {
+          if (!root.isConnected) return;
+          olderCursor = page.nextCursor ?? null;
+          more.hidden = !olderCursor;
+          applyConversation(page.user, page.messages, false, false);
+        })
+        .catch((error) =>
+          setStatus(
+            error instanceof Error ? error.message : "私信加载失败，稍后再试。",
+          ),
+        )
+        .finally(() => {
+          paging = false;
+          more.disabled = false;
+        });
     };
 
     input.addEventListener("input", () => {
@@ -441,6 +568,7 @@ import Layout from "../../layouts/Layout.astro";
       button.textContent = "撤回中…";
       void recallDirectMessage(handle, id)
         .then((page) => {
+          stored.delete(id);
           applyConversation(page.user, page.messages);
           showToast("已撤回");
         })
@@ -492,7 +620,8 @@ import Layout from "../../layouts/Layout.astro";
           input.value = "";
           input.style.height = "";
           setStatus("");
-          applyConversation(page.user, page.messages);
+          latestCursor = page.latestCursor ?? latestCursor;
+          applyConversation(page.user, page.messages, true);
         })
         .catch((error: unknown) => {
           setStatus(

@@ -1,3 +1,4 @@
+import { requestSecurityProof } from "./security-proof";
 import { confirmTranslated } from "../i18n";
 import {
   beginTwoFactor,
@@ -196,9 +197,14 @@ export function mountSecuritySettings(
     setStatus(root.querySelector<HTMLElement>("[data-role=tfa-secret]"), "");
   };
 
+  let tfaBusy = false;
   const startTfaSetup = async () => {
+    if (tfaBusy) return;
+    tfaBusy = true;
     try {
-      const { secret } = await beginTwoFactor();
+      const proof = await requestSecurityProof();
+      if (!proof) return;
+      const { secret } = await beginTwoFactor(proof);
       setStatus(
         root.querySelector<HTMLElement>("[data-role=tfa-secret]"),
         secret,
@@ -215,6 +221,8 @@ export function mountSecuritySettings(
       tfaStatus.hidden = false;
       tfaStatus.textContent =
         error instanceof Error ? error.message : "初始化失败";
+    } finally {
+      tfaBusy = false;
     }
   };
 
@@ -290,7 +298,9 @@ export function mountSecuritySettings(
     recoveryGenerate.disabled = true;
     recoveryReplace.disabled = true;
     try {
-      const result = await generateRecoveryCodes();
+      const proof = await requestSecurityProof();
+      if (!proof) return;
+      const result = await generateRecoveryCodes(proof);
       root
         .querySelector<HTMLElement>("[data-role=recovery-list]")!
         .replaceChildren(

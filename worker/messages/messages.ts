@@ -1,3 +1,4 @@
+import { encodeCursor, decodeCursor } from "../shared/cursor";
 import { buildAvatarUrl } from "../accounts/avatar";
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
@@ -301,7 +302,11 @@ export async function getConversation(
   env: Env,
   userId: string,
   handle: string,
+  before: string | null = null,
+  after: string | null = null,
 ) {
+  if (before && after)
+    throw new HttpError(400, "INVALID_CURSOR", "翻页参数无效。");
   const person = await findPerson(env, handle);
   if (person.id === userId) {
     throw new HttpError(400, "SELF_MESSAGE", "不能和自己私信。");
@@ -311,12 +316,15 @@ export async function getConversation(
   }
   const [low, high] = pairFor(userId, person.id);
   const threadId = await findThreadID(env, low, high);
-  const messages = threadId ? await loadMessages(env, threadId, userId) : [];
+  const page = threadId
+    ? await loadMessages(env, threadId, userId, before, after)
+    : { messages: [], nextCursor: null, latestCursor: null, nextAfter: null };
+  const messages = page.messages;
   const gate = await dmGate(env, userId, person.id);
 
   return {
     user: serializePerson(person),
-    messages,
+    ...page,
     unread: messages.filter((message) => !message.mine && !message.read).length,
     // 对方的私信权限：不行的时候前端把输入框锁掉并显示原因
     canSend: gate.allowed,
@@ -325,26 +333,41 @@ export async function getConversation(
   };
 }
 
-async function loadMessages(env: Env, threadId: string, userId: string) {
+async function loadMessages(
+  env: Env,
+  threadId: string,
+  userId: string,
+  before: string | null,
+  after: string | null,
+) {
+  const cursor = before || after;
+  const values = cursor ? decodeCursor(cursor) : null;
   const rows = await env.DB.prepare(
-    `SELECT id, body, sender_id, created_at, read_at
-     FROM dm_messages
-     WHERE thread_id = ?
-     ORDER BY created_at DESC, id DESC
-     LIMIT ?`,
+    `SELECT id, body, sender_id, created_at, read_at FROM dm_messages
+    WHERE thread_id = ? ${values ? `AND (created_at, id) ${after ? ">" : "<"} (?, ?)` : ""}
+    ORDER BY created_at ${after ? "ASC" : "DESC"}, id ${after ? "ASC" : "DESC"} LIMIT ?`,
   )
-    .bind(threadId, THREAD_PAGE_SIZE)
+    .bind(threadId, ...(values ?? []), THREAD_PAGE_SIZE + 1)
     .all<MessageRow>();
-
-  return (rows.results ?? [])
-    .map((row) => ({
+  const selected = (rows.results ?? []).slice(0, THREAD_PAGE_SIZE);
+  const more = (rows.results?.length ?? 0) > THREAD_PAGE_SIZE;
+  if (!after) selected.reverse();
+  const first = selected[0],
+    last = selected.at(-1);
+  return {
+    messages: selected.map((row) => ({
       id: row.id,
       body: row.body,
       createdAt: row.created_at,
       mine: row.sender_id === userId,
       read: row.read_at !== null,
-    }))
-    .reverse();
+    })),
+    nextCursor:
+      !after && more && first ? encodeCursor(first.created_at, first.id) : null,
+    latestCursor: last ? encodeCursor(last.created_at, last.id) : after,
+    nextAfter:
+      after && more && last ? encodeCursor(last.created_at, last.id) : null,
+  };
 }
 
 export async function sendMessage(
@@ -427,10 +450,11 @@ export async function sendMessage(
     },
   });
 
-  const messages = await loadMessages(env, threadId, userId);
+  const page = await loadMessages(env, threadId, userId, null, null);
+  const messages = page.messages;
   return {
     user: serializePerson(person),
-    messages,
+    ...page,
     unread: messages.filter((message) => !message.mine && !message.read).length,
   };
 }
@@ -502,10 +526,13 @@ export async function recallMessage(
       .run();
   }
 
-  const messages = latest ? await loadMessages(env, threadId, userId) : [];
+  const page = latest
+    ? await loadMessages(env, threadId, userId, null, null)
+    : { messages: [], nextCursor: null, latestCursor: null, nextAfter: null };
+  const messages = page.messages;
   return {
     user: serializePerson(person),
-    messages,
+    ...page,
     unread: messages.filter((message) => !message.mine && !message.read).length,
   };
 }

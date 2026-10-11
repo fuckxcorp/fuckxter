@@ -1,11 +1,13 @@
 export const languages = [
   { code: "zh-CN", name: "简中" },
   { code: "zh-Hant", name: "繁中" },
+  { code: "yue-Hant", name: "粵語" },
+  { code: "nan-Hant", name: "闽南语" },
+  { code: "hsn", name: "湘语" },
+  { code: "zh-x-dalian", name: "大连话" },
+  { code: "ko", name: "한국어" },
   { code: "ja", name: "日本語" },
   { code: "vi-Hani", name: "㗂越（𡨸喃）" },
-  { code: "yue-Hant", name: "粵語" },
-  { code: "hsn", name: "湘语（长益片）" },
-  { code: "zh-x-dalian", name: "大连话" },
   { code: "en", name: "English" },
   { code: "es", name: "Español" },
 ] as const;
@@ -14,6 +16,8 @@ const catalogs: Record<string, Record<string, string>> = {};
 const loaders = {
   en: () => import("./locales/en.json"),
   ja: () => import("./locales/ja.json"),
+  ko: () => import("./locales/ko.json"),
+  "nan-Hant": () => import("./locales/nan-Hant.json"),
   es: () => import("./locales/es.json"),
   "zh-Hant": () => import("./locales/zh-Hant.json"),
   "yue-Hant": () => import("./locales/yue-Hant.json"),
@@ -48,11 +52,13 @@ export function getLanguage(): Language {
 }
 export function getLocale(): string {
   const language = getLanguage();
-  return language === "vi-Hani"
-    ? "vi-VN"
-    : language === "hsn" || language === "zh-x-dalian"
-      ? "zh-CN"
-      : language;
+  return language === "nan-Hant"
+    ? "zh-TW"
+    : language === "vi-Hani"
+      ? "vi-VN"
+      : language === "hsn" || language === "zh-x-dalian"
+        ? "zh-CN"
+        : language;
 }
 let templates: { key: string; pattern: RegExp }[] = [];
 let fragments: string[] = [];

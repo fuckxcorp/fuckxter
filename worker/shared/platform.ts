@@ -135,6 +135,9 @@ export interface UserRow {
   /** 私信权限：everyone | mutual | nobody */
   dm_policy: string;
   totp_secret: string | null;
+  pending_totp_secret: string | null;
+  pending_totp_session: string | null;
+  pending_totp_expires: number | null;
   two_factor_enabled: number;
   deleted_at: string | null;
   created_at: string;

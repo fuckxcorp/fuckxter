@@ -1,3 +1,4 @@
+import { rateLimit } from "../shared/rate-limit";
 import { HttpError } from "../shared/http";
 import {
   createPasswordHash,
@@ -109,6 +110,7 @@ export async function loginOrRegister(
   password: string,
   code?: string,
   recoveryCode?: string,
+  source = "unknown",
 ) {
   const identifier = identifierValue.trim().replace(/^@/, "").normalize("NFKC");
   if (!identifier) throw new HttpError(400, "EMAIL_REQUIRED", "请填写邮箱。");
@@ -183,6 +185,7 @@ export async function loginOrRegister(
     throw new HttpError(400, "INVALID_EMAIL", "注册需要填写有效的邮箱地址。");
   }
 
+  await rateLimit(env, `register:${source}`, 10, 3600);
   const email = identifier;
   const now = new Date().toISOString();
   const passwordValue = await createPasswordHash(password);
@@ -223,10 +226,14 @@ export async function loginOrRegister(
             "邮箱或用户名已被使用。",
           );
         }
-        return {
-          userId: existing.id,
-          account: await getAccount(env, existing.id),
-        };
+        return loginOrRegister(
+          env,
+          identifier,
+          password,
+          code,
+          recoveryCode,
+          source,
+        );
       }
     }
   }
@@ -390,76 +397,130 @@ export async function changePassword(
     throw new HttpError(403, "INVALID_PASSWORD", "当前密码不正确。");
   }
   const passwordValue = await createPasswordHash(next);
-  await env.DB.prepare(
-    `UPDATE users
-     SET password_hash = ?, password_salt = ?, updated_at = ?
-     WHERE id = ?`,
-  )
-    .bind(
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE users SET password_hash = ?, password_salt = ?,
+      pending_totp_secret = NULL, pending_totp_session = NULL, pending_totp_expires = NULL,
+      updated_at = ? WHERE id = ?`,
+    ).bind(
       passwordValue.hash,
       passwordValue.salt,
       new Date().toISOString(),
       userId,
-    )
-    .run();
+    ),
+    env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId),
+  ]);
 }
 
-export async function beginTwoFactor(env: Env, userId: string) {
-  const user = await env.DB.prepare(
-    "SELECT credential_id FROM users WHERE id = ?",
-  )
+export interface SecurityProof {
+  password?: string;
+  code?: string;
+  recoveryCode?: string;
+}
+
+async function verifySecurityProof(
+  env: Env,
+  user: UserRow,
+  proof: SecurityProof,
+): Promise<void> {
+  if (!(await verifyPassword(proof.password ?? "", user))) {
+    throw new HttpError(403, "INVALID_PASSWORD", "当前密码不正确。");
+  }
+  if (!user.two_factor_enabled) return;
+  if (proof.recoveryCode) {
+    if (await consumeRecoveryCode(env, user.id, proof.recoveryCode)) return;
+  } else if (user.totp_secret) {
+    const secret = await decryptSecret(
+      user.totp_secret,
+      env,
+      `user:${user.credential_id}:totp`,
+    );
+    if (await verifyTotp(secret, proof.code?.trim() ?? "")) return;
+  }
+  throw new HttpError(403, "INVALID_TOTP", "动态验证码不正确。");
+}
+
+export async function beginTwoFactor(
+  env: Env,
+  userId: string,
+  sessionId: string,
+  proof: SecurityProof,
+) {
+  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
     .bind(userId)
-    .first<{ credential_id: string }>();
+    .first<UserRow>();
   if (!user) throw new HttpError(401, "UNAUTHORIZED", "请先登录。");
+  await verifySecurityProof(env, user, proof);
   const secret = generateTotpSecret();
   await env.DB.prepare(
     `UPDATE users
-     SET totp_secret = ?, two_factor_enabled = 0, updated_at = ?
-     WHERE id = ?`,
+    SET pending_totp_secret = ?, pending_totp_session = ?, pending_totp_expires = ?
+    WHERE id = ?`,
   )
     .bind(
       await encryptSecret(secret, env, `user:${user.credential_id}:totp`),
-      new Date().toISOString(),
+      sessionId,
+      Date.now() + 600_000,
       userId,
     )
     .run();
   return { secret };
 }
 
-export async function confirmTwoFactor(env: Env, userId: string, code: string) {
+export async function confirmTwoFactor(
+  env: Env,
+  userId: string,
+  sessionId: string,
+  code: string,
+) {
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
     .bind(userId)
     .first<UserRow>();
-  if (!user?.totp_secret) {
+  if (
+    !user?.pending_totp_secret ||
+    user.pending_totp_session !== sessionId ||
+    (user.pending_totp_expires ?? 0) <= Date.now()
+  ) {
     throw new HttpError(400, "TOTP_NOT_STARTED", "请先开始动态验证码设置。");
   }
   const secret = await decryptSecret(
-    user.totp_secret,
+    user.pending_totp_secret,
     env,
     `user:${user.credential_id}:totp`,
   );
-  if (!(await verifyTotp(secret, code.trim()))) {
+  if (!(await verifyTotp(secret, code.trim())))
     throw new HttpError(400, "INVALID_TOTP", "动态验证码不正确。");
-  }
-  await env.DB.prepare(
-    `UPDATE users
-     SET two_factor_enabled = 1, updated_at = ?
-     WHERE id = ?`,
+  const updated = await env.DB.prepare(
+    `UPDATE users SET totp_secret = pending_totp_secret,
+    two_factor_enabled = 1, pending_totp_secret = NULL, pending_totp_session = NULL,
+    pending_totp_expires = NULL, updated_at = ?
+    WHERE id = ? AND pending_totp_secret = ? AND pending_totp_session = ? AND pending_totp_expires > ?`,
   )
-    .bind(new Date().toISOString(), userId)
+    .bind(
+      new Date().toISOString(),
+      userId,
+      user.pending_totp_secret,
+      sessionId,
+      Date.now(),
+    )
     .run();
+  if (!updated.meta?.changes)
+    throw new HttpError(409, "TOTP_NOT_STARTED", "请先开始动态验证码设置。");
   return { account: await getAccount(env, userId) };
 }
 
-export async function replaceRecoveryCodes(env: Env, userId: string) {
-  const user = await env.DB.prepare(
-    "SELECT two_factor_enabled FROM users WHERE id = ?",
-  )
+export async function replaceRecoveryCodes(
+  env: Env,
+  userId: string,
+  proof: SecurityProof,
+) {
+  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
     .bind(userId)
-    .first<Pick<UserRow, "two_factor_enabled">>();
+    .first<UserRow>();
   if (!user?.two_factor_enabled) {
     throw new HttpError(400, "TOTP_REQUIRED", "请先启用双重验证。");
   }
+  await verifySecurityProof(env, user, proof);
   const codes = Array.from({ length: 8 }, randomRecoveryCode);
   const now = new Date().toISOString();
   const hashes = await Promise.all(

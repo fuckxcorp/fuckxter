@@ -1,4 +1,5 @@
 import { HttpError } from "../shared/http";
+import { storageURL, storageFetch } from "./storage-fetch";
 
 export interface S3Config {
   id?: string;
@@ -10,6 +11,7 @@ export interface S3Config {
   secretAccessKey?: string;
   pathStyle?: boolean;
   isDefault?: boolean;
+  enabled?: boolean;
 }
 
 function hex(bytes: ArrayBuffer): string {
@@ -65,15 +67,9 @@ function s3Target(input: S3Config, key: string): URL {
 }
 
 export function validateStorageInput(input: S3Config): void {
-  if (!/^https?:\/\//.test(input.endpoint?.trim() ?? "")) {
-    throw new HttpError(
-      400,
-      "INVALID_ENDPOINT",
-      "Endpoint 必须以 http(s):// 开头。",
-    );
-  }
-  if (!input.bucket?.trim()) {
-    throw new HttpError(400, "BUCKET_REQUIRED", "必须填写 Bucket。");
+  storageURL(input.endpoint?.trim() ?? "");
+  if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(input.bucket?.trim() ?? "")) {
+    throw new HttpError(400, "BUCKET_REQUIRED", "必须填写有效的 Bucket。");
   }
 }
 
@@ -153,7 +149,7 @@ export async function signedS3Request(
       `SignedHeaders=${signedHeaders}, Signature=${signature}`,
   );
 
-  const response = await fetch(target, {
+  const response = await storageFetch(target, {
     method,
     headers,
     body,
@@ -254,7 +250,7 @@ export async function testStorageConnection(input: S3Config): Promise<string> {
   const key = `fuckxter/media/__connection-test-${crypto.randomUUID()}.txt`;
   const body = crypto.getRandomValues(new Uint8Array(32)).buffer;
   const put = await presignS3Request(input, "PUT", key, "text/plain");
-  const putResponse = await fetch(put.url, {
+  const putResponse = await storageFetch(put.url, {
     method: "PUT",
     headers: put.headers,
     body,
@@ -272,7 +268,7 @@ export async function testStorageConnection(input: S3Config): Promise<string> {
   }
 
   const remove = await presignS3Request(input, "DELETE", key);
-  const removeResponse = await fetch(remove.url, { method: "DELETE" });
+  const removeResponse = await storageFetch(remove.url, { method: "DELETE" });
   if (!removeResponse.ok) {
     let detail = "";
     try {

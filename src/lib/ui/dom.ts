@@ -276,7 +276,13 @@ export function postMedia(post: Post, carousel = false): HTMLElement {
   for (const media of post.media ?? []) {
     const node = el("div", media.hdr ? "media is-hdr" : "media");
     const image = el("img", "media-image");
-    image.src = media.url.startsWith("/") ? apiEndpoint(media.url) : media.url;
+    const source = media.url.startsWith("/")
+      ? apiEndpoint(media.url)
+      : media.url;
+    const preview = new URL(source, location.href);
+    if (carousel && !media.hdr && preview.pathname.startsWith("/media/"))
+      preview.searchParams.set("preview", "640");
+    image.src = preview.toString();
     image.alt = media.alt;
     image.loading = "lazy";
     image.decoding = "async";
@@ -427,6 +433,13 @@ export function renderPost(
 ): HTMLElement {
   const article = el("article", "post");
   article.dataset.postId = post.id;
+  const permalink = el("a", "post-permalink");
+  permalink.href = postPath(post);
+  permalink.setAttribute("aria-label", `打开 ${post.author.name} 的帖子`);
+  const linkText = el("span", "sr-only");
+  linkText.textContent = "查看帖子";
+  permalink.append(linkText);
+  article.append(permalink);
   article.dataset.handle = post.author.handle;
   if (post.sourcePostId) article.dataset.sourcePostId = post.sourcePostId;
 

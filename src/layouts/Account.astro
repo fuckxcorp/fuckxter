@@ -1,3 +1,7 @@
+---
+import { languages } from "../lib/i18n";
+---
+
 <div class="account" data-account>
   <button
     type="button"
@@ -41,6 +45,14 @@
         data-auth-open="signin"
       >
         登录 / 注册
+      </button>
+      <button
+        type="button"
+        class="menu-item"
+        role="menuitem"
+        data-account-open="history"
+      >
+        历史
       </button>
     </div>
 
@@ -103,15 +115,61 @@
         ></span>
       </button>
     </div>
-    <button
-      type="button"
-      class="menu-item"
-      role="menuitem"
-      data-account-open="history"
-      data-role="guest-history"
-    >
-      历史
-    </button>
+    <div class="menu-row">
+      <button
+        type="button"
+        class="menu-item menu-expandable"
+        role="menuitem"
+        aria-expanded="false"
+        aria-haspopup="menu"
+        data-account-open="language"
+      >
+        <span>语言</span>
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9"></circle>
+          <ellipse cx="12" cy="12" rx="4" ry="9"></ellipse>
+          <path d="M3 12h18"></path>
+        </svg>
+        <span class="menu-arrow" aria-hidden="true">
+          ▸
+        </span>
+      </button>
+      <div
+        class="submenu language-submenu"
+        data-role="language-submenu"
+        role="menu"
+        hidden
+      >
+        {languages.map((language) => (
+          <button
+            type="button"
+            class="menu-item"
+            role="menuitemradio"
+            data-language-choice={language.code}
+            data-no-translate
+          >
+            <span class="menu-check">✓</span>
+            <span
+              data-nom-label={
+                language.code === "vi-Hani" ? language.name : undefined
+              }
+            >
+              {language.name}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
     <button
       type="button"
       class="menu-item"

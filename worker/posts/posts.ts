@@ -368,43 +368,58 @@ async function viewerKey(
   return `anon:${hash.slice(0, 32)}`;
 }
 
+export async function recordPostViews(
+  env: Env,
+  request: Request,
+  viewerId: string | null,
+  ids: string[],
+) {
+  const unique = [...new Set(ids)].slice(0, 20);
+  if (!unique.length) return { views: [] };
+  const filter = viewerFilter(viewerId);
+  const placeholders = unique.map(() => "?").join(",");
+  const visible = await env.DB.prepare(
+    `SELECT p.id FROM posts p JOIN users u ON u.id = p.author_id
+    WHERE p.id IN (${placeholders}) AND p.deleted_at IS NULL AND u.deleted_at IS NULL AND ${filter.condition}`,
+  )
+    .bind(...unique, ...filter.params)
+    .all<{ id: string }>();
+  const allowed = (visible.results ?? []).map((row) => row.id);
+  if (!allowed.length) return { views: [] };
+  const key = await viewerKey(request, viewerId);
+  const now = new Date().toISOString();
+  const inserted = await env.DB.prepare(
+    `INSERT INTO post_views (post_id, viewer_key, created_at)
+    VALUES ${allowed.map(() => "(?, ?, ?)").join(",")}
+    ON CONFLICT(post_id, viewer_key) DO NOTHING RETURNING post_id`,
+  )
+    .bind(...allowed.flatMap((id) => [id, key, now]))
+    .all<{ post_id: string }>();
+  const counted = new Set((inserted.results ?? []).map((row) => row.post_id));
+  const counts = await env.DB.prepare(
+    `SELECT id, view_count FROM posts WHERE id IN (${allowed.map(() => "?").join(",")})`,
+  )
+    .bind(...allowed)
+    .all<{ id: string; view_count: number }>();
+  return {
+    views: (counts.results ?? []).map((row) => ({
+      id: row.id,
+      views: Number(row.view_count),
+      counted: counted.has(row.id),
+    })),
+  };
+}
+
 export async function recordPostView(
   env: Env,
   request: Request,
   viewerId: string | null,
   postId: string,
 ): Promise<{ id: string; views: number; counted: boolean }> {
-  const post = await env.DB.prepare(
-    "SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL LIMIT 1",
-  )
-    .bind(postId)
-    .first<{ id: string }>();
-  if (!post) {
-    throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
-  }
-
-  const inserted = await env.DB.prepare(
-    `INSERT INTO post_views (post_id, viewer_key, created_at)
-     VALUES (?, ?, ?)
-     ON CONFLICT(post_id, viewer_key) DO NOTHING`,
-  )
-    .bind(postId, await viewerKey(request, viewerId), new Date().toISOString())
-    .run();
-
-  const counted = Number(inserted.meta?.changes ?? 0) > 0;
-  if (counted) {
-    await env.DB.prepare(
-      "UPDATE posts SET view_count = view_count + 1 WHERE id = ?",
-    )
-      .bind(postId)
-      .run();
-  }
-
-  const row = await env.DB.prepare("SELECT view_count FROM posts WHERE id = ?")
-    .bind(postId)
-    .first<{ view_count: number }>();
-
-  return { id: postId, views: Number(row?.view_count ?? 0), counted };
+  const page = await recordPostViews(env, request, viewerId, [postId]);
+  const result = page.views[0];
+  if (!result) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
+  return result;
 }
 
 export async function getPostByID(
@@ -878,17 +893,42 @@ export async function getComments(
   env: Env,
   viewerId: string | null,
   postId: string,
+  cursor: string | null = null,
+  focus: string | null = null,
 ) {
   if (!(await getPostByID(env, viewerId, postId))) {
     throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
   }
+  const [time, id] = cursor ? decodeCursor(cursor) : ["", ""];
+  const page = await env.DB.prepare(
+    `SELECT id, created_at FROM comments
+    WHERE post_id = ? AND deleted_at IS NULL ${cursor ? "AND (created_at, id) > (?, ?)" : ""}
+    ORDER BY created_at ASC, id ASC LIMIT 51`,
+  )
+    .bind(postId, ...(cursor ? [time, id] : []))
+    .all<{ id: string; created_at: string }>();
+  const selected = (page.results ?? []).slice(0, 50);
+  const last = selected.at(-1);
+  const total = await env.DB.prepare(
+    "SELECT COUNT(*) AS count FROM comments WHERE post_id = ? AND deleted_at IS NULL",
+  )
+    .bind(postId)
+    .first<{ count: number }>();
+  const ids = [
+    ...new Set([...selected.map((row) => row.id), ...(focus ? [focus] : [])]),
+  ];
+  if (!ids.length)
+    return { total: Number(total?.count ?? 0), comments: [], nextCursor: null };
   const result = await env.DB.prepare(
-    `SELECT
+    `WITH RECURSIVE ancestors(id, parent_id) AS (
+       SELECT id, parent_id FROM comments WHERE post_id = ? AND id IN (${ids.map(() => "?").join(",")})
+       UNION
+       SELECT c.id, c.parent_id FROM comments c JOIN ancestors a ON c.id = a.parent_id WHERE c.post_id = ?
+     ) SELECT
        c.id,
        c.text,
        c.media_json,
        c.created_at,
-       COUNT(*) OVER() AS total_count,
        u.id AS author_id,
        u.name AS author_name,
        u.handle AS author_handle,
@@ -916,17 +956,15 @@ export async function getComments(
      JOIN users u ON u.id = c.author_id
      LEFT JOIN comments parent ON parent.id = c.parent_id
      LEFT JOIN users pu ON pu.id = parent.author_id
-     WHERE c.post_id = ? AND c.deleted_at IS NULL
-     ORDER BY c.created_at DESC, c.id DESC
-     LIMIT 100`,
+     WHERE c.id IN (SELECT id FROM ancestors) AND c.deleted_at IS NULL
+     ORDER BY c.created_at ASC, c.id ASC`,
   )
-    .bind(viewerId ?? "", viewerId ?? "", postId)
+    .bind(postId, ...ids, postId, viewerId ?? "", viewerId ?? "")
     .all<{
       id: string;
       text: string;
       created_at: string;
       media_json: string | null;
-      total_count: number;
       author_id: string;
       author_name: string;
       author_handle: string;
@@ -944,9 +982,13 @@ export async function getComments(
       parent_name: string | null;
     }>();
 
-  const rows = [...(result.results ?? [])].reverse();
+  const rows = result.results ?? [];
   return {
-    total: Number(rows[0]?.total_count ?? 0),
+    total: Number(total?.count ?? 0),
+    nextCursor:
+      (page.results?.length ?? 0) > 50 && last
+        ? encodeCursor(last.created_at, last.id)
+        : null,
     comments: rows.map((row) => ({
       id: row.id,
       author: {

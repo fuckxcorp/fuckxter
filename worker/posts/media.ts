@@ -1,3 +1,4 @@
+import { storageFetch } from "../accounts/storage-fetch";
 import { canViewMedia } from "./posts";
 import { HttpError } from "../shared/http";
 import type { Env, MediaRow } from "../shared/platform";
@@ -143,14 +144,13 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
   const requestedConfigId =
     request.headers.get("X-Storage-Config-Id")?.trim() || undefined;
   const config = await getStorageConfig(env, userId, requestedConfigId);
-  if (!config && requestedConfigId) {
+  if (!config && requestedConfigId && requestedConfigId !== "platform") {
     throw new HttpError(404, "STORAGE_NOT_FOUND", "存储配置不存在。");
   }
 
   const extension = MEDIA_EXTENSIONS[contentType] ?? "bin";
   const sha256 = await sha256Hex(bytes);
-  // 平台存储直接用这个键：它既是源文件，也是首次读取时被原地转成 AVIF 的缓存，
-  // 所以整张图在 R2 里只占一份。
+  // 保留原始字节，缩略图使用独立缓存键。
   const cacheKey = `media/${sha256}`;
   let objectKey: string;
 
@@ -163,7 +163,7 @@ export async function uploadMedia(request: Request, env: Env, userId: string) {
       objectKey,
       contentType,
     );
-    const response = await fetch(upload.url, {
+    const response = await storageFetch(upload.url, {
       method: "PUT",
       headers: upload.headers,
       body: bytes,
@@ -252,7 +252,20 @@ export async function presignMediaUpload(
     );
   }
   const objectKey = `fuckxter/media/${Date.now()}-${randomToken().slice(0, 8)}.${extension}`;
-  const presigned = await presignS3Put(config, objectKey, contentType, 3600);
+  const presigned = await presignS3Put(config, objectKey, contentType, 900);
+  await env.DB.prepare(
+    `INSERT INTO upload_tickets (object_key, owner_id, storage_config_id, original_name, content_type, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      objectKey,
+      userId,
+      config.id,
+      safeFileName(input.fileName ?? null),
+      contentType,
+      Date.now() + 900_000,
+    )
+    .run();
   return {
     objectKey,
     originalName: safeFileName(input.fileName ?? null),
@@ -273,94 +286,91 @@ export async function finalizeMediaUpload(
   },
 ) {
   const objectKey = input.objectKey?.trim() ?? "";
-  const prefix = "fuckxter/media/";
-  if (
-    !objectKey.startsWith(prefix) ||
-    objectKey.length === prefix.length ||
-    objectKey.includes("..")
-  ) {
-    throw new HttpError(400, "INVALID_MEDIA", "媒体对象键无效。");
-  }
-  const contentType = input.contentType?.trim().toLowerCase() ?? "";
-  if (!ALLOWED_MEDIA.has(contentType)) {
-    throw new HttpError(
-      415,
-      "UNSUPPORTED_MEDIA",
-      "仅支持 JPEG、PNG、GIF、WebP 和 AVIF 图片。",
-    );
-  }
-  const config = await getStorageConfig(
-    env,
-    userId,
-    input.storageConfigId ?? undefined,
-  );
-  if (!config) {
-    throw new HttpError(400, "STORAGE_REQUIRED", "请先配置自定义存储。");
-  }
-
   const existing = await env.DB.prepare(
-    `SELECT * FROM media_objects
-     WHERE owner_id = ? AND object_key = ? AND status = 'ready'
-     LIMIT 1`,
+    `SELECT * FROM media_objects WHERE owner_id = ? AND storage_config_id = ? AND object_key = ? AND status = 'ready' LIMIT 1`,
   )
-    .bind(userId, objectKey)
+    .bind(userId, input.storageConfigId ?? "", objectKey)
     .first<MediaRow>();
   if (existing) return mediaJson(existing);
-
-  const { response } = await signedS3Request(config, "HEAD", objectKey);
-  if (!response.ok) {
-    throw new HttpError(
-      502,
-      "MEDIA_UPLOAD_NOT_FOUND",
-      `未找到已上传的媒体（S3 ${response.status}）。`,
-    );
-  }
-  const byteSize = Number(response.headers.get("Content-Length") ?? "0");
-  if (!Number.isSafeInteger(byteSize) || byteSize <= 0) {
+  const ticket = await env.DB.prepare(
+    `SELECT * FROM upload_tickets WHERE object_key = ? AND owner_id = ? AND expires_at > ?`,
+  )
+    .bind(objectKey, userId, Date.now())
+    .first<{
+      storage_config_id: string;
+      original_name: string;
+      content_type: string;
+    }>();
+  if (!ticket || ticket.storage_config_id !== input.storageConfigId)
+    throw new HttpError(400, "INVALID_MEDIA", "上传凭据已失效，请重新上传。");
+  const config = await getStorageConfig(env, userId, ticket.storage_config_id);
+  if (!config)
+    throw new HttpError(400, "STORAGE_REQUIRED", "请先配置自定义存储。");
+  const { response: head } = await signedS3Request(config, "HEAD", objectKey);
+  const size = Number(head.headers.get("Content-Length"));
+  if (!head.ok || !Number.isSafeInteger(size) || size <= 0)
     throw new HttpError(
       502,
       "MEDIA_SIZE_UNAVAILABLE",
       "无法获取已上传媒体的大小。",
     );
-  }
-
+  if (size > MAX_IMAGE_BYTES)
+    throw new HttpError(413, "MEDIA_TOO_LARGE", "图片不能超过 30 MB。");
+  const { response } = await signedS3Request(config, "GET", objectKey);
+  if (!response.ok)
+    throw new HttpError(502, "MEDIA_UPLOAD_NOT_FOUND", "未找到已上传的媒体。");
+  const { bytes, contentType } = await readImage(
+    new Request("https://media.local/image", {
+      method: "POST",
+      headers: response.headers,
+      body: response.body,
+      duplex: "half",
+    } as RequestInit),
+  );
+  if (contentType !== ticket.content_type)
+    throw new HttpError(
+      415,
+      "UNSUPPORTED_MEDIA",
+      "图片实际格式与上传声明不一致。",
+    );
+  const sha256 = await sha256Hex(bytes);
+  await env.MEDIA_CACHE.put(`media/${sha256}`, bytes, {
+    httpMetadata: { contentType },
+  });
   const id = randomID();
   const now = new Date().toISOString();
-  const sha256 = await sha256Hex(
-    new TextEncoder().encode(`${config.id ?? "storage"}:${objectKey}`),
-  );
-  const row: MediaRow = {
-    id,
-    owner_id: userId,
-    storage_config_id: config.id ?? null,
-    object_key: objectKey,
-    original_name: safeFileName(input.originalName ?? null),
-    content_type: contentType,
-    sha256,
-    byte_size: byteSize,
-    status: "ready",
-    created_at: now,
-    updated_at: now,
-  };
-  await env.DB.prepare(
-    `INSERT INTO media_objects (
-       id, owner_id, storage_config_id, object_key, original_name, content_type,
-       sha256, byte_size, status, created_at, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?)`,
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO media_objects (id, owner_id, storage_config_id, object_key, original_name,
+      content_type, sha256, byte_size, status, created_at, updated_at)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ? WHERE EXISTS (
+        SELECT 1 FROM upload_tickets WHERE object_key = ? AND owner_id = ? AND expires_at > ?)`,
+    ).bind(
+      id,
+      userId,
+      config.id,
+      objectKey,
+      ticket.original_name,
+      contentType,
+      sha256,
+      bytes.byteLength,
+      now,
+      now,
+      objectKey,
+      userId,
+      Date.now(),
+    ),
+    env.DB.prepare(
+      "DELETE FROM upload_tickets WHERE object_key = ? AND owner_id = ?",
+    ).bind(objectKey, userId),
+  ]);
+  const row = await env.DB.prepare(
+    `SELECT * FROM media_objects WHERE owner_id = ? AND storage_config_id = ? AND object_key = ? AND status = 'ready' LIMIT 1`,
   )
-    .bind(
-      row.id,
-      row.owner_id,
-      row.storage_config_id,
-      row.object_key,
-      row.original_name,
-      row.content_type,
-      row.sha256,
-      row.byte_size,
-      row.created_at,
-      row.updated_at,
-    )
-    .run();
+    .bind(userId, config.id, objectKey)
+    .first<MediaRow>();
+  if (!row)
+    throw new HttpError(400, "INVALID_MEDIA", "上传凭据已失效，请重新上传。");
   return mediaJson(row);
 }
 
@@ -538,6 +548,7 @@ export async function getMedia(
   env: Env,
   id: string,
   viewerId: string | null,
+  preview = false,
 ): Promise<{
   body: ReadableStream | ArrayBuffer;
   contentType: string;
@@ -549,6 +560,41 @@ export async function getMedia(
     throw new HttpError(404, "MEDIA_NOT_FOUND", "媒体不存在。");
   }
   const cacheKey = `media/${row.sha256}`;
+  if (preview && env.IMAGES && row.byte_size <= 20 * 1024 * 1024) {
+    const key = `previews/640-v1/${row.sha256}`;
+    const cachedPreview = await env.MEDIA_CACHE.get(key);
+    if (cachedPreview)
+      return {
+        body: cachedPreview.body,
+        contentType: "image/avif",
+        size: cachedPreview.size,
+        etag: `${row.sha256}-640-v1`,
+      };
+    const source = await getMedia(env, id, viewerId, false);
+    try {
+      const stream =
+        source.body instanceof ArrayBuffer
+          ? new Response(source.body).body!
+          : source.body;
+      const output = await env.IMAGES.input(stream)
+        .transform({ width: 640, fit: "scale-down" })
+        .output({ format: "image/avif", quality: 65, anim: true });
+      const response = output.response();
+      if (!response.ok) throw new Error("preview transform failed");
+      const bytes = await response.arrayBuffer();
+      await env.MEDIA_CACHE.put(key, bytes, {
+        httpMetadata: { contentType: "image/avif" },
+      });
+      return {
+        body: bytes,
+        contentType: "image/avif",
+        size: bytes.byteLength,
+        etag: `${row.sha256}-640-v1`,
+      };
+    } catch {
+      return getMedia(env, id, viewerId, false);
+    }
+  }
   const cached = await env.MEDIA_CACHE.get(cacheKey);
   if (cached) {
     return {
@@ -576,6 +622,7 @@ export async function getMedia(
     env,
     row.owner_id,
     row.storage_config_id,
+    true,
   );
   if (!config) {
     throw new HttpError(502, "STORAGE_UNAVAILABLE", "媒体所在的存储不可用。");

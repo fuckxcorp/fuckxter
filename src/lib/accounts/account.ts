@@ -1,8 +1,19 @@
-import { confirmTranslated } from "../i18n";
+import {
+  confirmTranslated,
+  getLanguage,
+  setLanguage,
+  type Language,
+} from "../i18n";
 import { navigate } from "astro:transitions/client";
 import { getAccount, signOut, type Account } from "./auth";
 import { getUnreadMessageCount, getUnreadNotificationCount } from "./api";
-import { avatarGradient, hidePanel, isPanelOpen, showPanel } from "../ui/dom";
+import {
+  avatarGradient,
+  collapseSubmenus,
+  hidePanel,
+  isPanelOpen,
+  showPanel,
+} from "../ui/dom";
 import { apiEndpoint } from "../core/http";
 import { userPath } from "../core/urls";
 
@@ -65,6 +76,21 @@ export function mountAccountControls(
   const messageMenuBadge = accountMenu.querySelector<HTMLElement>(
     "[data-role=message-menu-badge]",
   )!;
+  const languageTrigger = accountMenu.querySelector<HTMLButtonElement>(
+    "[data-account-open=language]",
+  )!;
+  const languageSubmenu = accountMenu.querySelector<HTMLElement>(
+    "[data-role=language-submenu]",
+  )!;
+  const syncLanguageMenu = () => {
+    for (const item of languageSubmenu.querySelectorAll<HTMLElement>(
+      "[data-language-choice]",
+    ))
+      item.setAttribute(
+        "aria-checked",
+        String(item.dataset.languageChoice === getLanguage()),
+      );
+  };
   let account: Account | null = getAccount();
   let unreadRequestId = 0;
   let messageRequestId = 0;
@@ -166,9 +192,7 @@ export function mountAccountControls(
       accountBtn.title = "登录或注册";
     }
     options.onAccountChange();
-    accountMenu.querySelector<HTMLElement>(
-      "[data-role=guest-history]",
-    )!.hidden = Boolean(account);
+    syncLanguageMenu();
   };
 
   const setPeeled = (open: boolean) => {
@@ -176,6 +200,7 @@ export function mountAccountControls(
   };
 
   const closeAccountMenu = () => {
+    collapseSubmenus(accountMenu);
     hidePanel(accountMenu);
     setPeeled(false);
     accountBtn.setAttribute("aria-expanded", "false");
@@ -208,6 +233,23 @@ export function mountAccountControls(
     } else {
       closeAccountMenu();
     }
+  });
+
+  languageTrigger.addEventListener("click", () => {
+    const open = !isPanelOpen(languageSubmenu);
+    if (open) {
+      collapseSubmenus(accountMenu, languageSubmenu);
+      showPanel(languageSubmenu);
+    } else hidePanel(languageSubmenu);
+    languageTrigger.setAttribute("aria-expanded", String(open));
+  });
+  languageSubmenu.addEventListener("click", (event) => {
+    const item = (event.target as HTMLElement).closest<HTMLElement>(
+      "[data-language-choice]",
+    );
+    if (!item) return;
+    setLanguage(item.dataset.languageChoice as Language);
+    syncLanguageMenu();
   });
 
   accountMenu.addEventListener("click", (event) => {

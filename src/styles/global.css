@@ -41,7 +41,12 @@ button {
 }
 
 * {
-  font-family: "Segoe UI", Roboto, Tahoma, Geneva, Verdana, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 :root {
@@ -1959,8 +1964,8 @@ html[lang="vi-Hani"] body * {
   font-family: system-ui, "FuckXter Nôm", sans-serif;
 }
 .language-submenu {
-  --slab-left: 54px;
-  --slab-top-right: 54px;
+  --slab-left: 66px;
+  --slab-top-right: 66px;
   min-width: 280px;
   top: -0.4rem;
 }
@@ -1975,4 +1980,53 @@ html[lang="vi-Hani"] body * {
     max-height: 280px;
     overflow-y: auto;
   }
+}
+
+.security-proof {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  width: min(400px, calc(100vw - 32px));
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.security-proof::backdrop {
+  background: #0008;
+  backdrop-filter: blur(4px);
+}
+.security-proof h3 {
+  margin: 0 0 1rem;
+}
+.security-proof .inline-row {
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+.search,
+.search::before,
+.search-input,
+.search-input:focus,
+.composer,
+.composer:focus-within {
+  box-shadow: none;
+}
+
+.chat-more {
+  display: block;
+  margin: 0 auto 1rem;
+}
+.chat-new {
+  align-self: center;
+  margin: 0.5rem auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

@@ -1,7 +1,7 @@
 name: We just talk about it , how you changed my life
 
 on:
-  push:
+  # push:
   workflow_dispatch:
 
 permissions:

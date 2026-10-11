@@ -1,3 +1,9 @@
+import {
+  clearAccountDraft,
+  readAccountDraft,
+  saveAccountDraft,
+  draftKey,
+} from "./draft";
 import { preloadPost } from "./post-request";
 import { confirmTranslated } from "../i18n";
 import { navigate } from "astro:transitions/client";
@@ -6,7 +12,7 @@ import {
   deletePost,
   getStorageOptions,
   getTimeline,
-  recordPostView,
+  recordPostViews,
   search,
   setFollow,
   toggleLike,
@@ -220,35 +226,14 @@ export function mountFeed(container: HTMLElement): FeedControls {
   const composerAvatar =
     container.querySelector<HTMLElement>(".composer .avatar")!;
   let selectedMedia: PostMedia[] = [];
-  const draftCookie = "fk-post-draft";
-  const draftCookieOptions = () =>
-    `Path=/; Max-Age=604800; SameSite=Lax${location.protocol === "https:" ? "; Secure" : ""}`;
-  const clearDraft = () => {
-    document.cookie = `${draftCookie}=; Path=/; Max-Age=0; SameSite=Lax`;
-  };
+  let draftOwner = getAccount() ? draftKey(getAccount()!) : null;
+  const clearDraft = () => clearAccountDraft(getAccount());
+  const readDraft = () => readAccountDraft(getAccount());
   const saveDraft = (text: string) => {
-    if (!text) {
-      clearDraft();
-      return;
-    }
-    // Cookie 有约 4 KB 上限；保留能安全放入 Cookie 的最长前缀。
-    let draft = text;
-    while (draft && encodeURIComponent(draft).length > 3500) {
-      draft = [...draft].slice(0, -1).join("");
-    }
-    document.cookie = `${draftCookie}=${encodeURIComponent(draft)}; ${draftCookieOptions()}`;
-  };
-  const readDraft = () => {
-    const value = document.cookie
-      .split("; ")
-      .find((part) => part.startsWith(`${draftCookie}=`))
-      ?.slice(draftCookie.length + 1);
-    if (!value) return "";
     try {
-      return decodeURIComponent(value);
+      saveAccountDraft(getAccount(), text);
     } catch {
-      clearDraft();
-      return "";
+      showToast("草稿保存失败，请复制内容后再离开。");
     }
   };
 
@@ -338,7 +323,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const storageLabel = (
     options: StorageOption[],
-    emptyLabel = "默认存储桶",
+    emptyLabel = "平台存储",
   ): string => {
     const current = options.find((config) => config.id === selectedStorageId);
     if (!current) return emptyLabel;
@@ -349,7 +334,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
 
   const renderStorageMenu = (
     options: StorageOption[],
-    emptyLabel = options.length ? "默认存储桶" : "平台存储",
+    emptyLabel = "平台存储",
   ) => {
     mediaStorageValue.textContent = storageLabel(options, emptyLabel);
     mediaStorageMenu.replaceChildren(
@@ -477,6 +462,15 @@ export function mountFeed(container: HTMLElement): FeedControls {
     composerInput.placeholder = account ? "有什么新鲜事？" : "注册后才能发帖";
     mediaStorageWrap.hidden = !account;
     mediaStorageTrigger.disabled = !account;
+    const ownerKey = account ? draftKey(account) : null;
+    if (ownerKey !== draftOwner) {
+      draftOwner = ownerKey;
+      composerInput.value = readAccountDraft(account);
+      composerInput.style.height = "";
+      selectedMedia = [];
+      hdrMedia.clear();
+      showMediaPreview([]);
+    }
     const owner = account?.profile.handle ?? null;
     if (owner !== storageOwner) {
       storageOwner = owner;
@@ -495,8 +489,17 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
   syncComposerUser();
 
+  let initialTab: FeedTab = "foryou";
+  try {
+    const saved = sessionStorage.getItem("fk-feed-tab");
+    if (saved === "latest" || saved === "following" || saved === "foryou")
+      initialTab = saved;
+  } catch {}
+  tabs.forEach((tab) =>
+    tab.classList.toggle("is-active", tab.dataset.tab === initialTab),
+  );
   const state: FeedState = {
-    tab: "foryou",
+    tab: initialTab,
     cursor: null,
     done: false,
     loading: false,
@@ -527,12 +530,32 @@ export function mountFeed(container: HTMLElement): FeedControls {
     return root;
   };
 
-  const shortestColumn = (): HTMLElement => {
-    let target = columns[0];
-    for (const column of columns) {
-      if (column.offsetHeight < target.offsetHeight) target = column;
+  const estimatedHeight = (node: HTMLElement, width: number): number => {
+    const post = node.dataset.postId
+      ? postsById.get(node.dataset.postId)
+      : null;
+    if (node.classList.contains("post-placeholder"))
+      return Number.parseFloat(node.style.height);
+    return (
+      140 +
+      Math.ceil((post?.text.length ?? 0) / Math.max(12, (width - 100) / 15)) *
+        26 +
+      (post?.media?.length ? Math.min(width, 340) : 0) +
+      (post?.repostKind ? 180 : 0)
+    );
+  };
+  const placePosts = (nodes: HTMLElement[], fresh = false): void => {
+    const width = columns[0]?.clientWidth || innerWidth / columns.length;
+    const heights = fresh
+      ? columns.map(() => 0)
+      : columns.map((column) => column.offsetHeight);
+    const fragments = columns.map(() => document.createDocumentFragment());
+    for (const node of nodes) {
+      const index = heights.indexOf(Math.min(...heights));
+      heights[index] += estimatedHeight(node, width) + 16;
+      fragments[index].append(node);
     }
-    return target;
+    columns.forEach((column, index) => column.append(fragments[index]));
   };
 
   const ensureLayout = (): void => {
@@ -542,10 +565,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
     if (columnsRoot) columnsRoot.replaceWith(root);
     else feed.append(root);
     columnsRoot = root;
-    orderedPosts.forEach((post, index) => {
-      const column = index < columns.length ? columns[index] : shortestColumn();
-      column.append(post);
-    });
+    placePosts(orderedPosts, true);
   };
 
   const onMediaChange = () => ensureLayout();
@@ -554,6 +574,33 @@ export function mountFeed(container: HTMLElement): FeedControls {
   }
 
   const viewedPosts = new Set<string>();
+  const pendingViews = new Set<string>();
+  let viewTimer = 0;
+  let disposed = false;
+  const flushViews = async () => {
+    viewTimer = 0;
+    const ids = [...pendingViews].slice(0, 20);
+    ids.forEach((id) => pendingViews.delete(id));
+    if (!ids.length || disposed) return;
+    try {
+      const page = await recordPostViews(ids);
+      if (disposed) return;
+      for (const result of page.views) {
+        const post = postsById.get(result.id);
+        if (!post) continue;
+        post.stats.views = result.views;
+        const node = orderedPosts.find(
+          (node) => node.dataset.postId === result.id,
+        );
+        const meta = node?.querySelector<HTMLElement>(".post-meta");
+        if (meta) meta.textContent = postMetaText(post, "relative");
+      }
+    } catch {
+      ids.forEach((id) => viewedPosts.delete(id));
+    }
+    if (pendingViews.size && !disposed)
+      viewTimer = window.setTimeout(() => void flushViews(), 600);
+  };
   const viewObserver = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -563,20 +610,83 @@ export function mountFeed(container: HTMLElement): FeedControls {
         const id = node.dataset.postId;
         if (!id || viewedPosts.has(id)) continue;
         viewedPosts.add(id);
-        void recordPostView(id)
-          .then((result) => {
-            const post = postsById.get(id);
-            if (post) post.stats.views = result.views;
-            const meta = node.querySelector<HTMLElement>(".post-meta");
-            if (post && meta) meta.textContent = postMetaText(post, "relative");
-          })
-          .catch(() => {
-            viewedPosts.delete(id);
-          });
+        pendingViews.add(id);
+      }
+      if (pendingViews.size && !viewTimer)
+        viewTimer = window.setTimeout(() => void flushViews(), 600);
+    },
+    { rootMargin: "0px 0px -10% 0px", threshold: 0.45 },
+  );
+
+  const cardHeights = new WeakMap<HTMLElement, number>();
+  const sizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries)
+      cardHeights.set(
+        entry.target as HTMLElement,
+        entry.borderBoxSize[0]?.blockSize ??
+          entry.target.getBoundingClientRect().height,
+      );
+  });
+  const evictCard = (node: HTMLElement, height: number): void => {
+    if (
+      node.classList.contains("post-placeholder") ||
+      node.contains(document.activeElement) ||
+      node.contains(getSelection()?.anchorNode ?? null)
+    )
+      return;
+    const index = orderedPosts.indexOf(node);
+    if (index < 0) return;
+    const slot = el("div", "post-placeholder");
+    slot.dataset.postId = node.dataset.postId;
+    slot.style.height = `${height}px`;
+    slot.setAttribute("aria-hidden", "true");
+    viewObserver.unobserve(node);
+    sizeObserver.unobserve(node);
+    virtualObserver.unobserve(node);
+    disposePostMedia(node);
+    orderedPosts[index] = slot;
+    node.replaceWith(slot);
+    virtualObserver.observe(slot);
+  };
+  const virtualObserver = new IntersectionObserver(
+    (entries) => {
+      if (feedMotion || orderedPosts.length <= 60) return;
+      for (const entry of entries) {
+        const node = entry.target as HTMLElement;
+        if (
+          entry.isIntersecting &&
+          node.classList.contains("post-placeholder")
+        ) {
+          const post = postsById.get(node.dataset.postId ?? "");
+          const index = orderedPosts.indexOf(node);
+          if (!post || index < 0) continue;
+          const card = renderPost(post, true, true);
+          virtualObserver.unobserve(node);
+          orderedPosts[index] = card;
+          node.replaceWith(card);
+          virtualObserver.observe(card);
+          sizeObserver.observe(card);
+          viewObserver.observe(card);
+        } else if (!entry.isIntersecting)
+          evictCard(
+            node,
+            cardHeights.get(node) ?? entry.boundingClientRect.height,
+          );
       }
     },
-    { root: null, rootMargin: "0px 0px -10% 0px", threshold: 0.45 },
+    { rootMargin: "1500px 0px" },
   );
+  const trimCards = () => {
+    if (disposed || feedMotion || orderedPosts.length <= 60) return;
+    const offscreen = orderedPosts
+      .filter((node) => !node.classList.contains("post-placeholder"))
+      .map((node) => ({ node, rect: node.getBoundingClientRect() }))
+      .filter(
+        ({ rect }) => rect.bottom < -1500 || rect.top > innerHeight + 1500,
+      );
+    for (const { node, rect } of offscreen)
+      evictCard(node, cardHeights.get(node) ?? rect.height);
+  };
 
   const resetFeed = (head?: HTMLElement): void => {
     for (const node of orderedPosts) {
@@ -584,6 +694,10 @@ export function mountFeed(container: HTMLElement): FeedControls {
       disposePostMedia(node);
     }
     orderedPosts.length = 0;
+    postsById.clear();
+    pendingViews.clear();
+    sizeObserver.disconnect();
+    virtualObserver.disconnect();
     feed.replaceChildren();
     if (head) feed.append(head);
     columnsRoot = null;
@@ -592,23 +706,21 @@ export function mountFeed(container: HTMLElement): FeedControls {
     ensureLayout();
   };
 
-  const addPost = (post: Post): HTMLElement => {
+  const addPosts = (posts: Post[]): void => {
     ensureLayout();
-    const node = renderPost(post, true, true);
-    if (post.viewer?.saved) {
-      node
-        .querySelector<HTMLElement>('.action[data-action="save"]')
-        ?.classList.add("is-saved");
-    }
-    orderedPosts.push(node);
-    postsById.set(post.id, post);
-    const column =
-      orderedPosts.length - 1 < columns.length
-        ? columns[orderedPosts.length - 1]
-        : shortestColumn();
-    column.append(node);
-    viewObserver.observe(node);
-    return node;
+    const nodes = posts
+      .filter((post) => !postsById.has(post.id))
+      .map((post) => {
+        const node = renderPost(post, true, true);
+        postsById.set(post.id, post);
+        orderedPosts.push(node);
+        viewObserver.observe(node);
+        virtualObserver.observe(node);
+        sizeObserver.observe(node);
+        return node;
+      });
+    placePosts(nodes);
+    requestAnimationFrame(trimCards);
   };
 
   /**
@@ -629,6 +741,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
     activeColumnCount = 0;
     ensureLayout();
     viewObserver.observe(node);
+    virtualObserver.observe(node);
+    sizeObserver.observe(node);
+    requestAnimationFrame(trimCards);
     return node;
   };
 
@@ -698,24 +813,34 @@ export function mountFeed(container: HTMLElement): FeedControls {
     if (!freeze) {
       restorePostStyles();
       feed.classList.remove("is-switching");
+      requestAnimationFrame(trimCards);
     }
   };
 
-  const animatePosts = async (entering: boolean, resume = false) => {
+  const animatePosts = async (
+    entering: boolean,
+    resume = false,
+    nodes = orderedPosts,
+  ) => {
     if (feedMotion?.entering === entering) return feedMotion.finished;
     const interrupted = feedMotion !== null || resume;
     if (interrupted) clearFeedMotion(true);
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const visible = orderedPosts
+    const visible = nodes
       .map((node) => ({ node, rect: node.getBoundingClientRect() }))
-      .filter(({ rect }) => rect.bottom > 0 && rect.top < innerHeight)
+      .filter(
+        ({ node, rect }) =>
+          !node.classList.contains("post-placeholder") &&
+          rect.bottom > 0 &&
+          rect.top < innerHeight,
+      )
       .sort(
         (a, b) =>
           a.rect.top + a.rect.left * 0.45 - (b.rect.top + b.rect.left * 0.45),
       );
     const step = interrupted
       ? 0
-      : Math.min(52, 320 / Math.max(1, visible.length - 1));
+      : Math.min(36, 180 / Math.max(1, visible.length - 1));
     const animations = visible.map(({ node }, index) => {
       const style = getComputedStyle(node);
       const opacity = entering && !interrupted ? 0 : Number(style.opacity);
@@ -738,13 +863,13 @@ export function mountFeed(container: HTMLElement): FeedControls {
           duration: interrupted
             ? remaining < 0.001
               ? 0
-              : Math.max(80, (entering ? 270 : 200) * remaining)
+              : Math.max(100, (entering ? 380 : 180) * remaining)
             : entering
-              ? 270
-              : 200,
+              ? 380
+              : 180,
           delay: index * step,
           easing: entering
-            ? "cubic-bezier(0.22, 1, 0.36, 1)"
+            ? "cubic-bezier(0.25, 0.1, 0.25, 1)"
             : "cubic-bezier(0.4, 0, 0.6, 1)",
           fill: "both",
         },
@@ -758,17 +883,21 @@ export function mountFeed(container: HTMLElement): FeedControls {
     await finished;
   };
 
+  let timelineRequest: AbortController | null = null;
   const loadPage = async (replace: boolean, transition = false) => {
     if (state.search !== null) return;
     if (!replace && (state.loading || state.done || state.tab !== renderedTab))
       return;
 
     const seq = ++state.seq;
+    timelineRequest?.abort();
+    const controller = new AbortController();
+    timelineRequest = controller;
     const interrupted = feedMotion !== null;
     if (replace && !transition) clearFeedMotion();
     state.loading = true;
     setSentinelBusy(true);
-    if (transition) feed.classList.add("is-switching");
+    if (transition && interrupted) void animatePosts(true, true);
     try {
       if (
         transition &&
@@ -788,23 +917,30 @@ export function mountFeed(container: HTMLElement): FeedControls {
         feed.append(statusRow("登录后才能查看关注的人的帖子。"));
         return;
       }
-      const [page] = await Promise.all([
-        getTimeline(state.tab, replace ? null : state.cursor),
-        transition ? animatePosts(false) : Promise.resolve(),
-      ]);
+      const page = await getTimeline(
+        state.tab,
+        replace ? null : state.cursor,
+        controller.signal,
+      );
       if (seq !== state.seq) return;
+      if (transition) {
+        feed.classList.add("is-switching");
+        await animatePosts(false);
+        if (seq !== state.seq) return;
+      }
       if (replace) {
         resetFeed();
         clearFeedMotion();
         if (transition) feed.classList.add("is-switching");
       }
-      for (const post of page.posts) addPost(post);
+      const previousCount = orderedPosts.length;
+      addPosts(page.posts);
       state.cursor = page.nextCursor;
       state.done = page.nextCursor === null;
       renderedTab = state.tab;
       renderedCursor = state.cursor;
       renderedDone = state.done;
-      if (transition) await animatePosts(true);
+      await animatePosts(true, false, orderedPosts.slice(previousCount));
       if (seq !== state.seq) return;
       if (state.done && orderedPosts.length === 0) {
         feed.append(
@@ -828,7 +964,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       }
     } finally {
       if (seq === state.seq) {
-        if (replace) clearFeedMotion();
+        clearFeedMotion();
         state.loading = false;
         setSentinelBusy(false);
         if (replace) dismissHomeSplash();
@@ -840,7 +976,11 @@ export function mountFeed(container: HTMLElement): FeedControls {
     const url = new URL(location.href);
     if (query) url.searchParams.set("q", query);
     else url.searchParams.delete("q");
-    history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    history.replaceState(
+      history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
   };
 
   const exitSearch = () => {
@@ -860,6 +1000,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       return;
     }
     const seq = ++state.seq;
+    timelineRequest?.abort();
     clearFeedMotion();
     state.search = query;
     state.done = true;
@@ -876,7 +1017,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       if (result.users.length === 0 && result.posts.length === 0) {
         feed.append(statusRow("没有找到相关内容"));
       }
-      for (const post of result.posts) addPost(post);
+      addPosts(result.posts);
     } catch {
       if (seq === state.seq) renderError(() => doSearch(query));
     } finally {
@@ -958,6 +1099,9 @@ export function mountFeed(container: HTMLElement): FeedControls {
         searchInput.value = "";
       }
       state.tab = next;
+      try {
+        sessionStorage.setItem("fk-feed-tab", next);
+      } catch {}
       state.cursor = null;
       state.done = false;
       for (const item of tabs) item.classList.toggle("is-active", item === tab);
@@ -1438,7 +1582,13 @@ export function mountFeed(container: HTMLElement): FeedControls {
   return {
     syncUser: syncComposerUser,
     dispose: () => {
+      disposed = true;
       state.seq += 1;
+      timelineRequest?.abort();
+      window.clearTimeout(viewTimer);
+      pendingViews.clear();
+      sizeObserver.disconnect();
+      virtualObserver.disconnect();
       clearFeedMotion();
       observer.disconnect();
       for (const node of orderedPosts) disposePostMedia(node);

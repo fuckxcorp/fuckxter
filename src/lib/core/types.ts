@@ -117,6 +117,7 @@ export interface Comment {
 export interface CommentPage {
   comments: Comment[];
   total: number;
+  nextCursor?: string | null;
 }
 
 export interface DirectMessage {
@@ -153,6 +154,9 @@ export interface MessageSuggestion extends FeedUser {
 
 export interface ConversationPage {
   user: FeedUser;
+  nextCursor?: string | null;
+  latestCursor?: string | null;
+  nextAfter?: string | null;
   messages: DirectMessage[];
   unread: number;
   /** 按对方的私信权限，我现在能不能发 */

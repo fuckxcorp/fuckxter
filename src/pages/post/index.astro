@@ -974,6 +974,7 @@ import Header from "../../components/Header.astro";
           input.value = "";
           replyDrafts.delete(comment.id);
           closeInlineReply();
+          commentFocus = created.id;
           await refreshComments();
           scrollToComment(document.getElementById(`comment-${created.id}`));
         } catch (failure) {
@@ -1084,7 +1085,7 @@ import Header from "../../components/Header.astro";
       repliesCount.textContent =
         total > comments.length ? `${comments.length}/${total}` : String(total);
       repliesCount.title =
-        total > comments.length ? `仅显示最近 ${comments.length} 条回帖` : "";
+        total > comments.length ? `已加载 ${comments.length} 条回帖` : "";
       onReplyCountChange(total);
       if (comments.length === 0) {
         if (list.querySelector(".comments-empty")) return;
@@ -1268,26 +1269,67 @@ import Header from "../../components/Header.astro";
       list.replaceChildren(...roots.map((comment) => renderNode(comment, 0)));
     };
 
-    const refreshComments = async () => {
+    let commentCursor: string | null = null;
+    let loadedPages = 1;
+    let commentRequest = 0;
+    let commentFocus: string | null = location.hash.startsWith("#comment-")
+      ? decodeURIComponent(location.hash.slice(9))
+      : null;
+    const loadedComments = new Map<string, Comment>();
+    const more = el("button", "ghost-btn comments-more");
+    more.type = "button";
+    more.textContent = "加载更多回帖";
+    more.hidden = true;
+    list.after(more);
+    const refreshComments = async (append = false) => {
+      const request = ++commentRequest;
+      more.disabled = true;
+      const next = new Map<string, Comment>(append ? loadedComments : []);
+      let cursor = append ? commentCursor : null;
+      let total = 0;
       try {
-        const page = await getComments(post.id);
-        status.textContent = "";
-        renderList(page.comments, page.total);
-        if (location.hash.startsWith("#comment-")) {
-          scrollToComment(
-            document.getElementById(decodeURIComponent(location.hash.slice(1))),
-          );
+        for (let index = 0; index < (append ? 1 : loadedPages); index++) {
+          const page = await getComments(post.id, cursor, commentFocus);
+          if (request !== commentRequest) return;
+          page.comments.forEach((comment) => next.set(comment.id, comment));
+          total = page.total;
+          cursor = page.nextCursor ?? null;
+          if (!cursor) break;
         }
+        if (append) loadedPages++;
+        loadedComments.clear();
+        next.forEach((comment, id) => loadedComments.set(id, comment));
+        commentCursor = cursor;
+        more.hidden = !cursor;
+        status.textContent = "";
+        const top = list.getBoundingClientRect().top;
+        const scroll = window.scrollY;
+        renderList(
+          [...next.values()].sort(
+            (a, b) =>
+              a.createdAt.localeCompare(b.createdAt) ||
+              a.id.localeCompare(b.id),
+          ),
+          total,
+        );
+        if (append)
+          window.scrollTo(0, scroll + list.getBoundingClientRect().top - top);
+        if (commentFocus)
+          scrollToComment(document.getElementById(`comment-${commentFocus}`));
+        commentFocus = null;
       } catch (error) {
-        repliesCount!.textContent = "加载失败";
-        const retry = el("button", "retry-btn");
-        retry.textContent = "重新加载回帖";
-        retry.addEventListener("click", () => void refreshComments());
-        if (!list.childElementCount) list.append(retry);
+        if (request !== commentRequest) return;
+        more.hidden = false;
         status.textContent =
           error instanceof Error ? error.message : "回帖加载失败";
+      } finally {
+        if (request === commentRequest) more.disabled = false;
       }
     };
+    more.addEventListener(
+      "click",
+      () => void refreshComments(Boolean(commentCursor)),
+    );
 
     submit.addEventListener("click", async () => {
       const text = input.value.trim();
@@ -1316,6 +1358,7 @@ import Header from "../../components/Header.astro";
         syncCommentSubmit();
         resizeCommentInput();
         status.textContent = "";
+        commentFocus = created.id;
         await refreshComments();
         scrollToComment(document.getElementById(`comment-${created.id}`));
       } catch (error) {
@@ -1410,7 +1453,7 @@ import Header from "../../components/Header.astro";
           return;
         }
         if (!parsedPath) {
-          history.replaceState(null, "", postPath(post));
+          history.replaceState(history.state, "", postPath(post));
         }
         document.title = `${post.author.name}：${post.text.slice(0, 30)} | FuckXter`;
         rememberPost(post);

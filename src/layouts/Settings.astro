@@ -1,7 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { languages } from "../lib/i18n";
 import Header from "../components/Header.astro";
+import { festivals } from "../lib/ui/festivals";
 
 type SettingsSection = "profile" | "security" | "storage" | "personalization";
 
@@ -622,22 +622,77 @@ const sectionTitles: Record<SettingsSection, string> = {
                   <option value="dark">深色</option>
                 </select>
               </label>
-              <label class="field">
-                <span class="field-label">语言</span>
-                <select data-role="language-setting" data-no-translate>
-                  {languages.map((language) => (
-                    <option
-                      value={language.code}
-                      data-nom-label={
-                        language.code === "vi-Hani" ? language.name : undefined
-                      }
-                    >
-                      {language.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
+            <fieldset class="festival-settings">
+              <legend class="settings-title">节日主题</legend>
+              <p class="form-hint">节日配色与深浅色独立，选择后立即生效。</p>
+              <div class="festival-modes">
+                <label class="festival-choice">
+                  <input
+                    type="radio"
+                    name="festival"
+                    value="auto"
+                    data-festival-choice
+                  />
+                  <span class="festival-copy">
+                    <strong>随节日自动</strong>
+                    <small>到期自动切换</small>
+                  </span>
+                </label>
+                <label class="festival-choice">
+                  <input
+                    type="radio"
+                    name="festival"
+                    value="none"
+                    data-festival-choice
+                  />
+                  <span class="festival-copy">
+                    <strong>关闭节日主题</strong>
+                    <small>保持普通配色</small>
+                  </span>
+                </label>
+              </div>
+              <p class="festival-status" role="status" aria-live="polite">
+                <span>当前节日：</span>
+                <strong data-role="festival-current">普通配色</strong>
+              </p>
+              <div class="festival-grid">
+                {festivals.map((festival) => (
+                  <label
+                    class="festival-choice"
+                    style={`--festival-primary: ${festival.colors[0]}; --festival-secondary: ${festival.colors[1]}`}
+                  >
+                    <input
+                      type="radio"
+                      name="festival"
+                      value={festival.code}
+                      data-festival-choice
+                    />
+                    <span class="festival-art" aria-hidden="true">
+                      <img
+                        src={`/festivals/${festival.code}.svg`}
+                        alt=""
+                        width="80"
+                        height="80"
+                        loading="lazy"
+                      />
+                    </span>
+                    <span class="festival-copy">
+                      <strong>{festival.name}</strong>
+                      <small>{festival.period}</small>
+                      {"note" in festival && <small>{festival.note}</small>}
+                    </span>
+                    <span class="festival-swatches" aria-hidden="true">
+                      <i></i>
+                      <i></i>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p class="form-hint">
+                按北京时间自动切换；节日结束后恢复普通配色。手动选择会固定主题。
+              </p>
+            </fieldset>
           </section>
         )}
 
@@ -681,6 +736,13 @@ const sectionTitles: Record<SettingsSection, string> = {
               </select>
             </label>
             <form data-role="s3-form" novalidate>
+              <label class="checkbox-field">
+                <input type="checkbox" name="enabled" checked />
+                <span>启用上传</span>
+              </label>
+              <p class="form-hint">
+                删除已被引用的存储会停用上传，保留旧媒体的读取能力。
+              </p>
               <label class="field">
                 <span class="field-label">配置名称</span>
                 <input

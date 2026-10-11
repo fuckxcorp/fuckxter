@@ -327,13 +327,27 @@ html.menu-open .main {
   }
 }
 
+.app[data-app] {
+  --feed-surface: #f5f5f7;
+}
+[data-theme="dark"] .app[data-app] {
+  --feed-surface: #121212;
+}
+.app[data-app] .search-input {
+  height: 38px;
+}
+.app[data-app] .search::before {
+  background: var(--feed-surface);
+}
+
 .composer {
   width: min(100%, 880px);
   margin-inline: auto;
   display: flex;
   gap: 0.75rem;
-  padding: 1rem 1.25rem;
+  padding: 0.8rem 1.1rem;
   border-bottom: 1px solid var(--color-border);
+  border-radius: 0 0 18px 18px;
 }
 
 .composer[hidden] {
@@ -349,7 +363,7 @@ html.menu-open .main {
   box-sizing: border-box;
   width: 100%;
   border: 0;
-  padding: 0.4rem 0 1rem;
+  padding: 0.25rem 0 0.6rem;
   background: transparent;
   color: var(--color-text-strong);
   font-size: 1.1rem;
@@ -367,8 +381,8 @@ html.menu-open .main {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.9rem;
-  row-gap: 0.5rem;
+  gap: 0.75rem;
+  row-gap: 0.45rem;
   border-top: 1px solid var(--color-border-soft);
   padding-top: 0.6rem;
 }
@@ -559,7 +573,7 @@ html.menu-open .main {
 }
 
 .feed.is-switching {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .feed-columns {
@@ -595,11 +609,11 @@ html.menu-open .main {
 
 .feed-columns .post {
   margin-bottom: 0;
-  padding: 1.2rem 1.4rem 1.35rem;
-  border: 1px solid color-mix(in srgb, var(--ink) 8%, var(--color-border));
+  padding: 1rem 1.15rem;
+  border: 1px solid transparent;
   border-radius: 14px;
-  background: var(--color-bg);
-  box-shadow: var(--shadow-card);
+  background: var(--feed-surface);
+  box-shadow: none;
   overflow: visible;
   transition:
     border-color 180ms ease,
@@ -613,9 +627,12 @@ html.menu-open .main {
 
 .feed-columns .post:hover,
 .feed-columns .post:focus-within {
-  border-color: color-mix(in srgb, var(--ink) 22%, var(--color-border));
-  background: color-mix(in srgb, var(--color-bg-subtle) 35%, var(--color-bg));
-  box-shadow: 0 4px 18px color-mix(in srgb, var(--ink) 5%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+[data-theme="dark"] [data-app] .feed-columns .post {
+  background: var(--feed-surface);
 }
 
 .feed-columns.is-masonry .post-text {
@@ -749,7 +766,7 @@ html.menu-open .main {
   }
 
   .composer {
-    padding: 0.9rem 0.75rem;
+    padding: 0.75rem;
   }
 
   .composer-foot {
@@ -781,18 +798,20 @@ html.menu-open .main {
   gap: 0.9rem;
 }
 .feed-columns .post-head {
-  row-gap: 0.25rem;
+  gap: 0.3rem 0.45rem;
 }
 .feed-columns .post-meta {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--color-text-muted) 85%, var(--color-bg));
 }
 .feed-columns .post-text {
-  margin-top: 0.65rem;
-  line-height: 1.65;
+  margin-top: 0.6rem;
+  line-height: 1.6;
 }
 .feed-columns .actions {
-  margin-top: 0.9rem;
-  padding-top: 0.65rem;
+  margin-top: 0.75rem;
+  margin-left: 0;
+  padding-top: 0.6rem;
   border-top: 1px solid var(--color-border-soft);
 }
 .feed-columns .post .media-list {
@@ -815,7 +834,7 @@ html.menu-open .main {
     gap: 0.7rem;
   }
   .feed-columns .post {
-    padding: 1rem 0.85rem;
+    padding: 0.9rem 0.85rem;
     gap: 0.6rem;
     border-radius: 12px;
   }
@@ -836,12 +855,7 @@ html.menu-open .main {
   width: 60px;
   height: 60px;
   border-radius: 13px 0 0 0;
-  mask-image: radial-gradient(
-    circle at 10px 10px,
-    #000 30%,
-    rgb(0 0 0 / 85%) 45%,
-    transparent 72%
-  );
+  mask-image: url("/feed-avatar-mask.svg?v=outward");
   font-size: 1.2rem;
 }
 .feed-columns .post > .avatar::after {
@@ -864,4 +878,38 @@ html.menu-open .main {
   .feed-columns .post > .post-body {
     margin-left: calc(58px + 0.6rem);
   }
+}
+
+.feed-columns .post {
+  position: relative;
+}
+.post-permalink {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.post-permalink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.post-permalink ~ .avatar {
+  position: relative;
+  pointer-events: auto;
+}
+.post-permalink ~ .post-body {
+  position: relative;
+  pointer-events: none;
+}
+.post-permalink
+  ~ .post-body
+  :is(a, button, input, textarea, .media-carousel, .post-source) {
+  pointer-events: auto;
+}
+.post-permalink ~ .post-body .post-text {
+  pointer-events: auto;
+}
+.post-placeholder {
+  flex: none;
+  width: 100%;
 }

@@ -1,3 +1,4 @@
+import { clearAccountDraft } from "../feed/draft";
 import { navigate } from "astro:transitions/client";
 import { ApiError, apiRequest } from "../core/http";
 import type { DmPolicy, FeedUser } from "../core/types";
@@ -31,6 +32,7 @@ export interface S3Config {
   secretAccessKey: string;
   pathStyle: boolean;
   isDefault?: boolean;
+  enabled?: boolean;
 }
 
 interface AccountResponse {
@@ -87,6 +89,13 @@ export function getAccount(): Account | null {
 }
 
 function setAccount(next: Account | null): void {
+  if (
+    account &&
+    (!next ||
+      account.profile.email !== next.profile.email ||
+      account.profile.handle !== next.profile.handle)
+  )
+    clearAccountDraft(account);
   account = next;
   if (next) {
     localStorage.setItem(
@@ -223,9 +232,14 @@ export async function changePassword(input: {
   });
 }
 
-export async function beginTwoFactor(): Promise<{ secret: string }> {
+export async function beginTwoFactor(proof: {
+  password: string;
+  code?: string;
+  recoveryCode?: string;
+}): Promise<{ secret: string }> {
   return apiRequest<{ secret: string }>("/me/2fa/setup", {
     method: "POST",
+    body: JSON.stringify(proof),
   });
 }
 
@@ -240,7 +254,11 @@ export async function confirmTwoFactor(code: string): Promise<Account> {
   return next;
 }
 
-export async function generateRecoveryCodes(): Promise<{
+export async function generateRecoveryCodes(proof: {
+  password: string;
+  code?: string;
+  recoveryCode?: string;
+}): Promise<{
   codes: string[];
   recoveryCodeCount: number;
 }> {
@@ -249,6 +267,7 @@ export async function generateRecoveryCodes(): Promise<{
     recoveryCodeCount: number;
   }>("/me/2fa/recovery-codes", {
     method: "POST",
+    body: JSON.stringify(proof),
   });
   if (account) {
     setAccount({ ...account, recoveryCodeCount: response.recoveryCodeCount });
@@ -276,10 +295,15 @@ export async function saveS3Config(config: S3Config): Promise<S3Config> {
   return response.config;
 }
 
-export async function deleteS3Config(id: string): Promise<void> {
-  await apiRequest(`/me/storage/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+export async function deleteS3Config(
+  id: string,
+): Promise<{ archived: boolean }> {
+  return apiRequest<{ archived: boolean }>(
+    `/me/storage/${encodeURIComponent(id)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export async function testS3Connection(config: S3Config): Promise<string> {
