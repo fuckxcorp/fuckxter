@@ -1,0 +1,266 @@
+:root[data-festival="christmas"] {
+  --tag-paper: #f5ebd9;
+  --tag-dark-paper: #202a23;
+  --tag-thread: #a53744;
+  --tag-edge: #af3b4b;
+  --tag-radius: 12px 12px 26px 26px;
+  --tag-pattern: repeating-linear-gradient(
+    135deg,
+    #b4404d 0 8px,
+    #f5ebd9 8px 16px,
+    #44795e 16px 24px,
+    #f5ebd9 24px 32px
+  );
+}
+:root[data-festival="halloween"] {
+  --tag-paper: #eee3d3;
+  --tag-dark-paper: #261d30;
+  --tag-thread: #a96836;
+  --tag-edge: #b36c32;
+  --tag-radius: 28px 28px 12px 12px;
+  --tag-pattern: repeating-linear-gradient(
+    90deg,
+    #ba7139 0 10px,
+    transparent 10px 18px
+  );
+}
+:root[data-festival="double-ten"] {
+  --tag-paper: #f5f4ef;
+  --tag-dark-paper: #192335;
+  --tag-thread: #345898;
+  --tag-edge: #385994;
+  --tag-radius: 10px;
+  --tag-pattern: linear-gradient(90deg, #193c80 0 26%, #bf3e52 26% 100%);
+}
+:root[data-festival="spring"] {
+  --tag-paper: #f8e6d9;
+  --tag-dark-paper: #351d1d;
+  --tag-thread: #a83a3b;
+  --tag-edge: #b78132;
+  --tag-radius: 10px 10px 24px 24px;
+  --tag-pattern: repeating-linear-gradient(
+    90deg,
+    #aa333a 0 30px,
+    #c99b4a 30px 32px
+  );
+}
+:root[data-festival="lantern"] {
+  --tag-paper: #f9ecd8;
+  --tag-dark-paper: #33231b;
+  --tag-thread: #b3423e;
+  --tag-edge: #bb7a32;
+  --tag-radius: 36px;
+  --tag-pattern: repeating-linear-gradient(
+    90deg,
+    #b74742 0 12px,
+    #e3b76b 12px 14px,
+    #b74742 14px 26px
+  );
+}
+:root[data-festival="qingming"] {
+  --tag-paper: #eaf0e5;
+  --tag-dark-paper: #1d2b24;
+  --tag-thread: #527d61;
+  --tag-edge: #6f8e6b;
+  --tag-radius: 8px 28px 8px 28px;
+  --tag-pattern: repeating-linear-gradient(
+    135deg,
+    #7c9a78 0 2px,
+    transparent 2px 10px
+  );
+}
+:root[data-festival="dragon-boat"] {
+  --tag-paper: #e7eddd;
+  --tag-dark-paper: #1a2b25;
+  --tag-thread: #427662;
+  --tag-edge: #6c8658;
+  --tag-radius: 20px 6px 20px 6px;
+  --tag-pattern: repeating-linear-gradient(
+    45deg,
+    #5e805c 0 4px,
+    #a7b68a 4px 6px,
+    #5e805c 6px 10px
+  );
+}
+:root[data-festival="qixi"] {
+  --tag-paper: #f4e8ee;
+  --tag-dark-paper: #2c2235;
+  --tag-thread: #a77699;
+  --tag-edge: #b28da6;
+  --tag-radius: 26px;
+  --tag-pattern: repeating-linear-gradient(
+    90deg,
+    #a284b6 0 2px,
+    transparent 2px 18px,
+    #d7a4b9 18px 20px,
+    transparent 20px 36px
+  );
+}
+:root[data-festival="ghost"] {
+  --tag-paper: #e9edeb;
+  --tag-dark-paper: #1c2930;
+  --tag-thread: #78899a;
+  --tag-edge: #9d8d69;
+  --tag-radius: 8px 8px 28px 28px;
+  --tag-pattern: repeating-linear-gradient(
+    135deg,
+    #79919f 0 6px,
+    #c1b58c 6px 8px,
+    transparent 8px 16px
+  );
+}
+:root[data-festival="mid-autumn"] {
+  --tag-paper: #f5eedc;
+  --tag-dark-paper: #252b39;
+  --tag-thread: #927b48;
+  --tag-edge: #b2985b;
+  --tag-radius: 30px 30px 12px 12px;
+  --tag-pattern: repeating-linear-gradient(
+    90deg,
+    #b89b5b 0 2px,
+    transparent 2px 16px
+  );
+}
+:root[data-festival="chongyang"] {
+  --tag-paper: #f2ecd9;
+  --tag-dark-paper: #30271e;
+  --tag-thread: #9e754f;
+  --tag-edge: #ad9257;
+  --tag-radius: 14px 28px 14px 28px;
+  --tag-pattern: repeating-linear-gradient(
+    135deg,
+    #bb9c56 0 4px,
+    #a76a48 4px 6px,
+    transparent 6px 14px
+  );
+}
+:root[data-festival="winter"] {
+  --tag-paper: #eaf0f4;
+  --tag-dark-paper: #1c2934;
+  --tag-thread: #698da4;
+  --tag-edge: #91a8b9;
+  --tag-radius: 18px;
+  --tag-pattern: repeating-linear-gradient(
+    135deg,
+    #91a8b9 0 3px,
+    transparent 3px 12px
+  );
+}
+:root[data-festival="laba"] {
+  --tag-paper: #f2e6dc;
+  --tag-dark-paper: #302325;
+  --tag-thread: #9d6971;
+  --tag-edge: #b39473;
+  --tag-radius: 24px 24px 32px 32px;
+  --tag-pattern: repeating-linear-gradient(
+    90deg,
+    #9d6971 0 5px,
+    #c3a470 5px 8px,
+    transparent 8px 18px
+  );
+}
+
+:root[data-theme][data-festival]:not([data-festival="none"])
+  .app[data-app]
+  .composer {
+  position: relative;
+  width: min(880px, calc(100% - 2rem));
+  margin-block: 32px 8px;
+  padding: 1.35rem 1.4rem 1.1rem;
+  border: 1px solid var(--tag-edge);
+  border-radius: var(--tag-radius);
+  background-color: var(--tag-paper);
+  background-image: var(--tag-pattern), var(--tag-pattern);
+  background-repeat: repeat-x;
+  background-position: top, bottom;
+  background-size: auto 5px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 8%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-theme="dark"][data-festival]:not([data-festival="none"])
+  .app[data-app]
+  .composer {
+  background-color: var(--tag-dark-paper);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 20%);
+}
+/* 两根绳子从顶栏垂下；装饰层不拦截输入和附件菜单。 */
+:root[data-theme][data-festival]:not([data-festival="none"])
+  .app[data-app]
+  .composer::before {
+  content: "";
+  position: absolute;
+  top: -33px;
+  left: 16%;
+  right: 16%;
+  height: 43px;
+  background:
+    repeating-linear-gradient(
+        35deg,
+        var(--tag-thread) 0 3px,
+        var(--tag-paper) 3px 5px
+      )
+      left / 3px 100% no-repeat,
+    repeating-linear-gradient(
+        -35deg,
+        var(--tag-thread) 0 3px,
+        var(--tag-paper) 3px 5px
+      )
+      right / 3px 100% no-repeat;
+  pointer-events: none;
+}
+:root[data-theme][data-festival]:not([data-festival="none"])
+  .app[data-app]
+  .composer::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed color-mix(in srgb, var(--tag-edge) 45%, transparent);
+  border-radius: inherit;
+  background:
+    radial-gradient(
+        circle,
+        var(--tag-thread) 0 2px,
+        var(--tag-paper) 2px 4px,
+        var(--tag-edge) 4px 5px,
+        transparent 5px
+      )
+      15% top / 12px 12px no-repeat,
+    radial-gradient(
+        circle,
+        var(--tag-thread) 0 2px,
+        var(--tag-paper) 2px 4px,
+        var(--tag-edge) 4px 5px,
+        transparent 5px
+      )
+      85% top / 12px 12px no-repeat,
+    var(--festival-art) right 7px top 12px / 46px 46px no-repeat;
+  pointer-events: none;
+}
+:root[data-theme][data-festival]:not([data-festival="none"])
+  .app[data-app]
+  .composer-input {
+  padding-right: 58px;
+}
+@media (max-width: 640px) {
+  :root[data-theme][data-festival]:not([data-festival="none"])
+    .app[data-app]
+    .composer {
+    width: calc(100% - 1.25rem);
+    padding: 1.25rem 0.8rem 0.85rem;
+    gap: 0.6rem;
+  }
+  :root[data-theme][data-festival]:not([data-festival="none"])
+    .app[data-app]
+    .composer::after {
+    background-size:
+      12px 12px,
+      12px 12px,
+      32px 32px;
+  }
+  :root[data-theme][data-festival]:not([data-festival="none"])
+    .app[data-app]
+    .composer-input {
+    padding-right: 38px;
+  }
+}

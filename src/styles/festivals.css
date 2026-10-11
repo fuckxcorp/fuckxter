@@ -337,18 +337,12 @@
   [data-app]
   .feed-columns
   .post {
-  background: color-mix(in srgb, var(--feed-surface) 25%, transparent);
+  background: transparent;
 }
 :root[data-theme="dark"][data-festival]:not([data-festival="none"])
   [data-app]
   .composer {
   background: color-mix(in srgb, #121212 82%, transparent);
-}
-:root[data-theme="dark"][data-festival]:not([data-festival="none"])
-  [data-app]
-  .feed-columns
-  .post {
-  background: color-mix(in srgb, #121212 35%, transparent);
 }
 .festival-birthday-note {
   display: none;

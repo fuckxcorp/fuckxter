@@ -302,7 +302,8 @@
   min-height: 0;
   overflow: visible;
   overscroll-behavior: auto;
-  filter: blur(0);
+  /* 零值滤镜也会阻断卡片采样外层背景。 */
+  filter: none;
   transition:
     transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
     filter 280ms cubic-bezier(0.22, 1, 0.36, 1);
