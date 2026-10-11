@@ -219,7 +219,8 @@ async function seed(id) {
 }
 async function api(url, options = {}, cookie = "") {
   const headers = new Headers(options.headers);
-  headers.set("CF-Connecting-IP", "198.51.100.7");
+  if (!headers.has("CF-Connecting-IP"))
+    headers.set("CF-Connecting-IP", "198.51.100.7");
   if (cookie) headers.set("Cookie", cookie);
   if (typeof options.body === "string")
     headers.set("Content-Type", "application/json");
@@ -699,6 +700,368 @@ function totp(secret) {
     assert.ok(codes.includes(401));
     assert.ok(codes.includes(429));
   });
+
+  await seed("carl");
+  await seed("dan");
+  const carl = await session("carl");
+  let clock = Date.now();
+  const realNow = Date.now;
+  Date.now = () => clock;
+  const resetLimits = () => sql.exec("DELETE FROM rate_limits");
+  const write = (url, method, body, cookie = bob, ip = "198.51.100.7") =>
+    api(
+      url,
+      {
+        method,
+        headers: { "CF-Connecting-IP": ip },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      },
+      cookie,
+    );
+  const assertLimited = async (response) => {
+    assert.equal(response.status, 429);
+    assert.equal((await response.json()).error.code, "RATE_LIMITED");
+    assert.ok(Number(response.headers.get("Retry-After")) > 0);
+  };
+  await test("Registration and password changes enforce the same server-side 8–128 character policy", async () => {
+    resetLimits();
+    for (const [index, password] of [
+      "x",
+      "1234567",
+      "x".repeat(129),
+      {},
+      "😀".repeat(7),
+    ].entries()) {
+      const response = await write(
+        "/auth/register",
+        "POST",
+        { identifier: `weak-${index}@example.invalid`, password },
+        "",
+      );
+      assert.equal(response.status, 400);
+      assert.equal(
+        sql
+          .prepare("SELECT COUNT(*) AS n FROM users WHERE email=?")
+          .get(`weak-${index}@example.invalid`).n,
+        0,
+      );
+    }
+    for (const [index, password] of [
+      "12345678",
+      "😀".repeat(8),
+      "😀".repeat(128),
+    ].entries()) {
+      const response = await write(
+        "/auth/register",
+        "POST",
+        { identifier: `valid-${index}@example.invalid`, password },
+        "",
+      );
+      assert.equal(response.status, 200);
+    }
+    for (const password of ["1234567", "x".repeat(129), {}]) {
+      assert.equal(
+        (
+          await write("/me/password", "PUT", {
+            current: "fixture-password",
+            next: password,
+          })
+        ).status,
+        400,
+      );
+    }
+    assert.equal(
+      (
+        await write(
+          "/me/password",
+          "PUT",
+          { current: "fixture-password", next: "x".repeat(128) },
+          carl,
+        )
+      ).status,
+      200,
+    );
+  });
+  await test("Existing weak-password accounts can still log in while new weak registrations are blocked", async () => {
+    resetLimits();
+    await seed("legacy");
+    const password = await cryptoLib.createPasswordHash("x");
+    sql
+      .prepare("UPDATE users SET password_hash=?, password_salt=? WHERE id=?")
+      .run(password.hash, password.salt, "legacy");
+    assert.equal(
+      (
+        await write(
+          "/auth/login",
+          "POST",
+          { identifier: "legacy", password: "x" },
+          "",
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await write(
+          "/auth/login",
+          "POST",
+          { identifier: "missing@example.invalid", password: "x" },
+          "",
+        )
+      ).status,
+      400,
+    );
+  });
+  const source = await posts.createPost(env, "alice", "business-rate fixture");
+  const comment = await posts.createComment(
+    env,
+    "alice",
+    source.id,
+    "comment-rate fixture",
+  );
+  await test("Posting, replies, quote reposts and both repost routes share one publication quota", async () => {
+    resetLimits();
+    const routes = [
+      ["/posts", "POST", { text: "publication fixture" }],
+      [`/posts/${source.id}/comments`, "POST", { text: "reply fixture" }],
+      [`/posts/${source.id}/quote`, "POST", { text: "quote fixture" }],
+      [`/posts/${source.id}/repost`, "PUT"],
+      [`/posts/${source.id}/comments/${comment.id}/repost`, "PUT"],
+    ];
+    for (let i = 0; i < 30; i++) {
+      const response = await write(...routes[i % routes.length]);
+      assert.ok(
+        response.ok,
+        `${i}: ${response.status} ${await response.text()}`,
+      );
+    }
+    const before = sql.prepare("SELECT COUNT(*) AS n FROM posts").get().n;
+    for (const route of routes) await assertLimited(await write(...route));
+    assert.equal(
+      sql.prepare("SELECT COUNT(*) AS n FROM posts").get().n,
+      before,
+    );
+  });
+  await test("Likes, saves, follow, block, editing, recalls and removals all enforce the interaction quota", async () => {
+    resetLimits();
+    for (let i = 0; i < 120; i++)
+      assert.equal(
+        (await write(`/posts/${source.id}/like`, "PUT")).status,
+        200,
+      );
+    const routes = [
+      [`/posts/${source.id}/like`, "DELETE"],
+      [`/posts/${source.id}/save`, "PUT"],
+      [`/posts/${source.id}/repost`, "DELETE"],
+      [`/posts/${source.id}`, "PATCH", { text: "edit fixture" }],
+      [`/posts/${source.id}`, "DELETE"],
+      [`/posts/${source.id}/comments/${comment.id}`, "DELETE"],
+      [`/posts/${source.id}/comments/${comment.id}/like`, "PUT"],
+      [`/posts/${source.id}/comments/${comment.id}/repost`, "DELETE"],
+      ["/users/alice/follow", "PUT"],
+      ["/users/alice/block", "PUT"],
+      ["/messages/alice/read", "POST"],
+      ["/messages/alice/missing", "DELETE"],
+    ];
+    for (const route of routes) await assertLimited(await write(...route));
+  });
+  await test("Single and batched view routes share a quota for members and guests and keep deduplication", async () => {
+    for (const cookie of [bob, ""]) {
+      resetLimits();
+      for (let i = 0; i < 120; i++)
+        assert.equal(
+          (
+            await write(
+              i % 2 ? `/posts/${source.id}/view` : "/posts/views",
+              "POST",
+              i % 2 ? undefined : { ids: [source.id] },
+              cookie,
+            )
+          ).status,
+          200,
+        );
+      await assertLimited(
+        await write(`/posts/${source.id}/view`, "POST", undefined, cookie),
+      );
+      await assertLimited(
+        await write("/posts/views", "POST", { ids: [source.id] }, cookie),
+      );
+      assert.ok((await api(`/posts/${source.id}`, {}, cookie)).ok);
+      clock += 60001;
+      assert.equal(
+        (await write("/posts/views", "POST", { ids: [source.id] }, cookie))
+          .status,
+        200,
+      );
+    }
+    assert.equal(
+      sql
+        .prepare("SELECT COUNT(*) AS n FROM post_views WHERE post_id=?")
+        .get(source.id).n,
+      2,
+    );
+  });
+  await test("Message recipient quota preserves other conversations and normalizes recipient aliases", async () => {
+    resetLimits();
+    for (let i = 0; i < 20; i++)
+      assert.equal(
+        (await write("/messages/alice", "POST", { text: "pair-rate fixture" }))
+          .status,
+        201,
+      );
+    await assertLimited(
+      await write("/messages/alice", "POST", { text: "pair-rate denied" }),
+    );
+    assert.equal(
+      (
+        await write("/messages/dan", "POST", {
+          text: "other-recipient fixture",
+        })
+      ).status,
+      201,
+    );
+    await assertLimited(
+      await write("/messages/ALICE", "POST", {
+        text: "normalized-recipient denied",
+      }),
+    );
+  });
+  await test("Message sender quota is shared across recipients", async () => {
+    resetLimits();
+    for (let i = 0; i < 60; i++)
+      assert.equal(
+        (
+          await write("/messages/" + ["alice", "carl", "dan"][i % 3], "POST", {
+            text: "sender-rate fixture",
+          })
+        ).status,
+        201,
+      );
+    await assertLimited(
+      await write("/messages/alice", "POST", { text: "sender-rate denied" }),
+    );
+  });
+  await test("Account limits survive username and source-IP changes", async () => {
+    resetLimits();
+    await seed("renamer");
+    const renamed = await session("renamer");
+    for (let i = 0; i < 30; i++)
+      assert.equal(
+        (
+          await write(
+            "/posts",
+            "POST",
+            { text: "rename-rate fixture" },
+            renamed,
+          )
+        ).status,
+        201,
+      );
+    sql
+      .prepare(
+        "UPDATE users SET id='renamer-new',handle='renamer-new' WHERE id='renamer'",
+      )
+      .run();
+    try {
+      await assertLimited(
+        await write(
+          "/posts",
+          "POST",
+          { text: "renamed-actor denied" },
+          renamed,
+          "198.51.100.8",
+        ),
+      );
+    } finally {
+      sql
+        .prepare(
+          "UPDATE users SET id='renamer',handle='renamer' WHERE id='renamer-new'",
+        )
+        .run();
+    }
+  });
+  await test("Source-IP limits are shared across accounts", async () => {
+    resetLimits();
+    const actors = [bob, await session("carl"), await session("dan")];
+    for (let i = 0; i < 300; i++)
+      assert.equal(
+        (
+          await write(
+            `/posts/${source.id}/like`,
+            "PUT",
+            undefined,
+            actors[i % 3],
+          )
+        ).status,
+        200,
+      );
+    await assertLimited(
+      await write(`/posts/${source.id}/like`, "PUT", undefined, bob),
+    );
+    assert.equal(
+      (
+        await write(
+          `/posts/${source.id}/like`,
+          "PUT",
+          undefined,
+          bob,
+          "198.51.100.8",
+        )
+      ).status,
+      200,
+    );
+  });
+  await test("Daily publication and message-pair quotas persist across minute windows", async () => {
+    resetLimits();
+    for (let i = 0; i < 300; i++) {
+      if (i && i % 30 === 0) clock += 60001;
+      assert.equal(
+        (await write("/posts", "POST", { text: "daily-rate fixture" })).status,
+        201,
+      );
+    }
+    clock += 60001;
+    const denied = await write("/posts", "POST", { text: "daily-rate denied" });
+    assert.ok(Number(denied.headers.get("Retry-After")) > 60);
+    await assertLimited(denied);
+    resetLimits();
+    for (let i = 0; i < 500; i++) {
+      if (i && i % 20 === 0) clock += 60001;
+      assert.equal(
+        (await write("/messages/alice", "POST", { text: "daily-pair fixture" }))
+          .status,
+        201,
+      );
+    }
+    clock += 60001;
+    await assertLimited(
+      await write("/messages/alice", "POST", { text: "daily-pair denied" }),
+    );
+    clock += 86400001;
+    assert.equal(
+      (await write("/messages/alice", "POST", { text: "new-day fixture" }))
+        .status,
+      201,
+    );
+  });
+  await test("Concurrent publication requests cannot exceed the database quota", async () => {
+    resetLimits();
+    const responses = await Promise.all(
+      Array.from({ length: 40 }, () =>
+        write("/posts", "POST", { text: "concurrent-rate fixture" }),
+      ),
+    );
+    assert.equal(
+      responses.filter((response) => response.status === 201).length,
+      30,
+    );
+    assert.equal(
+      responses.filter((response) => response.status === 429).length,
+      10,
+    );
+  });
+  Date.now = realNow;
+
   await Promise.allSettled(tasks);
   global.fetch = realFetch;
   sql.close();

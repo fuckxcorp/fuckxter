@@ -28,6 +28,18 @@ const MIN_BIRTHDAY = "1700-01-01";
 /** 申请删除后的宽限期：这之内登录回来就自动取消删除。 */
 const DELETION_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
+function validateNewPassword(password: string): void {
+  if (typeof password !== "string") {
+    throw new HttpError(400, "INVALID_PASSWORD", "密码格式无效。");
+  }
+  if (password.length > 256 || [...password].length > 128) {
+    throw new HttpError(400, "PASSWORD_TOO_LONG", "密码不能超过 128 个字符。");
+  }
+  if ([...password].length < 8) {
+    throw new HttpError(400, "PASSWORD_TOO_SHORT", "新密码至少需要 8 个字符。");
+  }
+}
+
 function validateBirthday(value: string): string {
   const birthday = value.trim();
   if (!birthday) return "";
@@ -112,6 +124,9 @@ export async function loginOrRegister(
   recoveryCode?: string,
   source = "unknown",
 ) {
+  if (typeof password !== "string") {
+    throw new HttpError(400, "INVALID_PASSWORD", "密码格式无效。");
+  }
   const identifier = identifierValue.trim().replace(/^@/, "").normalize("NFKC");
   if (!identifier) throw new HttpError(400, "EMAIL_REQUIRED", "请填写邮箱。");
   const recovery = recoveryCode?.trim() ?? "";
@@ -185,6 +200,7 @@ export async function loginOrRegister(
     throw new HttpError(400, "INVALID_EMAIL", "注册需要填写有效的邮箱地址。");
   }
 
+  validateNewPassword(password);
   await rateLimit(env, `register:${source}`, 10, 3600);
   const email = identifier;
   const now = new Date().toISOString();
@@ -386,9 +402,7 @@ export async function changePassword(
   current: string,
   next: string,
 ): Promise<void> {
-  if ([...next].length < 8) {
-    throw new HttpError(400, "PASSWORD_TOO_SHORT", "新密码至少需要 8 个字符。");
-  }
+  validateNewPassword(next);
   const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?")
     .bind(userId)
     .first<UserRow>();

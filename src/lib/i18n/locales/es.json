@@ -632,5 +632,7 @@
   "图片实际格式与上传声明不一致。": "El formato de la imagen no coincide con el tipo declarado.",
   "未找到已上传的媒体。": "No se encontró el contenido subido.",
   "帖子参数无效。": "Parámetros de publicación no válidos.",
-  "翻页参数无效。": "Parámetros de paginación no válidos."
+  "翻页参数无效。": "Parámetros de paginación no válidos.",
+  "密码格式无效。": "Formato de contraseña no válido.",
+  "密码不能超过 128 个字符。": "La contraseña no puede superar los 128 caracteres."
 }

@@ -1,4 +1,10 @@
-import { rateLimit, limitLogin, cleanSecurityState } from "./shared/rate-limit";
+import {
+  rateLimit,
+  limitLogin,
+  limitAction,
+  limitViews,
+  cleanSecurityState,
+} from "./shared/rate-limit";
 import type { SecurityProof } from "./accounts/accounts";
 import {
   beginTwoFactor,
@@ -384,6 +390,7 @@ async function route(
         if (typeof body.text !== "string") {
           throw new HttpError(400, "INVALID_MESSAGE", "私信内容无效。");
         }
+        await limitAction(env, request, user, "message", handle);
         return json(
           await sendMessage(env, user.id, handle, body.text),
           request,
@@ -394,6 +401,7 @@ async function route(
     }
 
     if (parts.length === 4 && parts[3] === "read" && method === "POST") {
+      await limitAction(env, request, user, "interact");
       await markConversationRead(env, user.id, segment(parts, 2));
       return json(
         { unread: await countUnreadMessages(env, user.id) },
@@ -403,6 +411,7 @@ async function route(
     }
 
     if (parts.length === 4 && method === "DELETE") {
+      await limitAction(env, request, user, "interact");
       const handle = segment(parts, 2);
       return json(
         await recallMessage(env, user.id, handle, segment(parts, 3)),
@@ -802,12 +811,7 @@ async function route(
       )
         throw new HttpError(400, "INVALID_POST", "帖子参数无效。");
       const viewer = await getOptionalUser(request, env);
-      await rateLimit(
-        env,
-        `views:${viewer?.id ?? request.headers.get("CF-Connecting-IP") ?? "unknown"}`,
-        120,
-        60,
-      );
+      await limitViews(env, request, viewer);
       return json(
         await recordPostViews(
           env,
@@ -835,6 +839,7 @@ async function route(
       ) {
         throw new HttpError(400, "INVALID_MEDIA", "图片引用无效。");
       }
+      await limitAction(env, request, user, "publish");
       const payload = body as { visibility?: unknown };
       return json(
         await createPost(
@@ -863,6 +868,7 @@ async function route(
 
       if (method === "PATCH" || method === "DELETE") {
         const actor = await requireUser(request, env);
+        await limitAction(env, request, actor, "interact");
         if (method === "DELETE") {
           await deletePost(env, actor.id, postId);
           return json({ ok: true }, request, env);
@@ -898,6 +904,7 @@ async function route(
         const body = await readJson<{ text?: unknown }>(request);
         if (body.text !== undefined && typeof body.text !== "string")
           throw new HttpError(400, "INVALID_POST", "评论内容无效。");
+        await limitAction(env, request, user, "publish");
         return json(
           await quotePost(
             env,
@@ -912,6 +919,7 @@ async function route(
       }
       if (action === "view" && method === "POST") {
         const user = await getOptionalUser(request, env);
+        await limitViews(env, request, user);
         return json(
           await recordPostView(env, request, user?.id ?? null, postId),
           request,
@@ -951,6 +959,7 @@ async function route(
         ) {
           throw new HttpError(400, "INVALID_MEDIA", "图片参数无效。");
         }
+        await limitAction(env, request, user, "publish");
         return json(
           {
             comment: await createComment(
@@ -974,6 +983,12 @@ async function route(
       ) {
         const user = await requireUser(request, env);
         const active = method === "PUT";
+        await limitAction(
+          env,
+          request,
+          user,
+          action === "repost" && active ? "publish" : "interact",
+        );
         if (action === "like") {
           return json(
             await setLike(env, user.id, postId, active),
@@ -998,6 +1013,7 @@ async function route(
 
     if (parts.length === 5 && parts[3] === "comments" && method === "DELETE") {
       const user = await requireUser(request, env);
+      await limitAction(env, request, user, "interact");
       const deleted = await deleteComment(
         env,
         user.id,
@@ -1014,6 +1030,12 @@ async function route(
       (method === "PUT" || method === "DELETE")
     ) {
       const user = await requireUser(request, env);
+      await limitAction(
+        env,
+        request,
+        user,
+        parts[5] === "repost" && method === "PUT" ? "publish" : "interact",
+      );
       return json(
         await setCommentInteraction(
           env,
@@ -1078,6 +1100,7 @@ async function route(
     (method === "PUT" || method === "DELETE")
   ) {
     const user = await requireUser(request, env);
+    await limitAction(env, request, user, "interact");
     return json(
       await setFollow(env, user.id, segment(parts, 2), method === "PUT"),
       request,
@@ -1092,6 +1115,7 @@ async function route(
     (method === "PUT" || method === "DELETE")
   ) {
     const user = await requireUser(request, env);
+    await limitAction(env, request, user, "interact");
     return json(
       await setBlock(env, user.id, segment(parts, 2), method === "PUT"),
       request,

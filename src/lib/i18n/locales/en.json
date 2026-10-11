@@ -632,5 +632,7 @@
   "图片实际格式与上传声明不一致。": "The image format does not match the declared type.",
   "未找到已上传的媒体。": "Uploaded media was not found.",
   "帖子参数无效。": "Invalid post parameters.",
-  "翻页参数无效。": "Invalid pagination parameters."
+  "翻页参数无效。": "Invalid pagination parameters.",
+  "密码格式无效。": "Invalid password format.",
+  "密码不能超过 128 个字符。": "Password cannot exceed 128 characters."
 }
