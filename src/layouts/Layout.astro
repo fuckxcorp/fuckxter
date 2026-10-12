@@ -96,8 +96,10 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
     <script>
       import { installI18n } from "../lib/i18n";
       import { focusLogoOnLoad } from "../lib/ui/logo-focus";
+      import { installImageFocus } from "../lib/ui/image-focus";
       installI18n();
       focusLogoOnLoad();
+      installImageFocus();
     </script>
   </body>
 </html>
