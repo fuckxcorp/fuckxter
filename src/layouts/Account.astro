@@ -159,13 +159,7 @@ import { languages } from "../lib/i18n";
             data-no-translate
           >
             <span class="menu-check">✓</span>
-            <span
-              data-nom-label={
-                language.code === "vi-Hani" ? language.name : undefined
-              }
-            >
-              {language.name}
-            </span>
+            <span data-language-label={language.name}>{language.name}</span>
           </button>
         ))}
       </div>

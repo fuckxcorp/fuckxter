@@ -1,15 +1,15 @@
 export const languages = [
   { code: "zh-CN", name: "简中" },
   { code: "zh-Hant", name: "繁中" },
-  { code: "yue-Hant", name: "粵語" },
-  { code: "nan-Hant", name: "闽南语" },
+  { code: "yue-Hant", name: "粤语" },
+  { code: "nan-Hant", name: "闽语" },
   { code: "hsn", name: "湘语" },
   { code: "zh-x-dalian", name: "大连话" },
-  { code: "ko", name: "한국어" },
-  { code: "ja", name: "日本語" },
-  { code: "vi-Hani", name: "㗂越（𡨸喃）" },
-  { code: "en", name: "English" },
-  { code: "es", name: "Español" },
+  { code: "ko", name: "韩语" },
+  { code: "ja", name: "日语" },
+  { code: "vi-Hani", name: "越南语（喃字）" },
+  { code: "en", name: "英语" },
+  { code: "es", name: "西班牙语" },
 ] as const;
 export type Language = (typeof languages)[number]["code"];
 const catalogs: Record<string, Record<string, string>> = {};
@@ -376,9 +376,9 @@ function applyLanguage(language: Language): void {
   translateTree(document.head);
   translateTree(document.body);
   for (const label of document.querySelectorAll<HTMLElement>(
-    "[data-nom-label]",
+    "[data-language-label]",
   )) {
-    paint(label, label.dataset.nomLabel!, true);
+    paint(label, label.dataset.languageLabel!);
   }
   document.dispatchEvent(new Event("fuckxter:language-change"));
   if (language === "vi-Hani")
@@ -388,9 +388,9 @@ function applyLanguage(language: Language): void {
         glyphs.clear();
         if (getLanguage() === "vi-Hani") translateTree(document.body);
         for (const label of document.querySelectorAll<HTMLElement>(
-          "[data-nom-label]",
+          "[data-language-label]",
         )) {
-          paint(label, label.dataset.nomLabel!, true);
+          paint(label, label.dataset.languageLabel!);
         }
       })
       .catch(() => {});

@@ -41,15 +41,13 @@ button {
 }
 
 * {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-ui);
 }
 
 :root {
+  --font-ui:
+    "Nunito", "FuckXter Rounded Han", ui-rounded, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   color-scheme: light;
   --color-bg: #ffffff;
   --color-bg-subtle: #f5f6f8;
@@ -1933,9 +1931,7 @@ html body .post-control-actions .action:hover::before {
 html[lang="vi-Hani"] body,
 html[lang="vi-Hani"] body * {
   font-family:
-    system-ui,
-    -apple-system,
-    "FuckXter Nôm",
+    "Nunito", "FuckXter Rounded Han", "FuckXter Nôm", ui-rounded, system-ui,
     sans-serif;
 }
 [data-i18n-rendered] {
@@ -1961,12 +1957,14 @@ html[lang="vi-Hani"] body * {
   mask: var(--nom-image) center / contain no-repeat;
 }
 [data-language-choice="vi-Hani"] {
-  font-family: system-ui, "FuckXter Nôm", sans-serif;
+  font-family:
+    "Nunito", "FuckXter Rounded Han", "FuckXter Nôm", ui-rounded, system-ui,
+    sans-serif;
 }
 .language-submenu {
   --slab-left: 66px;
   --slab-top-right: 66px;
-  min-width: 280px;
+  min-width: 320px;
   top: -0.4rem;
 }
 @media (max-width: 640px) {

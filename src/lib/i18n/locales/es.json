@@ -634,5 +634,16 @@
   "帖子参数无效。": "Parámetros de publicación no válidos.",
   "翻页参数无效。": "Parámetros de paginación no válidos.",
   "密码格式无效。": "Formato de contraseña no válido.",
-  "密码不能超过 128 个字符。": "La contraseña no puede superar los 128 caracteres."
+  "密码不能超过 128 个字符。": "La contraseña no puede superar los 128 caracteres.",
+  "简中": "Chino simplificado",
+  "繁中": "Chino tradicional",
+  "粤语": "Cantonés",
+  "闽语": "Chino min",
+  "湘语": "Chino xiang",
+  "大连话": "Dialecto de Dalian",
+  "韩语": "Coreano",
+  "日语": "Japonés",
+  "越南语（喃字）": "Vietnamita (chữ Nôm)",
+  "英语": "Inglés",
+  "西班牙语": "Español"
 }

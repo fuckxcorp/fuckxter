@@ -1,4 +1,5 @@
 ---
+import "../styles/fonts.css";
 import "../styles/global.css";
 import "../styles/festivals.css";
 import ThemeScript from "../components/Theme.astro";
@@ -94,7 +95,9 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
     </script>
     <script>
       import { installI18n } from "../lib/i18n";
+      import { focusLogoOnLoad } from "../lib/ui/logo-focus";
       installI18n();
+      focusLogoOnLoad();
     </script>
   </body>
 </html>

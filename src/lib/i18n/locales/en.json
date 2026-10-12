@@ -634,5 +634,16 @@
   "帖子参数无效。": "Invalid post parameters.",
   "翻页参数无效。": "Invalid pagination parameters.",
   "密码格式无效。": "Invalid password format.",
-  "密码不能超过 128 个字符。": "Password cannot exceed 128 characters."
+  "密码不能超过 128 个字符。": "Password cannot exceed 128 characters.",
+  "简中": "Simplified Chinese",
+  "繁中": "Traditional Chinese",
+  "粤语": "Cantonese",
+  "闽语": "Min Chinese",
+  "湘语": "Xiang Chinese",
+  "大连话": "Dalian dialect",
+  "韩语": "Korean",
+  "日语": "Japanese",
+  "越南语（喃字）": "Vietnamese (Chữ Nôm)",
+  "英语": "English",
+  "西班牙语": "Spanish"
 }

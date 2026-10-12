@@ -537,11 +537,22 @@ export function mountFeed(container: HTMLElement): FeedControls {
     if (node.classList.contains("post-placeholder"))
       return Number.parseFloat(node.style.height);
     return (
-      140 +
-      Math.ceil((post?.text.length ?? 0) / Math.max(12, (width - 100) / 15)) *
+      132 +
+      Math.min(
+        post?.media?.length ? 2 : 4,
+        Math.ceil((post?.text.length ?? 0) / Math.max(12, (width - 100) / 15)),
+      ) *
         26 +
-      (post?.media?.length ? Math.min(width, 340) : 0) +
-      (post?.repostKind ? 180 : 0)
+      (post?.media?.length
+        ? Math.max(0, width - 100) * (post.media.length > 1 ? 0.86 : 1)
+        : 0) +
+      (post?.repostKind
+        ? 180 +
+          (post.source?.media?.length
+            ? Math.max(0, width - 130) *
+              (post.source.media.length > 1 ? 0.86 : 1)
+            : 0)
+        : 0)
     );
   };
   const placePosts = (nodes: HTMLElement[], fresh = false): void => {
