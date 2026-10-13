@@ -26,9 +26,8 @@ const postSelect = (viewerID: string | null) => `
     u.avatar_media_id AS author_avatar_media_id,
     u.avatar_key AS author_avatar_key,
     u.updated_at AS author_updated_at,
-    (SELECT COUNT(*) FROM comments c
-      WHERE c.post_id = p.id AND c.deleted_at IS NULL) AS reply_count,
-    (SELECT COUNT(*) FROM reposts rp WHERE rp.post_id = p.id) AS repost_count,
+    p.reply_count,
+    p.repost_count,
     p.like_count,
     ${
       viewerID
@@ -467,27 +466,46 @@ export async function getPostByPath(
   return row ? serializePost(env, row, viewerId) : null;
 }
 
-export async function getPostsByUser(
+export async function getPostsByUserPage(
   env: Env,
   viewerId: string | null,
   handle: string,
+  cursorValue: string | null = null,
+  limitValue: string | null = null,
 ) {
   const filter = viewerFilter(viewerId);
+  const limit = Math.min(Math.max(Number(limitValue ?? 12) || 12, 1), 30);
+  const params: unknown[] = [
+    ...viewerSelectParams(viewerId),
+    usernameKey(handle),
+    ...filter.params,
+  ];
+  const cursor = cursorValue ? decodeCursor(cursorValue) : null;
+  const pageCondition = cursor
+    ? "AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?))"
+    : "";
+  if (cursor) params.push(cursor[0], cursor[0], cursor[1]);
+  params.push(limit + 1);
   const rows = await allPosts<PostRow>(
     env.DB.prepare(
       `${postSelect(viewerId)}
        WHERE u.id = ? AND p.deleted_at IS NULL
          AND ${filter.condition}
+         ${pageCondition}
 
        ORDER BY p.created_at DESC, p.id DESC
-       LIMIT 100`,
-    ).bind(
-      ...viewerSelectParams(viewerId),
-      usernameKey(handle),
-      ...filter.params,
-    ),
+       LIMIT ?`,
+    ).bind(...params),
   );
-  return Promise.all(rows.map((row) => serializePost(env, row, viewerId)));
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const last = pageRows.at(-1);
+  return {
+    posts: await Promise.all(
+      pageRows.map((row) => serializePost(env, row, viewerId)),
+    ),
+    nextCursor: hasMore && last ? encodeCursor(last.created_at, last.id) : null,
+  };
 }
 
 export async function createPost(
@@ -699,7 +717,7 @@ export async function setLike(
     await deleteNotification(env, eventKey);
   }
   const count = await env.DB.prepare(
-    "SELECT COUNT(*) AS count FROM likes WHERE post_id = ?",
+    "SELECT like_count AS count FROM posts WHERE id = ?",
   )
     .bind(postId)
     .first<{ count: number }>();
@@ -797,7 +815,7 @@ export async function setRepost(
     await deleteNotification(env, eventKey);
   }
   const count = await env.DB.prepare(
-    "SELECT COUNT(*) AS count FROM reposts WHERE post_id = ?",
+    "SELECT repost_count AS count FROM posts WHERE id = ?",
   )
     .bind(postId)
     .first<{ count: number }>();
@@ -896,7 +914,8 @@ export async function getComments(
   cursor: string | null = null,
   focus: string | null = null,
 ) {
-  if (!(await getPostByID(env, viewerId, postId))) {
+  const post = await getPostByID(env, viewerId, postId);
+  if (!post) {
     throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
   }
   const [time, id] = cursor ? decodeCursor(cursor) : ["", ""];
@@ -909,16 +928,11 @@ export async function getComments(
     .all<{ id: string; created_at: string }>();
   const selected = (page.results ?? []).slice(0, 50);
   const last = selected.at(-1);
-  const total = await env.DB.prepare(
-    "SELECT COUNT(*) AS count FROM comments WHERE post_id = ? AND deleted_at IS NULL",
-  )
-    .bind(postId)
-    .first<{ count: number }>();
+  const total = post.stats.replies;
   const ids = [
     ...new Set([...selected.map((row) => row.id), ...(focus ? [focus] : [])]),
   ];
-  if (!ids.length)
-    return { total: Number(total?.count ?? 0), comments: [], nextCursor: null };
+  if (!ids.length) return { total, comments: [], nextCursor: null };
   const result = await env.DB.prepare(
     `WITH RECURSIVE ancestors(id, parent_id) AS (
        SELECT id, parent_id FROM comments WHERE post_id = ? AND id IN (${ids.map(() => "?").join(",")})
@@ -984,7 +998,7 @@ export async function getComments(
 
   const rows = result.results ?? [];
   return {
-    total: Number(total?.count ?? 0),
+    total,
     nextCursor:
       (page.results?.length ?? 0) > 50 && last
         ? encodeCursor(last.created_at, last.id)

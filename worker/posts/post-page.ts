@@ -51,6 +51,14 @@ function absolute(origin: string, value: string | null | undefined) {
   return value.startsWith("/") ? `${origin}${value}` : value;
 }
 
+function mediaUrls(origin: string, value: string, hdr?: boolean) {
+  const full = absolute(origin, value) ?? value;
+  if (hdr || !value.startsWith("/media/")) return { full, preview: full };
+  const preview = new URL(full);
+  preview.searchParams.set("preview", "640");
+  return { full, preview: preview.toString() };
+}
+
 function apiOrigin(url: URL): string {
   if (
     url.hostname === "fuckxter.site" ||
@@ -96,10 +104,10 @@ function renderOriginPost(post: Post, origin: string): string {
 
   const media = post.media?.length
     ? `<div class="media-list is-detail${post.media.length > 3 ? " is-scrollable" : ""}">${post.media
-        .map(
-          (item) =>
-            `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(absolute(origin, item.url) ?? item.url)}" alt="${escapeHtml(item.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`,
-        )
+        .map((item) => {
+          const urls = mediaUrls(origin, item.url, item.hdr);
+          return `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(urls.preview)}"${urls.preview === urls.full ? "" : ` data-full-src="${escapeHtml(urls.full)}"`} alt="${escapeHtml(item.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`;
+        })
         .join("")}</div>`
     : "";
 
@@ -244,15 +252,14 @@ export async function withPostPageHtml(
           element.append(tags, { html: true });
         },
       })
-      // 骨架文章 → 真实帖子
-      .on("article.post-skeleton", {
+      .on('[data-role="post-empty"]', {
         element(element) {
-          element.replace(
-            `${renderOriginPost(post, mediaOrigin)}${renderReplyComposer(post)}`,
-            {
-              html: true,
-            },
-          );
+          element.replace(renderOriginPost(post, mediaOrigin), { html: true });
+        },
+      })
+      .on(".thread-composer", {
+        element(element) {
+          element.replace(renderReplyComposer(post), { html: true });
         },
       })
       .on(".post-side", {

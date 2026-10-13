@@ -329,11 +329,18 @@ export async function getPostByPath(
   }
 }
 
-export async function getPostsByUser(handle: string): Promise<Post[]> {
-  const response = await apiRequest<{ posts: Post[] }>(
-    `/users/${encodeURIComponent(handle)}/posts`,
+export interface UserPostPage {
+  posts: Post[];
+  nextCursor: string | null;
+}
+
+export function getUserPostPage(
+  handle: string,
+  cursor: string | null = null,
+): Promise<UserPostPage> {
+  return apiRequest<UserPostPage>(
+    `/users/${encodeURIComponent(handle)}/posts?${query({ cursor, limit: "12" })}`,
   );
-  return response.posts;
 }
 
 export function search(queryText: string): Promise<SearchResult> {

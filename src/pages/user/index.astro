@@ -178,6 +178,14 @@ import Header from "../../components/Header.astro";
               还没有发过帖子。
             </div>
           </section>
+          <button
+            type="button"
+            class="ghost-btn user-post-more"
+            data-role="user-post-more"
+            hidden
+          >
+            加载更多
+          </button>
         </div>
       </div>
     </div>
@@ -202,7 +210,7 @@ import Header from "../../components/Header.astro";
   import {
     deletePost,
     getUserProfile,
-    getPostsByUser,
+    getUserPostPage,
     setBlock,
     setFollow,
     toggleLike,
@@ -241,6 +249,7 @@ import Header from "../../components/Header.astro";
     handle: string;
     profile: UserProfile;
     posts: Post[];
+    nextCursor: string | null;
   }
 
   function readUserBootstrap(): UserBootstrap | null {
@@ -360,25 +369,32 @@ import Header from "../../components/Header.astro";
     posts: Post[],
     onChange: () => void,
     reload?: () => Promise<void>,
+    append = false,
   ) {
-    postList.posts = posts;
+    const nodes = posts.map((post) => {
+      const article = renderPost(post, false);
+      article.classList.add("user-post-link");
+      article.tabIndex = 0;
+      article.setAttribute("role", "link");
+      article.setAttribute("aria-label", "打开这条帖子");
+      return article;
+    });
+    if (append) {
+      postList.posts.push(...posts);
+      root.append(...nodes);
+    } else {
+      postList.posts = posts;
+      root.replaceChildren(
+        ...(posts.length === 0
+          ? [
+              root.querySelector<HTMLElement>("[data-role=user-post-empty]") ??
+                statusRow("还没有发过帖子。"),
+            ]
+          : nodes),
+      );
+    }
     postList.onChange = onChange;
     if (reload) postList.reload = reload;
-    root.replaceChildren(
-      ...(posts.length === 0
-        ? [
-            root.querySelector<HTMLElement>("[data-role=user-post-empty]") ??
-              statusRow("还没有发过帖子。"),
-          ]
-        : posts.map((post) => {
-            const article = renderPost(post, false);
-            article.classList.add("user-post-link");
-            article.tabIndex = 0;
-            article.setAttribute("role", "link");
-            article.setAttribute("aria-label", "打开这条帖子");
-            return article;
-          })),
-    );
 
     if (root.dataset.postListBound === "true") return;
     root.dataset.postListBound = "true";
@@ -604,6 +620,21 @@ import Header from "../../components/Header.astro";
     const postsRoot = container.querySelector<HTMLElement>(
       "[data-role=user-posts]",
     )!;
+    const more = container.querySelector<HTMLButtonElement>(
+      "[data-role=user-post-more]",
+    )!;
+    let reloadPosts = async (): Promise<void> => {};
+    let loadMore = async (): Promise<void> => {};
+    more.addEventListener("click", () => void loadMore());
+    const postObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+    });
+    postObserver.observe(more);
+    document.addEventListener(
+      "astro:before-swap",
+      () => postObserver.disconnect(),
+      { once: true },
+    );
     const bannerHost = container.querySelector<HTMLElement>(
       "[data-role=user-banner]",
     )!;
@@ -639,7 +670,7 @@ import Header from "../../components/Header.astro";
         await setBlock(handle, willBlock);
         currentProfile.viewer.blocked = willBlock;
         fillUserProfile(card, currentProfile, false);
-        bindPostList(postsRoot, await getPostsByUser(handle), () => {});
+        await reloadPosts();
         showToast(willBlock ? "已拉黑" : "已取消拉黑");
       } catch {
         showToast("操作失败，请重试");
@@ -737,19 +768,47 @@ import Header from "../../components/Header.astro";
               error instanceof Error ? error.message : "用户加载失败。";
           });
 
-        let initialPosts =
-          bootstrap?.handle === handle ? bootstrap.posts : null;
-        const reloadPosts = async (): Promise<void> => {
+        let initialPage =
+          bootstrap?.handle === handle
+            ? {
+                posts: bootstrap.posts,
+                nextCursor: bootstrap.nextCursor,
+              }
+            : null;
+        let cursor: string | null = null;
+        let loadingPosts = false;
+        reloadPosts = async (): Promise<void> => {
           try {
-            const posts = initialPosts ?? (await getPostsByUser(handle));
-            initialPosts = null;
-            bindPostList(postsRoot, posts, () => {}, reloadPosts);
+            const page = initialPage ?? (await getUserPostPage(handle));
+            initialPage = null;
+            cursor = page.nextCursor;
+            bindPostList(postsRoot, page.posts, () => {}, reloadPosts);
+            more.hidden = !cursor;
           } catch (error: unknown) {
             postsRoot.replaceChildren(
               statusRow(
                 error instanceof Error ? error.message : "帖子加载失败。",
               ),
             );
+          }
+        };
+        loadMore = async (): Promise<void> => {
+          if (!cursor || loadingPosts) return;
+          loadingPosts = true;
+          more.disabled = true;
+          more.textContent = "加载中…";
+          try {
+            const page = await getUserPostPage(handle, cursor);
+            cursor = page.nextCursor;
+            bindPostList(postsRoot, page.posts, () => {}, reloadPosts, true);
+            more.hidden = !cursor;
+          } catch {
+            more.hidden = false;
+            showToast("加载更多帖子失败");
+          } finally {
+            loadingPosts = false;
+            more.disabled = false;
+            more.textContent = "加载更多";
           }
         };
         void reloadPosts();

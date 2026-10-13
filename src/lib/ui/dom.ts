@@ -1,6 +1,6 @@
 import { getLocale } from "../i18n";
 import { postPath } from "../core/urls";
-import type { Post } from "../core/types";
+import type { Post, PostMedia } from "../core/types";
 import { apiEndpoint } from "../core/http";
 
 export const ICONS = {
@@ -270,24 +270,32 @@ export function disposePostMedia(root: HTMLElement): void {
   }
 }
 
+export function setMediaImage(
+  image: HTMLImageElement,
+  media: PostMedia,
+  loading: "eager" | "lazy" = "lazy",
+): void {
+  const source = media.url.startsWith("/") ? apiEndpoint(media.url) : media.url;
+  const preview = new URL(source, location.href);
+  if (!media.hdr && preview.pathname.startsWith("/media/")) {
+    preview.searchParams.set("preview", "640");
+    image.dataset.fullSrc = source;
+  }
+  image.src = preview.toString();
+  image.alt = media.alt;
+  image.loading = loading;
+  image.decoding = "async";
+  image.fetchPriority = loading === "eager" ? "high" : "low";
+  image.referrerPolicy = "no-referrer";
+}
+
 export function postMedia(post: Post, carousel = false): HTMLElement {
   const list = el("div", "media-list");
   if ((post.media?.length ?? 0) > 3) list.classList.add("is-scrollable");
   for (const media of post.media ?? []) {
     const node = el("div", media.hdr ? "media is-hdr" : "media");
     const image = el("img", "media-image");
-    const source = media.url.startsWith("/")
-      ? apiEndpoint(media.url)
-      : media.url;
-    const preview = new URL(source, location.href);
-    if (carousel && !media.hdr && preview.pathname.startsWith("/media/"))
-      preview.searchParams.set("preview", "640");
-    image.src = preview.toString();
-    image.alt = media.alt;
-    image.loading = "lazy";
-    image.decoding = "async";
-    image.fetchPriority = "low";
-    image.referrerPolicy = "no-referrer";
+    setMediaImage(image, media);
     node.append(image);
     if (media.hdr) {
       const badge = el("span", "media-hdr-badge");

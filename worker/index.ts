@@ -63,7 +63,7 @@ import {
   quotePost,
   getPostByID,
   getPostByPath,
-  getPostsByUser,
+  getPostsByUserPage,
   getSavedPosts,
   getTimeline,
   normalizeVisibility,
@@ -253,55 +253,23 @@ async function fetchAsset(
   return result;
 }
 
-function pageCacheKey(url: URL): Request {
-  const cacheUrl = new URL(url);
-  cacheUrl.search = "";
-  cacheUrl.hash = "";
-  return new Request(cacheUrl, { method: "GET" });
-}
-
-function pageResponse(response: Response, state: "HIT" | "MISS"): Response {
+function cachePage(response: Response): Response {
+  if (!response.headers.has("X-Fuckxter-SSR")) return response;
   const headers = new Headers(response.headers);
-  headers.set("Cache-Control", "public, max-age=0, must-revalidate");
+  headers.set(
+    "Cache-Control",
+    "public, max-age=60, stale-while-revalidate=300",
+  );
   headers.set(
     "CDN-Cache-Control",
     "public, max-age=60, stale-while-revalidate=300",
   );
-  headers.set("X-Fuckxter-Page-Cache", state);
+  headers.set("X-Fuckxter-Page-Cache", "WORKERS");
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers,
   });
-}
-
-async function cachedPage(url: URL): Promise<Response | null> {
-  const cached = await (
-    caches as CacheStorage & { default: Cache }
-  ).default.match(pageCacheKey(url));
-  return cached ? pageResponse(cached, "HIT") : null;
-}
-
-function cachePage(
-  response: Response,
-  url: URL,
-  context: WorkerExecutionContext,
-): Response {
-  if (!response.headers.has("X-Fuckxter-SSR")) return response;
-  const headers = new Headers(response.headers);
-  headers.set("Cache-Control", "public, max-age=60");
-  const stored = new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-  context.waitUntil(
-    (caches as CacheStorage & { default: Cache }).default.put(
-      pageCacheKey(url),
-      stored.clone(),
-    ),
-  );
-  return pageResponse(stored, "MISS");
 }
 
 async function route(
@@ -1178,9 +1146,13 @@ async function route(
   if (parts[1] === "users" && parts[3] === "posts" && method === "GET") {
     const user = await getOptionalUser(request, env);
     return json(
-      {
-        posts: await getPostsByUser(env, user?.id ?? null, segment(parts, 2)),
-      },
+      await getPostsByUserPage(
+        env,
+        user?.id ?? null,
+        segment(parts, 2),
+        url.searchParams.get("cursor"),
+        url.searchParams.get("limit"),
+      ),
       request,
       env,
     );
@@ -1238,13 +1210,6 @@ export default {
         assetPath &&
         (request.method === "GET" || request.method === "HEAD")
       ) {
-        const cacheablePage =
-          request.method === "GET" &&
-          (assetPath === "/post/" || assetPath === "/user/");
-        if (cacheablePage) {
-          const cached = await cachedPage(url);
-          if (cached) return cached;
-        }
         const assetUrl = new URL(url);
         assetUrl.pathname = assetPath;
         const cacheUrl = new URL(assetUrl);
@@ -1260,11 +1225,11 @@ export default {
         // 帖子页补上 og:*，Telegram 之类的爬虫才抓得到内容
         if (assetPath === "/post/") {
           const rendered = await withPostPageHtml(request, env, url, response);
-          return cacheablePage ? cachePage(rendered, url, context) : rendered;
+          return request.method === "GET" ? cachePage(rendered) : rendered;
         }
         if (assetPath === "/user/") {
           const rendered = await withUserPageHtml(request, env, url, response);
-          return cacheablePage ? cachePage(rendered, url, context) : rendered;
+          return request.method === "GET" ? cachePage(rendered) : rendered;
         }
         if (assetPath === "/connections/") {
           return await withConnectionsPageHtml(request, env, url, response);

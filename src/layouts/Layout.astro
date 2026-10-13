@@ -51,7 +51,8 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
             event.preventDefault();
             event.stopImmediatePropagation();
             const image = viewer.querySelector("img");
-            image.src = target.currentSrc || target.src;
+            image.src =
+              target.dataset.fullSrc || target.currentSrc || target.src;
             image.alt = target.alt;
             viewer.showModal();
             return;

@@ -1,5 +1,5 @@
 import type { Env, HtmlRewriterConstructor } from "../shared/platform";
-import { getPostsByUser } from "../posts/posts";
+import { getPostsByUserPage } from "../posts/posts";
 import { getUserProfile } from "./users";
 
 declare const HTMLRewriter: HtmlRewriterConstructor;
@@ -18,6 +18,14 @@ function escapeHtml(value: string): string {
 function absolute(value: string | null | undefined): string {
   if (!value) return "/user.avif";
   return value.startsWith("/") ? `https://api.fuckxter.site${value}` : value;
+}
+
+function mediaUrls(value: string, hdr?: boolean) {
+  const full = absolute(value);
+  if (hdr || !value.startsWith("/media/")) return { full, preview: full };
+  const preview = new URL(full);
+  preview.searchParams.set("preview", "640");
+  return { full, preview: preview.toString() };
 }
 
 function textHtml(value: string): string {
@@ -45,14 +53,14 @@ function renderMedia(
 ): string {
   if (!media?.length) return "";
   return `<div class="media-list${media.length > 3 ? " is-scrollable" : ""}">${media
-    .map(
-      (item) =>
-        `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(absolute(item.url))}" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async" fetchpriority="low" referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`,
-    )
+    .map((item) => {
+      const urls = mediaUrls(item.url, item.hdr);
+      return `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(urls.preview)}"${urls.preview === urls.full ? "" : ` data-full-src="${escapeHtml(urls.full)}"`} alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async" fetchpriority="low" referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`;
+    })
     .join("")}</div>`;
 }
 
-type Post = Awaited<ReturnType<typeof getPostsByUser>>[number];
+type Post = Awaited<ReturnType<typeof getPostsByUserPage>>["posts"][number];
 type Profile = NonNullable<Awaited<ReturnType<typeof getUserProfile>>>;
 
 function renderPost(post: Post): string {
@@ -101,9 +109,9 @@ export async function withUserPageHtml(
   if (!match) return response;
   try {
     const handle = decodeURIComponent(match[1]);
-    const [profile, posts] = await Promise.all([
+    const [profile, page] = await Promise.all([
       getUserProfile(env, null, handle),
-      getPostsByUser(env, null, handle),
+      getPostsByUserPage(env, null, handle),
     ]);
     if (!profile) return response;
     const title = `${profile.name}（@${profile.handle}）`;
@@ -111,7 +119,8 @@ export async function withUserPageHtml(
     const bootstrap = JSON.stringify({
       handle: profile.handle,
       profile,
-      posts,
+      posts: page.posts,
+      nextCursor: page.nextCursor,
     }).replace(/</g, "\\u003c");
     const rendered = new HTMLRewriter()
       .on("title", {
@@ -151,8 +160,8 @@ export async function withUserPageHtml(
       .on('[data-role="user-posts"]', {
         element(element) {
           element.setInnerContent(
-            posts.length
-              ? posts.map(renderPost).join("")
+            page.posts.length
+              ? page.posts.map(renderPost).join("")
               : '<div class="status" data-role="user-post-empty">还没有发过帖子。</div>',
             { html: true },
           );
