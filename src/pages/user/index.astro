@@ -237,6 +237,24 @@ import Header from "../../components/Header.astro";
   const fullTime = (iso: string) =>
     new Date(iso).toLocaleString(getLocale(), { dateStyle: "long" });
 
+  interface UserBootstrap {
+    handle: string;
+    profile: UserProfile;
+    posts: Post[];
+  }
+
+  function readUserBootstrap(): UserBootstrap | null {
+    const node = document.querySelector<HTMLScriptElement>(
+      "script[data-user-bootstrap]",
+    );
+    if (!node?.textContent) return null;
+    try {
+      return JSON.parse(node.textContent) as UserBootstrap;
+    } catch {
+      return null;
+    }
+  }
+
   function setUserChip(card: HTMLElement, role: string, value: string): void {
     const chip = card.querySelector<HTMLElement>(
       `[data-role=user-chip-${role}]`,
@@ -540,6 +558,8 @@ import Header from "../../components/Header.astro";
     if (!container) return;
     if (container.dataset.userMounted === "true") return;
     container.dataset.userMounted = "true";
+    const cachedAccount = getAccount();
+    const bootstrap = cachedAccount ? null : readUserBootstrap();
     const sessionPromise = hydrateSession().then(() => getAccount());
 
     container
@@ -684,7 +704,8 @@ import Header from "../../components/Header.astro";
           return;
         }
 
-        void getUserProfile(handle)
+        const initial = bootstrap?.handle === handle ? bootstrap.profile : null;
+        void (initial ? Promise.resolve(initial) : getUserProfile(handle))
           .then((profile) => {
             currentProfile = profile;
             const isOwn = getAccount()?.profile.handle === profile.handle;
@@ -700,6 +721,9 @@ import Header from "../../components/Header.astro";
                 : profile.headerUrl;
               bannerImage.alt = `${profile.name} 的主页头图`;
               bannerHost.hidden = false;
+              if (bannerImage.complete) {
+                bannerCard.classList.add("is-media-ready");
+              }
             } else {
               bannerImage.removeAttribute("src");
               bannerHost.hidden = true;
@@ -713,9 +737,12 @@ import Header from "../../components/Header.astro";
               error instanceof Error ? error.message : "用户加载失败。";
           });
 
+        let initialPosts =
+          bootstrap?.handle === handle ? bootstrap.posts : null;
         const reloadPosts = async (): Promise<void> => {
           try {
-            const posts = await getPostsByUser(handle);
+            const posts = initialPosts ?? (await getPostsByUser(handle));
+            initialPosts = null;
             bindPostList(postsRoot, posts, () => {}, reloadPosts);
           } catch (error: unknown) {
             postsRoot.replaceChildren(

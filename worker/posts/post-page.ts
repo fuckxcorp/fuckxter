@@ -185,11 +185,7 @@ export async function withPostPageHtml(
   url: URL,
   response: Response,
 ): Promise<Response> {
-  if (
-    request.method !== "GET" ||
-    request.headers.get("Sec-Fetch-Dest") === "empty"
-  )
-    return response;
+  if (request.method !== "GET") return response;
   const match = POST_PATH.exec(url.pathname);
   if (!match) return response;
 
@@ -229,45 +225,51 @@ export async function withPostPageHtml(
       `<meta name="twitter:title" content="${escapeHtml(title)}">`,
       `<meta name="twitter:description" content="${escapeHtml(description)}">`,
       `<meta name="twitter:image" content="${escapeHtml(image)}">`,
+      `<script type="application/json" data-post-bootstrap>${JSON.stringify(post).replace(/</g, "\\u003c")}</script>`,
     ].join("");
 
-    return (
-      new HTMLRewriter()
-        .on("title", {
-          element(element) {
-            element.setInnerContent(title);
-          },
-        })
-        .on('meta[name="description"]', {
-          element(element) {
-            element.setAttribute("content", description);
-          },
-        })
-        .on("head", {
-          element(element) {
-            element.append(tags, { html: true });
-          },
-        })
-        // 骨架文章 → 真实帖子
-        .on("article.post-skeleton", {
-          element(element) {
-            element.replace(
-              `${renderOriginPost(post, mediaOrigin)}${renderReplyComposer(post)}`,
-              {
-                html: true,
-              },
-            );
-          },
-        })
-        .on(".post-side", {
-          element(element) {
-            element.setInnerContent(renderSide(post, mediaOrigin), {
+    const rendered = new HTMLRewriter()
+      .on("title", {
+        element(element) {
+          element.setInnerContent(title);
+        },
+      })
+      .on('meta[name="description"]', {
+        element(element) {
+          element.setAttribute("content", description);
+        },
+      })
+      .on("head", {
+        element(element) {
+          element.append(tags, { html: true });
+        },
+      })
+      // 骨架文章 → 真实帖子
+      .on("article.post-skeleton", {
+        element(element) {
+          element.replace(
+            `${renderOriginPost(post, mediaOrigin)}${renderReplyComposer(post)}`,
+            {
               html: true,
-            });
-          },
-        })
-        .transform(response)
-    );
+            },
+          );
+        },
+      })
+      .on(".post-side", {
+        element(element) {
+          element.setInnerContent(renderSide(post, mediaOrigin), {
+            html: true,
+          });
+        },
+      })
+      .transform(response);
+    const headers = new Headers(rendered.headers);
+    headers.set("X-Fuckxter-SSR", "post");
+    return new Response(rendered.body, {
+      status: rendered.status,
+      statusText: rendered.statusText,
+      headers,
+    });
   } catch (error) {
     // 渲染失败不能连累页面本身
     console.error("Post page render failed", error);

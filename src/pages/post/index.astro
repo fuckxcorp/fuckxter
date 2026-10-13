@@ -126,6 +126,18 @@ import Header from "../../components/Header.astro";
 
   const MAX_COMMENT_CHARS = 1000;
 
+  function readPostBootstrap(): Post | null {
+    const node = document.querySelector<HTMLScriptElement>(
+      "script[data-post-bootstrap]",
+    );
+    if (!node?.textContent) return null;
+    try {
+      return JSON.parse(node.textContent) as Post;
+    } catch {
+      return null;
+    }
+  }
+
   function renderPostInfo(post: Post): HTMLElement {
     const box = el("section", "post-info shard");
     box.dataset.shard = postShard(`${post.id}:info`);
@@ -1442,8 +1454,12 @@ import Header from "../../components/Header.astro";
     )!;
     const side = container.querySelector<HTMLElement>("[data-role=post-side]")!;
 
+    const bootstrap = getAccount() ? null : readPostBootstrap();
     const postRequest = parsedPath
-      ? loadPost(parsedPath.handle, parsedPath.slug)
+      ? bootstrap?.author.handle.toLowerCase() === parsedPath.handle &&
+        bootstrap.slug.toLowerCase() === parsedPath.slug
+        ? Promise.resolve(bootstrap)
+        : loadPost(parsedPath.handle, parsedPath.slug)
       : Promise.resolve(null);
 
     void Promise.all([postRequest, sessionPromise])
