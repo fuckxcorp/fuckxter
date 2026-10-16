@@ -1,0 +1,40 @@
+---
+interface Props {
+  name:
+    | "signin"
+    | "saved"
+    | "history"
+    | "settings"
+    | "signout"
+    | "notice"
+    | "messages"
+    | "language";
+}
+const paths = {
+  signin: "M15 3h5v18h-5 M3 12h12 M10 7l5 5-5 5",
+  saved: "M6 3h12v18l-6-4-6 4V3Z",
+  history: "M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v5l3 2",
+  settings:
+    "M9.09 4.98 L10.29 4.59 L10.30 2.35 L13.70 2.35 L13.71 4.59 L14.91 4.98 L14.91 4.98 L16.03 5.55 L17.62 3.97 L20.03 6.38 L18.45 7.97 L19.02 9.09 L19.02 9.09 L19.41 10.29 L21.65 10.30 L21.65 13.70 L19.41 13.71 L19.02 14.91 L19.02 14.91 L18.45 16.03 L20.03 17.62 L17.62 20.03 L16.03 18.45 L14.91 19.02 L14.91 19.02 L13.71 19.41 L13.70 21.65 L10.30 21.65 L10.29 19.41 L9.09 19.02 L9.09 19.02 L7.97 18.45 L6.38 20.03 L3.97 17.62 L5.55 16.03 L4.98 14.91 L4.98 14.91 L4.59 13.71 L2.35 13.70 L2.35 10.30 L4.59 10.29 L4.98 9.09 L4.98 9.09 L5.55 7.97 L3.97 6.38 L6.38 3.97 L7.97 5.55 L9.09 4.98 Z M15.2 12a3.2 3.2 0 1 1-6.4 0 3.2 3.2 0 0 1 6.4 0",
+  signout: "M9 3H4v18h5 M10 12h11 M16 7l5 5-5 5",
+  notice: "M5 16h14l-2-3V9A5 5 0 0 0 7 9v4l-2 3Z M10 20h4 M12 2v2",
+  messages: "M4 4h16v12H9l-5 4V4Z M8 9h8 M8 12h5",
+  language:
+    "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M16 12a4 9 0 1 1-8 0 4 9 0 0 1 8 0 M3 12h18",
+};
+---
+
+<span class="account-menu-icon" aria-hidden="true">
+  <svg
+    viewBox="0 0 24 24"
+    width="22"
+    height="22"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d={paths[Astro.props.name]} />
+  </svg>
+</span>

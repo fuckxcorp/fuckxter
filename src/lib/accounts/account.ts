@@ -16,6 +16,7 @@ import {
 } from "../ui/dom";
 import { apiEndpoint } from "../core/http";
 import { userPath } from "../core/urls";
+import { mountAccountMotion } from "../ui/account-motion";
 
 interface AccountControlsOptions {
   onAccountChange: () => void;
@@ -195,14 +196,14 @@ export function mountAccountControls(
     syncLanguageMenu();
   };
 
-  const setPeeled = (open: boolean) => {
-    document.documentElement.classList.toggle("menu-open", open);
-  };
+  const motion = mountAccountMotion(accountMenu, accountBtn);
 
   const closeAccountMenu = () => {
+    if (isPanelOpen(languageSubmenu))
+      motion.setSubmenuOpen(languageSubmenu, false);
     collapseSubmenus(accountMenu);
     hidePanel(accountMenu);
-    setPeeled(false);
+    motion.setOpen(false);
     accountBtn.setAttribute("aria-expanded", "false");
 
     document.removeEventListener("click", onDocClick, true);
@@ -215,7 +216,35 @@ export function mountAccountControls(
     closeAccountMenu();
   };
   const onMenuKeydown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") closeAccountMenu();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeAccountMenu();
+      accountBtn.focus({ preventScroll: true });
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End", "Tab"].includes(event.key))
+      return;
+    const items = [
+      ...accountMenu.querySelectorAll<HTMLButtonElement>("button"),
+    ].filter(
+      (item) =>
+        item.checkVisibility() &&
+        !item.disabled &&
+        !item.closest(".is-closing"),
+    );
+    if (!items.length) return;
+    event.preventDefault();
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : (index +
+              (event.key === "ArrowUp" || event.shiftKey ? -1 : 1) +
+              items.length) %
+            items.length;
+    items[next].focus({ preventScroll: true });
   };
 
   accountBtn.addEventListener("click", () => {
@@ -226,7 +255,7 @@ export function mountAccountControls(
         void refreshUnreadMessages(account.profile.handle);
       }
       showPanel(accountMenu);
-      setPeeled(true);
+      motion.setOpen(true);
       accountBtn.setAttribute("aria-expanded", "true");
       document.addEventListener("click", onDocClick, true);
       document.addEventListener("keydown", onMenuKeydown, true);
@@ -241,6 +270,7 @@ export function mountAccountControls(
       collapseSubmenus(accountMenu, languageSubmenu);
       showPanel(languageSubmenu);
     } else hidePanel(languageSubmenu);
+    motion.setSubmenuOpen(languageSubmenu, open);
     languageTrigger.setAttribute("aria-expanded", String(open));
   });
   languageSubmenu.addEventListener("click", (event) => {
@@ -317,7 +347,7 @@ export function mountAccountControls(
       renderAccountUI();
     },
     dispose: () => {
-      setPeeled(false);
+      motion.dispose();
       window.removeEventListener("resize", repositionSubmenus);
       document.removeEventListener("click", onDocClick, true);
       document.removeEventListener("keydown", onMenuKeydown, true);

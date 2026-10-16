@@ -127,6 +127,34 @@ import Header from "../../components/Header.astro";
 
   const MAX_COMMENT_CHARS = 1000;
 
+  function revealThread(nodes: HTMLElement[]): void {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const visible = nodes.filter((node) => {
+      const rect = node.getBoundingClientRect();
+      return (
+        node.isConnected &&
+        rect.height > 0 &&
+        rect.bottom > 0 &&
+        rect.top < innerHeight
+      );
+    });
+    visible.forEach((node, index) => {
+      const animation = node.animate(
+        [
+          { opacity: 0, transform: "translate(-10px, -8px) scale(0.98)" },
+          { opacity: 1, transform: "none" },
+        ],
+        {
+          duration: 380,
+          delay: Math.min(index * 36, 180),
+          easing: "cubic-bezier(0.25, 0.1, 0.25, 1)",
+          fill: "both",
+        },
+      );
+      void animation.finished.then(() => animation.cancel()).catch(() => {});
+    });
+  }
+
   function readPostBootstrap(): Post | null {
     const node = document.querySelector<HTMLScriptElement>(
       "script[data-post-bootstrap]",
@@ -1085,6 +1113,11 @@ import Header from "../../components/Header.astro";
     });
 
     const renderList = (comments: Comment[], total = comments.length): void => {
+      const existing = new Set(
+        [...list.querySelectorAll<HTMLElement>(".thread-reply[id]")].map(
+          (node) => node.id,
+        ),
+      );
       descendantCounts.clear();
       expanders.clear();
       closeInlineReply();
@@ -1273,6 +1306,17 @@ import Header from "../../components/Header.astro";
       };
 
       list.replaceChildren(...roots.map((comment) => renderNode(comment, 0)));
+      revealThread(
+        [...list.querySelectorAll<HTMLElement>(".thread-reply[id]")].filter(
+          (node) => {
+            const parent =
+              node.parentElement?.closest<HTMLElement>(".thread-reply");
+            return (
+              !existing.has(node.id) && (!parent || existing.has(parent.id))
+            );
+          },
+        ),
+      );
     };
 
     let commentCursor: string | null = null;
@@ -1517,6 +1561,13 @@ import Header from "../../components/Header.astro";
           { once: true },
         );
         side.hidden = false;
+        revealThread([
+          ...thread.querySelectorAll<HTMLElement>(
+            ":scope > .thread-head, :scope > .thread-origin, :scope > .thread-composer, :scope > .thread-replies > .replies-head, :scope > .thread-replies > .thread-list > .thread-reply",
+          ),
+          ...side.querySelectorAll<HTMLElement>(":scope > .post-info"),
+          controls,
+        ]);
         let hotPosts: Post[] | null = null;
         let hotLimit = 0;
         let renderedHotLimit = -1;

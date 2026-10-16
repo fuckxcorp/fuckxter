@@ -895,8 +895,33 @@ export function mountFeed(container: HTMLElement): FeedControls {
   };
 
   let timelineRequest: AbortController | null = null;
+  let openingPost = false;
+  const openPost = async (post: Post) => {
+    if (openingPost || disposed) return;
+    openingPost = true;
+    const seq = ++state.seq;
+    timelineRequest?.abort();
+    state.loading = false;
+    setSentinelBusy(false);
+    preloadPost(post);
+    feed.classList.add("is-switching");
+    try {
+      await animatePosts(false);
+      if (disposed || seq !== state.seq) return;
+      await navigate(postPath(post));
+    } catch {
+      if (!disposed && seq === state.seq) showToast("帖子加载失败。");
+    } finally {
+      if (!disposed && seq === state.seq) {
+        openingPost = false;
+        clearFeedMotion();
+      }
+    }
+  };
+
   const loadPage = async (replace: boolean, transition = false) => {
-    if (state.search !== null) return;
+    if (state.search !== null || (openingPost && !replace)) return;
+    if (replace) openingPost = false;
     if (!replace && (state.loading || state.done || state.tab !== renderedTab))
       return;
 
@@ -1011,6 +1036,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
       return;
     }
     const seq = ++state.seq;
+    openingPost = false;
     timelineRequest?.abort();
     clearFeedMotion();
     state.search = query;
@@ -1148,6 +1174,25 @@ export function mountFeed(container: HTMLElement): FeedControls {
       return;
     }
     const target = event.target as HTMLElement;
+    const permalink = target.closest<HTMLAnchorElement>(".post-permalink");
+    if (permalink) {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        permalink.target === "_blank"
+      )
+        return;
+      const id = permalink.closest<HTMLElement>(".post")?.dataset.postId;
+      const post = id ? postsById.get(id) : undefined;
+      if (post) {
+        event.preventDefault();
+        await openPost(post);
+      }
+      return;
+    }
     const avatarLink = target.closest<HTMLElement>(".avatar-link");
     if (avatarLink?.dataset.handle) {
       event.preventDefault();
@@ -1207,11 +1252,7 @@ export function mountFeed(container: HTMLElement): FeedControls {
         return;
       const id = article?.dataset.postId;
       const post = id ? postsById.get(id) : undefined;
-      if (post && article) {
-        article.classList.add("is-opening");
-        preloadPost(post);
-        void navigate(postPath(post));
-      }
+      if (post) await openPost(post);
       return;
     }
 

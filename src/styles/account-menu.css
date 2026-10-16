@@ -1,0 +1,297 @@
+.account-aura {
+  display: contents;
+  --aura-colors: #00f0ff, #007aff, #8a2be2, #ff2d55, #ff9500, #00f0ff;
+}
+.account-aura > span {
+  position: fixed;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 280ms ease,
+    visibility 0s 280ms;
+}
+.account-aura.is-open > span {
+  visibility: visible;
+  transition:
+    opacity 440ms ease,
+    visibility 0s;
+}
+.account-aura-veil {
+  inset: 0;
+  z-index: 79;
+  background: rgb(15 23 42 / 36%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+[data-theme="dark"] .account-aura-veil {
+  background: rgb(4 5 10 / 57%);
+}
+.account-aura.is-open .account-aura-veil {
+  opacity: 1;
+  pointer-events: auto;
+}
+.account-aura-sweep {
+  z-index: 94;
+  top: calc(var(--aura-origin-y) - 30vh);
+  right: -18vw;
+  width: 90vw;
+  height: 85vh;
+  border-radius: 50%;
+  background: conic-gradient(from 210deg, var(--aura-colors));
+  filter: blur(65px);
+  mix-blend-mode: soft-light;
+  mask-image: radial-gradient(ellipse, #000 30%, transparent 72%);
+}
+.account-aura .account-aura-sweep {
+  transition: visibility 0s 180ms;
+}
+.account-aura.is-open .account-aura-sweep {
+  transition: none;
+}
+[data-theme="light"] .account-aura-sweep {
+  mix-blend-mode: multiply;
+  filter: blur(65px) saturate(1.3);
+}
+[data-theme="dark"] .account-aura-sweep {
+  mix-blend-mode: screen;
+}
+@property --glow-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.account-aura-frame {
+  z-index: 95;
+  inset: 0;
+  overflow: hidden;
+  contain: paint;
+  border-radius: 24px;
+}
+/* Paint the combined rim and soft falloff only along the four narrow edges. */
+.account-aura-light {
+  position: absolute;
+  background: conic-gradient(from var(--glow-angle), var(--aura-colors));
+  background-size: 100vw 100dvh;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(
+    var(--edge-direction),
+    rgb(0 0 0 / 95%) 0,
+    rgb(0 0 0 / 80%) 1.75px,
+    rgb(0 0 0 / 58%) 3px,
+    rgb(0 0 0 / 48%) 7px,
+    rgb(0 0 0 / 38%) 12px,
+    rgb(0 0 0 / 25%) 20px,
+    rgb(0 0 0 / 10%) 32px,
+    transparent 48px
+  );
+  animation: account-light-flow 8s linear infinite paused;
+}
+.account-aura-light[data-edge="top"] {
+  --edge-direction: to bottom;
+  inset: 0 0 auto;
+  height: 48px;
+  background-position: left top;
+}
+.account-aura-light[data-edge="right"] {
+  --edge-direction: to left;
+  inset: 0 0 0 auto;
+  width: 48px;
+  background-position: right top;
+}
+.account-aura-light[data-edge="bottom"] {
+  --edge-direction: to top;
+  inset: auto 0 0;
+  height: 48px;
+  background-position: left bottom;
+}
+.account-aura-light[data-edge="left"] {
+  --edge-direction: to right;
+  inset: 0 auto 0 0;
+  width: 48px;
+  background-position: left top;
+}
+.account-aura.is-open .account-aura-frame {
+  opacity: 1;
+  transition-delay: 140ms, 0s;
+}
+.account-aura.is-open .account-aura-light {
+  animation-play-state: running;
+}
+.account-aura.is-suspended .account-aura-light {
+  animation-play-state: paused;
+}
+@keyframes account-light-flow {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+html.menu-open .topbar > :not(.account) {
+  filter: blur(5px);
+  pointer-events: none;
+}
+.account-menu.menu {
+  --menu-text: var(--color-text-strong);
+  --menu-muted: var(--color-text-muted);
+  --menu-select: var(--color-bg);
+  --menu-select-text: var(--color-text-strong);
+  --menu-soft: color-mix(in srgb, var(--color-bg) 60%, transparent);
+  --menu-line: var(--color-border);
+  position: fixed;
+  top: calc(var(--topbar-height) + 18px);
+  right: max(30px, env(safe-area-inset-right));
+  width: min(290px, calc(100vw - 48px));
+  height: auto;
+  max-height: calc(
+    100dvh - var(--topbar-height) - 42px - env(safe-area-inset-bottom)
+  );
+  padding: 4px 10px 12px;
+  overflow: visible;
+  background: none;
+  color: var(--menu-text);
+  filter: none;
+  animation: none;
+}
+.account-menu.menu:not([hidden]) {
+  filter: none;
+}
+.account-menu.menu:not([hidden]),
+.account-menu.menu:not([hidden])::before,
+.account-menu.menu:not([hidden]) > * {
+  animation: none;
+}
+.account-menu.menu::before {
+  display: none;
+}
+.account-menu.menu > [data-role][hidden] {
+  display: none;
+}
+.account-menu .menu-title {
+  padding: 4px 12px 12px;
+  letter-spacing: 0;
+}
+.account-menu :is(.menu-user, .menu-item) {
+  min-height: 51px;
+  gap: 14px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 16px;
+  font-size: 1rem;
+  font-weight: 650;
+  transform-origin: right top;
+}
+.account-menu .notice-menu-item {
+  justify-content: flex-start;
+}
+.account-menu .menu-item::before {
+  inset: 2px 0;
+  border-radius: 16px;
+  background: var(--menu-soft);
+  transform: scale(0.95);
+}
+.account-menu
+  .menu-item:is(
+    :hover,
+    :focus-visible,
+    [aria-checked="true"],
+    [aria-expanded="true"]
+  )::before {
+  border-radius: 16px;
+  transform: scale(1);
+}
+.account-menu .menu-item:focus-visible,
+.account-menu .menu-user:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+.account-menu-icon,
+.account-menu .menu-user-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-bg) 78%, transparent);
+  color: var(--color-text-strong);
+  box-shadow:
+    0 2px 12px rgb(0 0 0 / 6%),
+    inset 0 0 0 1px rgb(128 128 128 / 10%);
+}
+[data-theme="light"] .account-menu-icon {
+  border: 1px solid rgb(0 0 0 / 70%);
+  box-shadow:
+    inset 1.5px 1.5px 2px rgb(0 0 0),
+    inset -1.5px -1.5px 2px rgb(0 0 0 / 80%),
+    inset 0 0 10px rgb(0 0 0 / 25%),
+    0 4px 12px -4px rgb(15 23 42 / 8%);
+}
+.account-menu .menu-user {
+  margin: 0 0 8px;
+  padding-block: 7px;
+}
+.account-menu .menu-sep {
+  margin: 8px 12px;
+  opacity: 0.6;
+}
+.account-menu .submenu {
+  right: calc(100% + 18px);
+  padding: 8px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 12%);
+  --menu-soft: var(--color-bg-hover);
+  --menu-select: var(--color-bg-hover);
+}
+.account-menu .submenu:not([hidden]),
+.account-menu .submenu:not([hidden]) > * {
+  animation: none;
+}
+.account-menu .submenu::before,
+.account-menu .submenu::after {
+  display: none;
+}
+.account-menu .submenu .menu-item {
+  min-height: 42px;
+  font-size: 0.92rem;
+  font-weight: 550;
+  gap: 9px;
+}
+.account-menu .submenu .menu-item::before {
+  background: var(--color-bg-hover);
+}
+@media (max-width: 640px) {
+  .account-menu.menu {
+    top: calc(var(--topbar-height) + 12px);
+    right: 18px;
+    width: min(290px, calc(100vw - 36px));
+    max-height: calc(
+      100dvh - var(--topbar-height) - 34px - env(safe-area-inset-bottom)
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  .account-menu .submenu {
+    margin: 5px 0 8px;
+    border: 0;
+    border-radius: 18px;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  }
+  .account-aura-frame {
+    border-radius: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-aura > span,
+  .account-aura.is-open > span {
+    transition: none;
+  }
+  .account-aura .account-aura-light {
+    animation: none;
+  }
+  .account-aura-sweep {
+    display: none;
+  }
+}

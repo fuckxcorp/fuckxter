@@ -54,7 +54,12 @@ const documentTitle = title === "FuckXter" ? title : `${title} | FuckXter`;
             image.src =
               target.dataset.fullSrc || target.currentSrc || target.src;
             image.alt = target.alt;
+            viewer.classList.toggle(
+              "is-tall",
+              Boolean(target.closest(".media.is-tall")),
+            );
             viewer.showModal();
+            viewer.scrollTop = 0;
             return;
           }
           if (

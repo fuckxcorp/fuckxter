@@ -297,6 +297,25 @@ export function postMedia(post: Post, carousel = false): HTMLElement {
     const image = el("img", "media-image");
     setMediaImage(image, media);
     node.append(image);
+    if (carousel) {
+      const preview = el("button", "media-preview-open");
+      preview.type = "button";
+      preview.textContent = "图片预览 ↗";
+      preview.setAttribute("aria-haspopup", "dialog");
+      preview.hidden = true;
+      preview.addEventListener("click", (event) => {
+        event.stopPropagation();
+        image.click();
+      });
+      node.append(preview);
+      const size = () => {
+        const tall = image.naturalHeight > image.naturalWidth * 2;
+        node.classList.toggle("is-tall", tall);
+        preview.hidden = !tall;
+      };
+      image.addEventListener("load", size, { once: true });
+      if (image.complete && image.naturalWidth) size();
+    }
     if (media.hdr) {
       const badge = el("span", "media-hdr-badge");
       badge.textContent = "HDR";
@@ -358,7 +377,7 @@ export function postMedia(post: Post, carousel = false): HTMLElement {
     move(event.key === "ArrowRight" ? 1 : -1);
   });
   list.addEventListener("scroll", sync, { passive: true });
-  list.addEventListener("load", sync, true);
+  list.addEventListener("load", () => queueMicrotask(sync), true);
   wrap.append(list, prev, next);
   const observer = new ResizeObserver(sync);
   observer.observe(list);
