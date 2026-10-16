@@ -4,10 +4,10 @@ allowBuilds:
   workerd: false
 minimumReleaseAgeExclude:
   - prettier@3.9.10
-  - astro@7.3.8
+  - astro@7.4.0
   - prettier-plugin-astro@1.1.1
-  - "@astrojs/internal-helpers@0.11.0"
-  - "@astrojs/markdown-satteri@0.4.2"
+  - "@astrojs/internal-helpers@0.13.0"
+  - "@astrojs/markdown-satteri@0.4.4"
   - "@bruits/satteri-darwin-arm64@0.10.5"
   - "@bruits/satteri-darwin-x64@0.10.5"
   - "@bruits/satteri-linux-arm64-gnu@0.10.5"
@@ -27,6 +27,8 @@ minimumReleaseAgeExclude:
   - "@cloudflare/workerd-linux-64@1.20260921.1"
   - "@cloudflare/workerd-linux-arm64@1.20260921.1"
   - "@cloudflare/workerd-windows-64@1.20260921.1"
+  - "@astrojs/prism@4.1.0"
+  - "@astrojs/telemetry@3.4.0"
 
 overrides:
   http-cache-semantics: 4.3.0
