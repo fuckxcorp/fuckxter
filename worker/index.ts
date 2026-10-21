@@ -27,6 +27,8 @@ import {
   readJson,
 } from "./shared/http";
 import {
+  displayImage,
+  displayWidth,
   getAvatar,
   getHeader,
   getMedia,
@@ -532,12 +534,14 @@ async function route(
 
     if (parts.length === 3 && method === "GET") {
       const viewer = await getOptionalUser(request, env);
-      const media = await getMedia(
+      const width = displayWidth(url);
+      const source = await getMedia(
         env,
         segment(parts, 2),
         viewer?.id ?? null,
-        url.searchParams.get("preview") === "640",
+        width === null && url.searchParams.get("preview") === "640",
       );
+      const media = await displayImage(env, source, width);
       const headers = corsHeaders(request, env);
       headers.set("Content-Type", media.contentType);
       headers.set("Content-Length", String(media.size));
@@ -557,7 +561,12 @@ async function route(
     parts.length === 3 &&
     (method === "GET" || method === "HEAD")
   ) {
-    const avatar = await getAvatar(env, segment(parts, 2));
+    const width = displayWidth(url);
+    const avatar = await displayImage(
+      env,
+      await getAvatar(env, segment(parts, 2)),
+      width,
+    );
     const headers = corsHeaders(request, env);
     headers.set("Content-Type", avatar.contentType);
     headers.set("Content-Length", String(avatar.size));
@@ -565,7 +574,7 @@ async function route(
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    headers.set("Cache-Control", "public, max-age=300, must-revalidate");
     headers.set("ETag", `"${avatar.etag}"`);
     return new Response(method === "HEAD" ? null : avatar.body, {
       status: 200,
@@ -578,7 +587,12 @@ async function route(
     parts.length === 3 &&
     (method === "GET" || method === "HEAD")
   ) {
-    const header = await getHeader(env, segment(parts, 2));
+    const width = displayWidth(url);
+    const header = await displayImage(
+      env,
+      await getHeader(env, segment(parts, 2)),
+      width,
+    );
     const headers = corsHeaders(request, env);
     headers.set("Content-Type", header.contentType);
     headers.set("Content-Length", String(header.size));
@@ -586,7 +600,7 @@ async function route(
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    headers.set("Cache-Control", "public, max-age=300, must-revalidate");
     headers.set("ETag", `"${header.etag}"`);
     return new Response(method === "HEAD" ? null : header.body, {
       status: 200,

@@ -93,7 +93,7 @@ export interface ImageTransformer {
     fit?: "scale-down";
   }): ImageTransformer;
   output(options: {
-    format: "image/avif";
+    format: "image/avif" | "image/webp";
     quality: number;
     anim: boolean;
   }): Promise<{ response(): Response }>;

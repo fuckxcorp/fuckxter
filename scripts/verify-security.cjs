@@ -114,15 +114,15 @@ const env = {
     input(_stream) {
       return {
         transform(options) {
-          assert.equal(options.width, 640);
+          assert.ok([128, 640, 1280, 2048].includes(options.width));
           transforms++;
           return this;
         },
-        async output() {
+        async output(options) {
           return {
             response: () =>
               new Response(new Uint8Array(40), {
-                headers: { "Content-Type": "image/avif" },
+                headers: { "Content-Type": options.format },
               }),
           };
         },
@@ -601,6 +601,73 @@ function totp(secret) {
       media.getMedia(env, uploaded.id, null, true),
       (e) => e.status === 404,
     );
+  });
+  await test("Native WebP variants remain private, use bounded sizes and never fall back to AVIF", async () => {
+    assert.equal(
+      media.displayWidth(
+        new URL("https://example.test/media/id?format=webp&width=128"),
+      ),
+      128,
+    );
+    assert.throws(
+      () =>
+        media.displayWidth(
+          new URL("https://example.test/media/id?format=webp&width=999"),
+        ),
+      (e) => e.status === 400,
+    );
+    assert.throws(
+      () =>
+        media.displayWidth(
+          new URL("https://example.test/media/id?format=avif"),
+        ),
+      (e) => e.status === 400,
+    );
+    const variant = `/media/${uploaded.id}?format=webp&width=640`;
+    const aliceCookie = await session("alice");
+    const bobCookie = await session("bob");
+    const first = await api(variant, {}, aliceCookie);
+    assert.equal(first.status, 200);
+    assert.equal(first.headers.get("Content-Type"), "image/webp");
+    assert.equal(first.headers.get("Cache-Control"), "private, no-store");
+    const before = transforms;
+    assert.equal((await api(variant, {}, aliceCookie)).status, 200);
+    assert.equal(transforms, before);
+    assert.equal((await api(variant, {}, bobCookie)).status, 404);
+    assert.equal((await api(variant)).status, 404);
+    const images = env.IMAGES;
+    env.IMAGES = {
+      input() {
+        throw new Error("transform unavailable");
+      },
+    };
+    try {
+      assert.equal(
+        (
+          await api(
+            `/media/${uploaded.id}?format=webp&width=2048`,
+            {},
+            aliceCookie,
+          )
+        ).status,
+        502,
+      );
+    } finally {
+      env.IMAGES = images;
+    }
+    const firstSource = {
+      body: png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength),
+      size: png.byteLength,
+      contentType: "image/png",
+      etag: "avatar",
+    };
+    const firstAvatar = await media.displayImage(env, firstSource, 128);
+    const secondAvatar = await media.displayImage(
+      env,
+      { ...firstSource, body: new Uint8Array([1, 2, 3]).buffer, size: 3 },
+      128,
+    );
+    assert.notEqual(firstAvatar.etag, secondAvatar.etag);
   });
   await test("Comment pagination preserves ancestors, same-time ordering, focus and all 105 replies", async () => {
     const post = await posts.createPost(env, "alice", "comment fixture");

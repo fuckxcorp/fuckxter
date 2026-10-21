@@ -648,3 +648,74 @@ export async function getMedia(
   }
   return mediaFromSource(row, await response.arrayBuffer());
 }
+
+export function displayWidth(url: URL): number | null {
+  if (!url.searchParams.has("format")) return null;
+  const width = Number(url.searchParams.get("width") ?? "1280");
+  if (
+    url.searchParams.get("format") !== "webp" ||
+    ![128, 640, 1280, 2048].includes(width)
+  ) {
+    throw new HttpError(400, "INVALID_IMAGE_VARIANT", "图片格式或尺寸无效。");
+  }
+  return width;
+}
+
+export async function displayImage(
+  env: Env,
+  source: {
+    body: ReadableStream | ArrayBuffer;
+    size: number;
+    contentType: string;
+    etag: string;
+  },
+  width: number | null,
+) {
+  if (width === null) return source;
+  if (source.size > MAX_IMAGE_BYTES) {
+    throw new HttpError(413, "MEDIA_TOO_LARGE", "图片不能超过 30 MB。");
+  }
+  let bytes: ArrayBuffer | undefined;
+  let hash = source.etag;
+  if (!/^[a-f0-9]{64}$/.test(hash)) {
+    bytes = await new Response(source.body).arrayBuffer();
+    hash = await sha256Hex(bytes);
+  }
+  const etag = `${hash}-webp-${width}-v1`;
+  const key = `display/${etag}`;
+  const cached = await env.MEDIA_CACHE.get(key);
+  if (cached) {
+    if (!bytes && !(source.body instanceof ArrayBuffer))
+      await source.body.cancel();
+    return {
+      body: cached.body,
+      size: cached.size,
+      contentType: "image/webp",
+      etag,
+    };
+  }
+  try {
+    bytes ??= await new Response(source.body).arrayBuffer();
+    const output = await env.IMAGES.input(new Response(bytes).body!)
+      .transform({ width, height: width, fit: "scale-down" })
+      .output({ format: "image/webp", quality: 82, anim: true });
+    const response = output.response();
+    if (
+      !response.ok ||
+      response.headers.get("Content-Type")?.split(";")[0] !== "image/webp"
+    ) {
+      throw new Error("Invalid image output");
+    }
+    const body = await response.arrayBuffer();
+    await env.MEDIA_CACHE.put(key, body, {
+      httpMetadata: { contentType: "image/webp" },
+    });
+    return { body, size: body.byteLength, contentType: "image/webp", etag };
+  } catch {
+    throw new HttpError(
+      502,
+      "IMAGE_TRANSFORM_FAILED",
+      "图片处理失败，请重试。",
+    );
+  }
+}
