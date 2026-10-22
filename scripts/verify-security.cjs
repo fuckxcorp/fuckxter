@@ -259,6 +259,36 @@ function totp(secret) {
   return String((hash.readUInt32BE(o) & 0x7fffffff) % 1000000).padStart(6, "0");
 }
 (async () => {
+  await test("JSON bodies are bounded even without a trustworthy Content-Length", async () => {
+    const { readJson } = load(repo + "/worker/shared/http.ts");
+    const request = (body, headers = {}) =>
+      new Request("https://api.fuckxter.site/posts", {
+        method: "POST",
+        body,
+        headers,
+      });
+    assert.deepEqual(await readJson(request('{"text":"hello"}')), {
+      text: "hello",
+    });
+    await assert.rejects(
+      readJson(request("{")),
+      (error) => error.status === 400,
+    );
+    await assert.rejects(
+      readJson(request("{}", { "Content-Length": "1048577" })),
+      (error) => error.status === 413,
+    );
+    for (const headers of [{}, { "Content-Length": "2" }]) {
+      await assert.rejects(
+        readJson(request('"' + "x".repeat(1048576) + '"', headers)),
+        (error) => error.status === 413,
+      );
+    }
+    assert.equal(
+      (await readJson(request('"' + "x".repeat(1048574) + '"'))).length,
+      1048574,
+    );
+  });
   await seed("alice");
   await seed("bob");
   let cookie = await session("alice"),

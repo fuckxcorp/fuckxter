@@ -134,10 +134,37 @@ export function json(
 }
 
 export async function readJson<T>(request: Request): Promise<T> {
-  try {
-    return (await request.json()) as T;
-  } catch {
+  const limit = 1024 * 1024;
+  const tooLarge = () => new HttpError(413, "BODY_TOO_LARGE", "请求体过大。");
+  if (Number(request.headers.get("Content-Length")) > limit) throw tooLarge();
+  const reader = request.body?.getReader();
+  if (!reader)
     throw new HttpError(400, "INVALID_JSON", "请求体不是合法的 JSON。");
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        throw tooLarge();
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(400, "INVALID_JSON", "请求体不是合法的 JSON。");
+  } finally {
+    reader.releaseLock();
   }
 }
 

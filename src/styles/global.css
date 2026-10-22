@@ -1506,6 +1506,16 @@ img.media-image {
 /* 分享菜单和提示条由 share.ts / dom.ts 挂到 document.body，
    首页、个人主页、私信页都要用到，所以放在全局样式里。 */
 .share-menu.submenu {
+  --menu-text: var(--color-text-strong);
+  --menu-muted: var(--color-text-muted);
+  --menu-soft: var(--color-bg-hover);
+  --menu-select: var(--color-bg-hover);
+  --menu-select-text: var(--color-text-strong);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 12px 36px rgb(0 0 0 / 20%);
   position: fixed;
   right: auto;
   top: auto;
@@ -1513,6 +1523,15 @@ img.media-image {
   display: grid;
   gap: 0.15rem;
   width: min(250px, calc(100vw - 1rem));
+}
+
+.share-menu.submenu::before,
+.share-menu.submenu::after {
+  display: none;
+}
+
+.share-menu.submenu[hidden] {
+  display: none;
 }
 
 .share-menu-item.menu-item {

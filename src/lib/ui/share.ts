@@ -57,12 +57,14 @@ function shareMenuButton(
   return button;
 }
 
+let closeShareMenu: (() => void) | undefined;
+
 export function openPostShareMenu(
   anchor: HTMLElement,
   post: Post,
 ): Promise<ShareMenuResult> {
   return new Promise((resolve) => {
-    document.querySelector("[data-share-menu]")?.remove();
+    closeShareMenu?.();
 
     const menu = document.createElement("div");
     menu.className = "submenu share-menu";
@@ -107,6 +109,7 @@ export function openPostShareMenu(
     const finish = (result: ShareMenuResult) => {
       if (settled) return;
       settled = true;
+      if (closeShareMenu === cancel) closeShareMenu = undefined;
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("resize", onViewportChange);
@@ -118,12 +121,17 @@ export function openPostShareMenu(
         resolve(result);
       }, 360);
     };
-    const onViewportChange = () => finish("cancelled");
+    const cancel = () => finish("cancelled");
+    closeShareMenu = cancel;
+    const onViewportChange = cancel;
     const onPointerDown = (event: PointerEvent) => {
       if (!menu.contains(event.target as Node)) finish("cancelled");
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") finish("cancelled");
+      if (event.key === "Escape") {
+        finish("cancelled");
+        anchor.focus();
+      }
     };
 
     const choose = async (action: "share" | "copy") => {
