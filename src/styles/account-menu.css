@@ -1,6 +1,13 @@
 .account-aura {
   display: contents;
-  --aura-colors: #00f0ff, #007aff, #8a2be2, #ff2d55, #ff9500, #00f0ff;
+  --aura-ink: 0 0 0;
+  --aura-colors:
+    rgb(var(--aura-ink) / 95%), rgb(var(--aura-ink) / 60%),
+    rgb(var(--aura-ink) / 32%), rgb(var(--aura-ink) / 75%),
+    rgb(var(--aura-ink) / 45%), rgb(var(--aura-ink) / 95%);
+}
+[data-theme="dark"] .account-aura {
+  --aura-ink: 255 255 255;
 }
 .account-aura > span {
   position: fixed;
@@ -51,7 +58,7 @@
 }
 [data-theme="light"] .account-aura-sweep {
   mix-blend-mode: multiply;
-  filter: blur(65px) saturate(1.3);
+  filter: blur(65px);
 }
 [data-theme="dark"] .account-aura-sweep {
   mix-blend-mode: screen;
