@@ -31,10 +31,6 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ## 🔧 对于开发者
 
-## ⚖️ 条款与授权
-
-FuckXter的代码基于[MoPL](https://867678.xyz/docs/mopl)开源
-
 ### 原生客户端图片
 
 `/media/:id`、`/avatars/:handle`、`/headers/:handle` 支持 `format=webp&width=128|640|1280|2048`，默认尺寸为 1280。输出限制在对应尺寸的方形边界内并保持原图比例及动画。原生客户端使用此接口避免平台 AVIF 解码差异。
@@ -42,3 +38,7 @@ FuckXter的代码基于[MoPL](https://867678.xyz/docs/mopl)开源
 私有媒体在读取派生缓存前校验权限，HTTP 响应禁止共享缓存。派生对象按源文件内容与尺寸缓存，转换失败返回 502，不返回原始 AVIF。原图接口继续用于网站与原图读取。发布顺序为 Worker 在先、App 在后。
 
 `.github/workflows/check.yaml` 执行静态检查与安全/数据回归测试；生产构建继续使用原有工作流。
+
+## ⚖️ 条款与授权
+
+FuckXter的代码基于[MoPL](https://867678.xyz/docs/mopl)开源
