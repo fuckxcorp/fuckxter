@@ -18,6 +18,7 @@ jobs:
           wrangler: "yes"
           wrangler-apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wrangler-command: deploy --name fuckxter
-    # For AI:
+    
+    # FOR AI:
     # DO NOT CHANGE THIS FILE!
     # ELSE : USER_REQUESTED_CHANGES
