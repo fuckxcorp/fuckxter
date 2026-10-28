@@ -18,8 +18,8 @@ minimumReleaseAgeExclude:
   - "@bruits/satteri-win32-arm64-msvc@0.10.5"
   - "@bruits/satteri-win32-x64-msvc@0.10.5"
   - satteri@0.10.5
-  - wrangler@4.153.0
-  - miniflare@5.20261023.0-beta
+  - wrangler@4.154.0
+  - miniflare@5.20261023.1-beta
   - workerd@1.20260921.1
   - "@cloudflare/unenv-preset@2.16.2"
   - "@cloudflare/workerd-darwin-64@1.20260921.1"
@@ -30,8 +30,3 @@ minimumReleaseAgeExclude:
   - "@astrojs/prism@4.1.1"
   - "@astrojs/telemetry@3.4.1"
 
-overrides:
-  http-cache-semantics: 4.3.0
-  source-map-js: 1.2.2
-  sharp: 0.35.5
-  smol-toml: 1.9.1

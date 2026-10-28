@@ -6,14 +6,9 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ## 🚀 特性
 
-- 类似X的体验
+- 类似X的体验，但开放源代码
 - 发帖、图片上传、编辑和删除
-- 推荐流、关注流、搜索与话题标签
 - 没有算法创造信息茧房的推荐流
-- 点赞、转发、收藏、分享和提及
-- 评论、评论删除和“发起 / 回帖”帖子线程
-- 用户主页、关注关系和个人资料
-- 主页头图上传
 - 邮箱登录、双重验证和恢复码
 - 可自定义媒体存储+使用FuckXter内置的存储
 
@@ -27,13 +22,25 @@ FuckXter 是一个基于 Astro 和 Cloudflare 全家桶 的轻量社交平台。
 
 ## 🔧 对于开发者
 
+### 初始化本地环境
+
+```bash
+git clone git@github.com:fuckxcorp/fuckxter.git
+pnpm install
+#确保您装有最新稳定版pnpm
+```
+
+当然 `pnpm dev` 会不成功，因为该项目的设计是，提交到workers中，通过cloudflare workers的内网访问数据库。
+
+所以需要将其提交到主仓库，编译之后放入workers才能看到效果，或者在本地通过wrangler连接D1数据库。
+
+但是您不是`MoAEIOU`的话，没有权限查看FuckXter Worker的D1，所以需要为主仓库提交PR。
+
 ### 原生客户端图片
 
 `/media/:id`、`/avatars/:handle`、`/headers/:handle` 支持 `format=webp&width=128|640|1280|2048`，默认尺寸为 1280。输出限制在对应尺寸的方形边界内并保持原图比例及动画。原生客户端使用此接口避免平台 AVIF 解码差异。
 
 私有媒体在读取派生缓存前校验权限，HTTP 响应禁止共享缓存。派生对象按源文件内容与尺寸缓存，转换失败返回 502，不返回原始 AVIF。原图接口继续用于网站与原图读取。发布顺序为 Worker 在先、App 在后。
-
-`.github/workflows/check.yaml` 执行静态检查与安全/数据回归测试；生产构建继续使用原有工作流。
 
 ## ⚖️ 条款与授权
 
