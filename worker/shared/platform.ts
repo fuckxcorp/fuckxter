@@ -64,6 +64,15 @@ export interface QueueProducer<T> {
   send(body: T, options?: { delaySeconds?: number }): Promise<void>;
 }
 
+export interface DurableObjectStub {
+  fetch(request: Request): Promise<Response>;
+}
+
+export interface DurableObjectNamespace {
+  idFromName(name: string): unknown;
+  get(id: unknown): DurableObjectStub;
+}
+
 /** HTMLRewriter 的最小类型（项目没有装 workers-types，手写一份够用的）。 */
 export interface HtmlElement {
   setAttribute(name: string, value: string): void;
@@ -110,6 +119,7 @@ export interface Env {
   IMAGES: ImagesBinding;
   KV: KVStore;
   JOBS: QueueProducer<Job>;
+  DM_HUB: DurableObjectNamespace;
   FUCKXTER_ORIGINS: string;
   FUCKXTER_DEV?: string;
   FUCKXTER_DEV_ASSET_ORIGIN?: string;

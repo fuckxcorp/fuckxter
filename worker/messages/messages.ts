@@ -440,19 +440,36 @@ export async function sendMessage(
     ).bind(now, threadId),
   ]);
   scheduleBackground(
-    enqueueNotification(env, {
-      recipientId: person.id,
-      actorId: userId,
-      type: "system",
-      eventKey: `message:${messageId}`,
-      data: {
-        title: "新私信",
-        body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
-        handle: userId,
-      },
-    }).catch((error: unknown) => {
-      console.error("Private message notification enqueue failed", error);
-    }),
+    Promise.all([
+      enqueueNotification(env, {
+        recipientId: person.id,
+        actorId: userId,
+        type: "system",
+        eventKey: `message:${messageId}`,
+        data: {
+          title: "新私信",
+          body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+          handle: userId,
+        },
+      }).catch((error: unknown) => {
+        console.error("Private message notification enqueue failed", error);
+      }),
+      env.DM_HUB.get(env.DM_HUB.idFromName(person.id))
+        .fetch(
+          new Request("https://dm-hub/publish", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: "message", from: userId }),
+          }),
+        )
+        .then((response) => {
+          if (!response.ok)
+            throw new Error(`Realtime publish ${response.status}`);
+        })
+        .catch((error: unknown) => {
+          console.error("Private message realtime publish failed", error);
+        }),
+    ]),
   );
 
   const page = await loadMessages(env, threadId, userId, null, null);

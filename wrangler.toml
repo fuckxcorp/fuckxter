@@ -50,6 +50,14 @@ bucket_name = "fuckxter"
 binding = "KV"
 id = "04ae5aae580845bc9b923315aefab1fc"
 
+[[durable_objects.bindings]]
+name = "DM_HUB"
+class_name = "DirectMessageHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DirectMessageHub"]
+
 [[queues.producers]]
 binding = "JOBS"
 queue = "fuckxchat"

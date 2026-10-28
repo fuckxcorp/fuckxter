@@ -82,7 +82,10 @@ import { withPostPageHtml } from "./posts/post-page";
 import { withConnectionsPageHtml } from "./accounts/connections-page";
 import { withUserPageHtml } from "./accounts/user-page";
 import { withMessagesPageHtml } from "./messages/messages-page";
+import { DirectMessageHub } from "./messages/live";
 import { testStorageConnection } from "./accounts/s3";
+
+export { DirectMessageHub };
 import {
   accountFromRow,
   clearSessionCookie,
@@ -381,6 +384,14 @@ async function route(
 
   if (parts[1] === "messages") {
     const user = await requireUser(request, env);
+
+    if (parts.length === 3 && parts[2] === "live" && method === "GET") {
+      if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+        throw new HttpError(426, "UPGRADE_REQUIRED", "需要 WebSocket 连接。");
+      }
+      const hub = env.DM_HUB.get(env.DM_HUB.idFromName(user.id));
+      return hub.fetch(new Request("https://dm-hub/connect", request));
+    }
 
     if (parts.length === 2 && method === "GET") {
       const [threads, unread, suggestions] = await Promise.all([
@@ -1188,6 +1199,7 @@ export default {
     const pathname = url.pathname.toLowerCase();
     const isDedicatedApiPath =
       pathname === "/health" ||
+      pathname === "/messages/live" ||
       pathname === "/timeline" ||
       pathname === "/search" ||
       pathname === "/me" ||

@@ -122,6 +122,7 @@ import Layout from "../../layouts/Layout.astro";
 
 <script>
   import { navigate } from "astro:transitions/client";
+  import { API_URL } from "../../lib/accounts/config";
   import {
     getConversation,
     getConversations,
@@ -153,15 +154,60 @@ import Layout from "../../layouts/Layout.astro";
   } from "../../lib/core/urls";
 
   const MAX_CHARS = 1000;
-  const POLL_MS = 2000;
+  const LIVE_EVENT = "fk:dm-live";
+  type LiveSignal = { type: "sync" } | { type: "message"; from: string };
 
-  let pollTimer: number | undefined;
+  function connectLiveMessages(root: HTMLElement): void {
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | undefined;
+    let retryDelay = 500;
+    let disposed = false;
 
-  function stopPolling(): void {
-    if (pollTimer !== undefined) {
-      window.clearInterval(pollTimer);
-      pollTimer = undefined;
-    }
+    const dispatch = (signal: LiveSignal) => {
+      root.dispatchEvent(new CustomEvent(LIVE_EVENT, { detail: signal }));
+    };
+    const reconnect = () => {
+      if (disposed || reconnectTimer !== undefined) return;
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = undefined;
+        connect();
+      }, retryDelay);
+      retryDelay = Math.min(retryDelay * 2, 30_000);
+    };
+    const connect = () => {
+      if (disposed) return;
+      const url = new URL("/messages/live", API_URL);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      const next = new WebSocket(url);
+      socket = next;
+      next.addEventListener("open", () => {
+        retryDelay = 500;
+        dispatch({ type: "sync" });
+      });
+      next.addEventListener("message", (event) => {
+        try {
+          const signal = JSON.parse(String(event.data)) as LiveSignal;
+          if (signal.type === "message" && typeof signal.from === "string")
+            dispatch(signal);
+        } catch {
+          // Ignore malformed push payloads and keep the live connection open.
+        }
+      });
+      next.addEventListener("close", () => {
+        if (socket === next) socket = null;
+        reconnect();
+      });
+      next.addEventListener("error", () => next.close());
+    };
+    const dispose = () => {
+      disposed = true;
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      socket?.close();
+      socket = null;
+    };
+
+    connect();
+    document.addEventListener("astro:before-swap", dispose, { once: true });
   }
 
   function fillAvatar(node: HTMLElement, user: FeedUser): void {
@@ -425,6 +471,7 @@ import Layout from "../../layouts/Layout.astro";
     let latestCursor: string | null = null;
     let loading = false;
     let paging = false;
+    let refreshQueued = false;
     let initialized = false;
     const more = el("button", "ghost-btn chat-more");
     more.type = "button";
@@ -491,7 +538,10 @@ import Layout from "../../layouts/Layout.astro";
     };
 
     const load = async (silent: boolean) => {
-      if (loading || paging) return;
+      if (loading || paging) {
+        if (silent) refreshQueued = true;
+        return;
+      }
       loading = true;
       try {
         if (silent && latestCursor) {
@@ -533,8 +583,21 @@ import Layout from "../../layouts/Layout.astro";
         }
       } finally {
         loading = false;
+        if (refreshQueued && root.isConnected) {
+          refreshQueued = false;
+          void load(true);
+        }
       }
     };
+    root.addEventListener(LIVE_EVENT, (event) => {
+      const signal = (event as CustomEvent<LiveSignal>).detail;
+      if (
+        signal.type === "sync" ||
+        signal.from.toLowerCase() === handle.toLowerCase()
+      ) {
+        void load(true);
+      }
+    });
     more.onclick = () => {
       if (!olderCursor || paging || loading) return;
       paging = true;
@@ -554,6 +617,10 @@ import Layout from "../../layouts/Layout.astro";
         .finally(() => {
           paging = false;
           more.disabled = false;
+          if (refreshQueued && root.isConnected) {
+            refreshQueued = false;
+            void load(true);
+          }
         });
     };
 
@@ -642,12 +709,6 @@ import Layout from "../../layouts/Layout.astro";
     });
 
     await load(false);
-
-    stopPolling();
-    pollTimer = window.setInterval(() => {
-      if (document.hidden || sending) return;
-      void load(true);
-    }, POLL_MS);
   }
 
   async function mountThreadList(root: HTMLElement): Promise<void> {
@@ -669,26 +730,32 @@ import Layout from "../../layouts/Layout.astro";
     backBtn.onclick = () =>
       history.length > 1 ? history.back() : (location.href = "/");
 
-    try {
-      const page = await getConversations();
-      if (list.dataset.ssr !== "true") renderThreads(list, page.threads);
-      delete list.dataset.ssr;
-      const active = parseMessagePath(location.pathname);
-      for (const row of list.querySelectorAll<HTMLElement>(".thread")) {
-        const selected = row.dataset.handle === active;
-        row.classList.toggle("is-active", selected);
-        if (selected) row.setAttribute("aria-current", "page");
+    const refresh = async () => {
+      try {
+        const page = await getConversations();
+        if (!root.isConnected) return;
+        if (list.dataset.ssr !== "true") renderThreads(list, page.threads);
+        delete list.dataset.ssr;
+        const active = parseMessagePath(location.pathname);
+        for (const row of list.querySelectorAll<HTMLElement>(".thread")) {
+          const selected = row.dataset.handle === active;
+          row.classList.toggle("is-active", selected);
+          if (selected) row.setAttribute("aria-current", "page");
+        }
+        renderQuickStart(quickHint, quickList, page.suggestions ?? []);
+        empty.hidden = page.threads.length > 0;
+        summary.textContent =
+          page.unread > 0
+            ? `${page.threads.length} 个会话 · ${page.unread} 条未读`
+            : `${page.threads.length} 个会话`;
+      } catch {
+        if (!root.isConnected) return;
+        list.replaceChildren(statusRow("私信列表加载失败，请稍后再试。"));
+        summary.textContent = "加载失败";
       }
-      renderQuickStart(quickHint, quickList, page.suggestions ?? []);
-      empty.hidden = page.threads.length > 0;
-      summary.textContent =
-        page.unread > 0
-          ? `${page.threads.length} 个会话 · ${page.unread} 条未读`
-          : `${page.threads.length} 个会话`;
-    } catch {
-      list.replaceChildren(statusRow("私信列表加载失败，请稍后再试。"));
-      summary.textContent = "加载失败";
-    }
+    };
+    root.addEventListener(LIVE_EVENT, () => void refresh());
+    await refresh();
   }
 
   onPageReady(() => {
@@ -696,7 +763,7 @@ import Layout from "../../layouts/Layout.astro";
     if (!root || root.dataset.messagesMounted === "true") return;
     root.dataset.messagesMounted = "true";
 
-    document.addEventListener("astro:before-swap", stopPolling, { once: true });
+    connectLiveMessages(root);
     const newChat = root.querySelector<HTMLButtonElement>(
       "[data-role=new-chat]",
     )!;
