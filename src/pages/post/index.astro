@@ -650,6 +650,7 @@ import Header from "../../components/Header.astro";
     onReplyCountChange: (count: number) => void,
     initialReplies?: HTMLElement,
     initialComposer?: HTMLElement,
+    initialOrigin?: HTMLElement,
   ): { thread: HTMLElement; composer: HTMLElement } {
     const thread = el("section", "thread");
     const head = el("header", "thread-head");
@@ -1431,7 +1432,12 @@ import Header from "../../components/Header.astro";
     requestAnimationFrame(resizeCommentInput);
 
     if (!list.isConnected) replies.append(list);
-    thread.append(head, renderOriginPost(post), composer, replies);
+    thread.append(
+      head,
+      initialOrigin ?? renderOriginPost(post),
+      composer,
+      replies,
+    );
     if (location.hash === "#reply" && me) {
       requestAnimationFrame(() => {
         composer.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1492,9 +1498,10 @@ import Header from "../../components/Header.astro";
     )!;
     const side = container.querySelector<HTMLElement>("[data-role=post-side]")!;
 
-    const bootstrap = getAccount() ? null : readPostBootstrap();
+    const bootstrap = readPostBootstrap();
     const postRequest = parsedPath
-      ? bootstrap?.author.handle.toLowerCase() === parsedPath.handle &&
+      ? !getAccount() &&
+        bootstrap?.author.handle.toLowerCase() === parsedPath.handle &&
         bootstrap.slug.toLowerCase() === parsedPath.slug
         ? Promise.resolve(bootstrap)
         : loadPost(parsedPath.handle, parsedPath.slug)
@@ -1529,6 +1536,9 @@ import Header from "../../components/Header.astro";
           },
           initialReplies ?? undefined,
           host.querySelector<HTMLElement>(".thread-composer") ?? undefined,
+          bootstrap === post
+            ? (host.querySelector<HTMLElement>(".thread-origin") ?? undefined)
+            : undefined,
         );
         const me = getAccount()?.profile.handle;
         if (me) {
@@ -1563,7 +1573,7 @@ import Header from "../../components/Header.astro";
         side.hidden = false;
         revealThread([
           ...thread.querySelectorAll<HTMLElement>(
-            ":scope > .thread-head, :scope > .thread-origin, :scope > .thread-composer, :scope > .thread-replies > .replies-head, :scope > .thread-replies > .thread-list > .thread-reply",
+            ":scope > .thread-head, :scope > .thread-composer, :scope > .thread-replies > .replies-head, :scope > .thread-replies > .thread-list > .thread-reply",
           ),
           ...side.querySelectorAll<HTMLElement>(":scope > .post-info"),
           controls,

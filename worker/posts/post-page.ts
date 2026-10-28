@@ -104,9 +104,9 @@ function renderOriginPost(post: Post, origin: string): string {
 
   const media = post.media?.length
     ? `<div class="media-list is-detail${post.media.length > 3 ? " is-scrollable" : ""}">${post.media
-        .map((item) => {
+        .map((item, index) => {
           const urls = mediaUrls(origin, item.url, item.hdr);
-          return `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(urls.preview)}"${urls.preview === urls.full ? "" : ` data-full-src="${escapeHtml(urls.full)}"`} alt="${escapeHtml(item.alt)}" loading="eager" decoding="async" referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`;
+          return `<div class="media${item.hdr ? " is-hdr" : ""}"><img class="media-image" src="${escapeHtml(urls.preview)}"${urls.preview === urls.full ? "" : ` data-full-src="${escapeHtml(urls.full)}"`} alt="${escapeHtml(item.alt)}" loading="eager" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""} referrerpolicy="no-referrer">${item.hdr ? '<span class="media-hdr-badge">HDR</span>' : ""}</div>`;
         })
         .join("")}</div>`
     : "";
@@ -224,6 +224,11 @@ export async function withPostPageHtml(
     const card = post.media?.length ? "summary_large_image" : "summary";
 
     const tags = [
+      ...(post.media?.[0]
+        ? [
+            `<link rel="preload" as="image" href="${escapeHtml(mediaUrls(mediaOrigin, post.media[0].url, post.media[0].hdr).preview)}" fetchpriority="high" referrerpolicy="no-referrer">`,
+          ]
+        : []),
       `<meta property="og:type" content="article">`,
       `<meta property="og:title" content="${escapeHtml(title)}">`,
       `<meta property="og:description" content="${escapeHtml(description)}">`,

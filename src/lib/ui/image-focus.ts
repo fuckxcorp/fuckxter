@@ -54,6 +54,11 @@ export function installImageFocus(): void {
       observer.unobserve(old);
       waiting.delete(old);
     }
+    if (image.matches(".media-image")) {
+      if (image.complete && image.naturalWidth)
+        image.closest(".media")?.classList.add("is-loaded");
+      return;
+    }
     if (
       image.matches(selector) &&
       image.naturalWidth &&
@@ -82,7 +87,9 @@ export function installImageFocus(): void {
   document.addEventListener(
     "load",
     (event) => {
-      if (event.target instanceof HTMLImageElement) watch(event.target);
+      if (!(event.target instanceof HTMLImageElement)) return;
+      event.target.closest(".media")?.classList.add("is-loaded");
+      watch(event.target);
     },
     true,
   );
