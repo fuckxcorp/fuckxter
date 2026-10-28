@@ -375,6 +375,7 @@ export async function sendMessage(
   userId: string,
   handle: string,
   text: string,
+  scheduleBackground: (promise: Promise<unknown>) => void,
 ) {
   const body = text.trim();
   if (!body) {
@@ -438,17 +439,21 @@ export async function sendMessage(
       "UPDATE dm_threads SET last_message_at = ? WHERE id = ?",
     ).bind(now, threadId),
   ]);
-  await enqueueNotification(env, {
-    recipientId: person.id,
-    actorId: userId,
-    type: "system",
-    eventKey: `message:${messageId}`,
-    data: {
-      title: "新私信",
-      body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
-      handle: userId,
-    },
-  });
+  scheduleBackground(
+    enqueueNotification(env, {
+      recipientId: person.id,
+      actorId: userId,
+      type: "system",
+      eventKey: `message:${messageId}`,
+      data: {
+        title: "新私信",
+        body: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+        handle: userId,
+      },
+    }).catch((error: unknown) => {
+      console.error("Private message notification enqueue failed", error);
+    }),
+  );
 
   const page = await loadMessages(env, threadId, userId, null, null);
   const messages = page.messages;

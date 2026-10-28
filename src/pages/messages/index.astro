@@ -153,7 +153,7 @@ import Layout from "../../layouts/Layout.astro";
   } from "../../lib/core/urls";
 
   const MAX_CHARS = 1000;
-  const POLL_MS = 6000;
+  const POLL_MS = 2000;
 
   let pollTimer: number | undefined;
 
@@ -496,13 +496,17 @@ import Layout from "../../layouts/Layout.astro";
       try {
         if (silent && latestCursor) {
           let after: string | null = latestCursor;
+          let unread = 0;
           do {
             const update = await getConversation(handle, null, after);
             if (!root.isConnected) return;
             applyConversation(update.user, update.messages, false, false);
             latestCursor = update.latestCursor ?? latestCursor;
             after = update.nextAfter ?? null;
+            unread = update.unread;
           } while (after);
+          if (unread > 0) await markConversationRead(handle);
+          return;
         }
         const page = await getConversation(handle);
         if (!root.isConnected) return;

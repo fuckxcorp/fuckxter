@@ -414,7 +414,9 @@ async function route(
         }
         await limitAction(env, request, user, "message", handle);
         return json(
-          await sendMessage(env, user.id, handle, body.text),
+          await sendMessage(env, user.id, handle, body.text, (promise) =>
+            context.waitUntil(promise),
+          ),
           request,
           env,
           { status: 201 },
