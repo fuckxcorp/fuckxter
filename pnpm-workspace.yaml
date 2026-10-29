@@ -4,10 +4,10 @@ allowBuilds:
   workerd: false
 minimumReleaseAgeExclude:
   - prettier@3.9.10
-  - astro@7.4.2
+  - astro@7.4.4
   - prettier-plugin-astro@1.1.2
   - "@astrojs/internal-helpers@0.13.0"
-  - "@astrojs/markdown-satteri@0.4.5"
+  - "@astrojs/markdown-satteri@0.4.6"
   - "@bruits/satteri-darwin-arm64@0.10.5"
   - "@bruits/satteri-darwin-x64@0.10.5"
   - "@bruits/satteri-linux-arm64-gnu@0.10.5"
@@ -18,8 +18,8 @@ minimumReleaseAgeExclude:
   - "@bruits/satteri-win32-arm64-msvc@0.10.5"
   - "@bruits/satteri-win32-x64-msvc@0.10.5"
   - satteri@0.10.5
-  - wrangler@4.154.0
-  - miniflare@5.20261023.1-beta
+  - wrangler@4.155.0
+  - miniflare@5.20261023.2-beta
   - workerd@1.20260921.1
   - "@cloudflare/unenv-preset@2.16.2"
   - "@cloudflare/workerd-darwin-64@1.20260921.1"
@@ -27,6 +27,5 @@ minimumReleaseAgeExclude:
   - "@cloudflare/workerd-linux-64@1.20260921.1"
   - "@cloudflare/workerd-linux-arm64@1.20260921.1"
   - "@cloudflare/workerd-windows-64@1.20260921.1"
-  - "@astrojs/prism@4.1.1"
-  - "@astrojs/telemetry@3.4.1"
-
+  - "@astrojs/prism@4.1.2"
+  - "@astrojs/telemetry@3.4.2"
