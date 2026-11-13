@@ -36,11 +36,21 @@ pnpm install
 
 但是您不是`MoAEIOU`的话，没有权限查看FuckXter Worker的D1，所以需要为主仓库提交PR。
 
+### 检查与测试
+
+```bash
+pnpm types   # 根据 wrangler.toml 生成 Worker 绑定类型（改了绑定后要重跑）
+pnpm check   # 类型检查（前端 + Worker）和格式检查
+pnpm test    # Worker 测试：在内存 SQLite 上跑全部迁移，不需要连 D1
+```
+
+新增的数据库迁移（`worker/databases/`）不会随部署自动执行，需要对线上 D1 手动应用。
+
 ### 原生客户端图片
 
 `/media/:id`、`/avatars/:handle`、`/headers/:handle` 支持 `format=webp&width=128|640|1280|2048`，默认尺寸为 1280。输出限制在对应尺寸的方形边界内并保持原图比例及动画。原生客户端使用此接口避免平台 AVIF 解码差异。
 
-私有媒体在读取派生缓存前校验权限，HTTP 响应禁止共享缓存。派生对象按源文件内容与尺寸缓存，转换失败返回 502，不返回原始 AVIF。原图接口继续用于网站与原图读取。发布顺序为 Worker 在先、App 在后。
+私有媒体在读取派生缓存前校验权限，HTTP 响应禁止共享缓存；匿名可见的公开媒体允许缓存（浏览器一小时、边缘五分钟），并支持 `If-None-Match`。派生对象按源文件内容与尺寸缓存，转换失败返回 502，不返回原始 AVIF。原图接口继续用于网站与原图读取。发布顺序为 Worker 在先、App 在后。
 
 ## ⚖️ 条款与授权
 

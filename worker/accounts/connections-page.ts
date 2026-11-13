@@ -1,7 +1,5 @@
-import type { Env, HtmlRewriterConstructor } from "../shared/platform";
+import type { Env } from "../shared/platform";
 import { getFollowUsers } from "./users";
-
-declare const HTMLRewriter: HtmlRewriterConstructor;
 
 const PATH = /^\/user\/([^/]+)\/(followers|following)\/?$/i;
 

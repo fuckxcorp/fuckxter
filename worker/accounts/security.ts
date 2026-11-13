@@ -23,9 +23,10 @@ function sessionCookie(
   maxAge = SESSION_TTL_SECONDS,
 ): string {
   const isSecure = new URL(request.url).protocol === "https:";
-  const sameSite = isSecure ? "None" : "Lax";
   const secure = isSecure ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${maxAge}${secure}`;
+  // 网站和 API 是同站（fuckxter.site / api.fuckxter.site），Lax 就能带上 Cookie，
+  // 第三方站点发起的写请求则带不上。
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
 export function clearSessionCookie(request: Request): string {

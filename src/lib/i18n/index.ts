@@ -369,7 +369,9 @@ export function setLanguage(language: Language): void {
     .then(() => {
       if (getLanguage() === language) applyLanguage(language);
     })
-    .catch((error: unknown) => console.error("Language load failed", error));
+    .catch((error: unknown) => console.error("Language load failed", error))
+    // 翻译已经套上（或者确定套不上了），放开 Layout 里首屏的隐藏
+    .finally(() => document.documentElement.classList.remove("i18n-pending"));
 }
 function applyLanguage(language: Language): void {
   prepareCatalog(catalogs[language] ?? {});
@@ -423,6 +425,8 @@ export function installI18n(): void {
     attributes: true,
     attributeFilter: ["placeholder", "title", "aria-label", "aria-valuetext"],
   });
+  // 站内跳转换上来的新文档 lang 还是 zh-CN，在绘制前改回当前语言
+  document.addEventListener("astro:after-swap", syncLanguage);
   document.addEventListener("astro:page-load", () =>
     setLanguage(getLanguage()),
   );

@@ -492,7 +492,8 @@ export async function getAvatar(
     body: object.body,
     contentType: object.httpMetadata?.contentType ?? "application/octet-stream",
     size: object.size,
-    etag: user.avatar_key,
+    // 对象键按用户名固定，换头像后不变；R2 的 etag 才跟着内容走
+    etag: object.etag,
   };
 }
 
@@ -514,7 +515,7 @@ export async function getHeader(
     body: object.body,
     contentType: object.httpMetadata?.contentType ?? "application/octet-stream",
     size: object.size,
-    etag: objectKey,
+    etag: object.etag,
   };
 }
 
@@ -544,23 +545,68 @@ function mediaFromSource(row: MediaRow, bytes: ArrayBuffer) {
   };
 }
 
-export async function getMedia(
-  env: Env,
-  id: string,
-  viewerId: string | null,
-  preview = false,
-): Promise<{
+type MediaSource = {
   body: ReadableStream | ArrayBuffer;
   contentType: string;
   size: number;
   etag: string;
-}> {
+};
+
+const PREVIEW_MAX_BYTES = 20 * 1024 * 1024;
+
+function canPreview(env: Env, row: MediaRow): boolean {
+  return Boolean(env.IMAGES) && row.byte_size <= PREVIEW_MAX_BYTES;
+}
+
+/**
+ * 鉴权和「是不是公开图」一起判断。
+ * isPublic 指匿名访客也能看到：这种响应对所有人都一样，才允许进共享缓存。
+ * 作者看自己的私密图时 allowed 为真但 isPublic 为假。
+ */
+export async function getMediaAccess(
+  env: Env,
+  id: string,
+  viewerId: string | null,
+): Promise<{ row: MediaRow; isPublic: boolean }> {
   const row = await getMediaRow(env, id);
-  if (viewerId !== row.owner_id && !(await canViewMedia(env, viewerId, id))) {
+  const [isPublic, viewerAllowed] = await Promise.all([
+    canViewMedia(env, null, id),
+    viewerId === null
+      ? Promise.resolve(false)
+      : viewerId === row.owner_id
+        ? Promise.resolve(true)
+        : canViewMedia(env, viewerId, id),
+  ]);
+  if (viewerId === null ? !isPublic : !viewerAllowed) {
     throw new HttpError(404, "MEDIA_NOT_FOUND", "媒体不存在。");
   }
+  return { row, isPublic };
+}
+
+/**
+ * 不读对象就能算出来的 ETag，用来在碰 R2 / S3 之前回 304。
+ * 算不出来（老数据没有内容哈希）就返回 null，走正常读取。
+ */
+export function expectedMediaEtag(
+  env: Env,
+  row: MediaRow,
+  width: number | null,
+  preview: boolean,
+): string | null {
+  if (!/^[a-f0-9]{64}$/.test(row.sha256)) return null;
+  if (width !== null) return `${row.sha256}-webp-${width}-v1`;
+  if (preview && canPreview(env, row)) return `${row.sha256}-640-v1`;
+  return row.sha256;
+}
+
+/** 读媒体内容。调用前必须先过 getMediaAccess。 */
+export async function readMedia(
+  env: Env,
+  row: MediaRow,
+  preview = false,
+): Promise<MediaSource> {
   const cacheKey = `media/${row.sha256}`;
-  if (preview && env.IMAGES && row.byte_size <= 20 * 1024 * 1024) {
+  if (preview && canPreview(env, row)) {
     const key = `previews/640-v1/${row.sha256}`;
     const cachedPreview = await env.MEDIA_CACHE.get(key);
     if (cachedPreview)
@@ -570,7 +616,7 @@ export async function getMedia(
         size: cachedPreview.size,
         etag: `${row.sha256}-640-v1`,
       };
-    const source = await getMedia(env, id, viewerId, false);
+    const source = await readMedia(env, row, false);
     try {
       const stream =
         source.body instanceof ArrayBuffer
@@ -592,7 +638,7 @@ export async function getMedia(
         etag: `${row.sha256}-640-v1`,
       };
     } catch {
-      return getMedia(env, id, viewerId, false);
+      return readMedia(env, row, false);
     }
   }
   const cached = await env.MEDIA_CACHE.get(cacheKey);

@@ -1,6 +1,7 @@
 import { HttpError } from "../shared/http";
-import type { D1PreparedStatement, Env, PostRow } from "../shared/platform";
+import type { Env, PostRow } from "../shared/platform";
 import { randomID } from "../shared/crypto";
+import { likePattern, normalizeSearch } from "../shared/search";
 import { usernameKey } from "../accounts/usernames";
 import { buildAvatarUrl } from "../accounts/avatar";
 import {
@@ -189,7 +190,7 @@ function decodeCursor(cursor: string): string[] {
     if (
       !Array.isArray(value) ||
       value.length < 2 ||
-      value.length > 3 ||
+      value.length > 4 ||
       value.some((part) => typeof part !== "string")
     ) {
       throw new Error("invalid cursor");
@@ -275,66 +276,113 @@ export function timelineTab(value: string | null): TimelineTab {
   return "foryou";
 }
 
+/** 推荐流只在最近这么多天的帖子里按点赞排序，更早的按时间往下排。 */
+const FORYOU_WINDOW_DAYS = 7;
+
+/**
+ * 窗口起点取整到小时：同一小时内翻页、刷新看到的是同一批「近期帖子」，
+ * 之后的页用游标里带着的起点，翻页途中不会有帖子在两档之间挪位置。
+ */
+function foryouCutoff(now = Date.now()): string {
+  const hour = 3600_000;
+  return new Date(
+    Math.floor(now / hour) * hour - FORYOU_WINDOW_DAYS * 24 * hour,
+  ).toISOString();
+}
+
 export async function getTimeline(
   env: Env,
   viewerId: string | null,
   tab: string,
   cursor: string | null,
   limitValue: string | null,
+  now = Date.now(),
 ) {
   const filter = viewerFilter(viewerId);
   const limit = Math.min(Math.max(Number(limitValue ?? 10) || 10, 1), 30);
-  const params: unknown[] = [...viewerSelectParams(viewerId), ...filter.params];
-  const conditions = ["p.deleted_at IS NULL", filter.condition];
   const resolved = timelineTab(tab);
-  // 推荐流没有算法：按点赞量排序，点赞数相同就按时间。
-  // 每个赞的分量一样，新帖在 0 赞档里也能靠时间拿到曝光。
-  const byLikes = resolved === "foryou";
-  const likeCount = "p.like_count";
+  const baseConditions = ["p.deleted_at IS NULL", filter.condition];
+  const baseParams: unknown[] = [
+    ...viewerSelectParams(viewerId),
+    ...filter.params,
+  ];
 
   if (resolved === "following") {
     if (!viewerId) {
       return { tab: "following", posts: [], nextCursor: null };
     }
-    conditions.push(
+    baseConditions.push(
       "EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followee_id = p.author_id)",
     );
-    params.push(viewerId);
+    baseParams.push(viewerId);
   }
 
-  if (cursor) {
-    const parts = decodeCursor(cursor);
-    if (byLikes && parts.length === 3) {
-      const [likes, createdAt, id] = parts;
+  const page = (
+    conditions: string[],
+    params: unknown[],
+    order: string,
+    count: number,
+  ) =>
+    allPosts<PostRow>(
+      env.DB.prepare(
+        `${postSelect(viewerId)}
+         WHERE ${[...baseConditions, ...conditions].join(" AND ")}
+         ORDER BY ${order}
+         LIMIT ?`,
+      ).bind(...baseParams, ...params, count),
+    );
+  const BY_TIME = "p.created_at DESC, p.id DESC";
+  const BY_LIKES = `p.like_count DESC, ${BY_TIME}`;
+  const olderThan = (createdAt: string, id: string) => ({
+    conditions: ["(p.created_at < ? OR (p.created_at = ? AND p.id < ?))"],
+    params: [createdAt, createdAt, id],
+  });
+
+  const parts = cursor ? decodeCursor(cursor) : null;
+  let rows: PostRow[];
+  // 推荐流没有算法：近期帖子按点赞量排，赞数相同按时间；
+  // 近期的看完了再接着按时间看更早的。每个赞的分量一样，
+  // 老帖不会因为攒的赞多就一直占着首屏。
+  let cutoff: string | null = null;
+
+  if (resolved !== "foryou" || (parts && parts.length !== 4)) {
+    // 纯时间序：最新、关注，以及推荐流翻到「更早」那一档之后。
+    // 三段游标是旧版推荐流发出去的，按它的时间位置接着往下翻。
+    const after = parts
+      ? olderThan(parts[parts.length - 2], parts[parts.length - 1])
+      : { conditions: [], params: [] };
+    rows = await page(after.conditions, after.params, BY_TIME, limit + 1);
+  } else {
+    cutoff = parts ? parts[0] : foryouCutoff(now);
+    const conditions = ["p.created_at >= ?"];
+    const params: unknown[] = [cutoff];
+    if (parts) {
+      const [, likes, createdAt, id] = parts;
       conditions.push(
-        `(${likeCount} < ?
-          OR (${likeCount} = ?
+        `(p.like_count < ?
+          OR (p.like_count = ?
             AND (p.created_at < ? OR (p.created_at = ? AND p.id < ?))))`,
       );
       params.push(Number(likes), Number(likes), createdAt, createdAt, id);
-    } else {
-      const [createdAt, id] = parts;
-      conditions.push("(p.created_at < ? OR (p.created_at = ? AND p.id < ?))");
-      params.push(createdAt, createdAt, id);
+    }
+    rows = await page(conditions, params, BY_LIKES, limit + 1);
+    if (rows.length <= limit) {
+      // 近期这一档到底了，用更早的帖子把这一页补满
+      const older = await page(
+        ["p.created_at < ?"],
+        [cutoff],
+        BY_TIME,
+        limit + 1 - rows.length,
+      );
+      rows = [...rows, ...older];
     }
   }
 
-  params.push(limit + 1);
-  const rows = await allPosts<PostRow>(
-    env.DB.prepare(
-      `${postSelect(viewerId)}
-       WHERE ${conditions.join(" AND ")}
-       ORDER BY ${
-         byLikes
-           ? "like_count DESC, p.created_at DESC, p.id DESC"
-           : "p.created_at DESC, p.id DESC"
-       }
-       LIMIT ?`,
-    ).bind(...params),
-  );
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
   const last = pageRows.at(-1);
+  // 这一页的最后一条还在近期档里，下一页才继续按点赞翻
+  const lastIsRecent = Boolean(cutoff && last && last.created_at >= cutoff);
 
   return {
     tab: resolved,
@@ -343,8 +391,13 @@ export async function getTimeline(
     ),
     nextCursor:
       hasMore && last
-        ? byLikes
-          ? encodeCursor(String(last.like_count ?? 0), last.created_at, last.id)
+        ? lastIsRecent
+          ? encodeCursor(
+              cutoff!,
+              String(last.like_count ?? 0),
+              last.created_at,
+              last.id,
+            )
           : encodeCursor(last.created_at, last.id)
         : null,
   };
@@ -874,37 +927,87 @@ export async function setSaved(
   return getSavedPosts(env, userId);
 }
 
+function isMissingSearchIndex(error: unknown): boolean {
+  return error instanceof Error && /posts_fts/.test(error.message);
+}
+
 export async function searchPosts(
   env: Env,
   viewerId: string | null,
   queryText: string,
 ) {
-  const query = queryText.trim();
+  const query = normalizeSearch(queryText);
   if (!query) return { query, posts: [] };
   const filter = viewerFilter(viewerId);
-  const pattern = `%${query}%`;
-  const rows = await allPosts<PostRow>(
-    env.DB.prepare(
-      `${postSelect(viewerId)}
-       WHERE p.deleted_at IS NULL
-         AND ${filter.condition}
-         AND (p.text LIKE ? OR u.name LIKE ? OR u.handle LIKE ?)
-       ORDER BY p.created_at DESC, p.id DESC
-       LIMIT 50`,
-    ).bind(
-      ...viewerSelectParams(viewerId),
-      ...filter.params,
-      pattern,
-      pattern,
-      pattern,
-    ),
-  );
+  const pattern = likePattern(query);
+  const matches =
+    "(p.text LIKE ? ESCAPE '\\' OR u.name LIKE ? ESCAPE '\\' OR u.handle LIKE ? ESCAPE '\\')";
+  const run = (candidates: string, candidateParams: string[]) =>
+    allPosts<PostRow>(
+      env.DB.prepare(
+        `${postSelect(viewerId)}
+         WHERE p.deleted_at IS NULL
+           AND ${filter.condition}
+           ${candidates}
+           AND ${matches}
+         ORDER BY p.created_at DESC, p.id DESC
+         LIMIT 50`,
+      ).bind(
+        ...viewerSelectParams(viewerId),
+        ...filter.params,
+        ...candidateParams,
+        pattern,
+        pattern,
+        pattern,
+      ),
+    );
+
+  let rows: PostRow[];
+  // trigram 索引至少要三个字符才能用；更短的词只能整表 LIKE
+  if ([...query].length >= 3) {
+    try {
+      // 先用全文索引和作者名圈出候选帖子，再用 LIKE 复核。
+      // 复核同时挡掉索引里编辑前的旧内容。
+      rows = await run(
+        `AND p.id IN (
+           SELECT post_id FROM posts_fts WHERE posts_fts MATCH ?
+           UNION
+           SELECT sp.id FROM posts sp
+           WHERE sp.author_id IN (
+             SELECT su.id FROM users su
+             WHERE su.name LIKE ? ESCAPE '\\' OR su.handle LIKE ? ESCAPE '\\'
+           )
+         )`,
+        [`"${query.replace(/"/g, '""')}"`, pattern, pattern],
+      );
+    } catch (error) {
+      // 0025 迁移还没应用到这个库：退回整表扫描，搜索照常可用
+      if (!isMissingSearchIndex(error)) throw error;
+      rows = await run("", []);
+    }
+  } else {
+    rows = await run("", []);
+  }
   return {
     query,
     posts: await Promise.all(
       rows.map((row) => serializePost(env, row, viewerId)),
     ),
   };
+}
+
+/** 清掉全文索引里已经对不上任何帖子的行（帖子被删，或正文改过）。 */
+export async function pruneSearchIndex(env: Env): Promise<void> {
+  try {
+    await env.DB.prepare(
+      `DELETE FROM posts_fts WHERE NOT EXISTS (
+         SELECT 1 FROM posts p
+         WHERE p.id = posts_fts.post_id AND p.text = posts_fts.text
+       )`,
+    ).run();
+  } catch (error) {
+    if (!isMissingSearchIndex(error)) throw error;
+  }
 }
 
 export async function getComments(

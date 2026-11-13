@@ -1,20 +1,14 @@
-interface DurableObjectState {
-  acceptWebSocket(socket: WebSocket): void;
-  getWebSockets(): WebSocket[];
-}
-
 interface MessageSignal {
   type: "message";
   from: string;
 }
 
-declare const WebSocketPair: new () => {
-  0: WebSocket;
-  1: WebSocket;
-};
-
 export class DirectMessageHub {
-  constructor(private readonly state: DurableObjectState) {}
+  private readonly state: DurableObjectState;
+
+  constructor(state: DurableObjectState) {
+    this.state = state;
+  }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -43,9 +37,6 @@ export class DirectMessageHub {
 
     const pair = new WebSocketPair();
     this.state.acceptWebSocket(pair[1]);
-    return new Response(null, {
-      status: 101,
-      webSocket: pair[0],
-    } as ResponseInit);
+    return new Response(null, { status: 101, webSocket: pair[0] });
   }
 }

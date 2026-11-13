@@ -1,8 +1,6 @@
-import type { Env, HtmlRewriterConstructor } from "../shared/platform";
+import type { Env } from "../shared/platform";
 import { getOptionalUser } from "../accounts/security";
 import { countUnreadMessages, listConversations } from "./messages";
-
-declare const HTMLRewriter: HtmlRewriterConstructor;
 
 function escapeHtml(value: string): string {
   return value

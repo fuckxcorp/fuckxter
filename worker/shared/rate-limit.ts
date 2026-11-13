@@ -115,8 +115,38 @@ export async function limitLogin(
     .replace(/^@/, "")
     .normalize("NFKC")
     .toLowerCase();
-  await rateLimit(env, `auth:source:${ip}`, 60, 600);
-  await rateLimit(env, `auth:account:${account}:${ip}`, 12, 600);
+  await checkLimits(env, [
+    [`auth:source:${ip}`, 60, 600],
+    [`auth:account:${account}:${ip}`, 12, 600],
+    // 不带 IP 的账号级上限：换 IP 也不能对同一个账号无限试密码
+    [`auth:account-all:${account}`, 60, 600],
+  ]);
+}
+
+type ReadKind = "search" | "read";
+
+/**
+ * 读接口限流走 Workers Rate Limiting 绑定，不往 D1 写计数。
+ * 绑定没配（本地开发、旧配置）时直接放行。
+ */
+export async function limitRead(
+  env: Env,
+  request: Request,
+  kind: ReadKind,
+): Promise<void> {
+  const limiter = kind === "search" ? env.SEARCH_LIMITER : env.READ_LIMITER;
+  if (!limiter) return;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  let success = true;
+  try {
+    ({ success } = await limiter.limit({ key: `${kind}:${ip}` }));
+  } catch (error) {
+    // 限流器自己出问题不能把读接口一起带挂
+    console.error("Rate limiter failed", error);
+  }
+  if (!success) {
+    throw new HttpError(429, "RATE_LIMITED", "操作太频繁，请稍后重试。", 60);
+  }
 }
 
 export async function cleanSecurityState(env: Env): Promise<void> {
@@ -125,6 +155,9 @@ export async function cleanSecurityState(env: Env): Promise<void> {
       Date.now(),
     ),
     env.DB.prepare("DELETE FROM upload_tickets WHERE expires_at <= ?").bind(
+      Date.now(),
+    ),
+    env.DB.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(
       Date.now(),
     ),
     env.DB.prepare(

@@ -27,15 +27,3 @@ export function enqueueNotificationDelete(
 ): Promise<void> {
   return enqueueJob(env, { type: "notification.delete", eventKey });
 }
-
-export interface QueueMessage<T> {
-  id: string;
-  body: T;
-  ack(): void;
-  retry(): void;
-}
-
-export interface QueueBatch<T> {
-  queue: string;
-  messages: QueueMessage<T>[];
-}

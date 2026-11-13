@@ -1,7 +1,5 @@
-import type { Env, HtmlRewriterConstructor } from "../shared/platform";
+import type { Env } from "../shared/platform";
 import { getPostByPath } from "./posts";
-
-declare const HTMLRewriter: HtmlRewriterConstructor;
 
 const POST_PATH = /^\/post\/([^/]+)\/([^/]+)\/?$/i;
 const TITLE_EXCERPT = 48;

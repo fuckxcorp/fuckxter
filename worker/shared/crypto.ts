@@ -177,8 +177,8 @@ const derivedKeys = new Map<string, Promise<CryptoKey>>();
 async function derivedKey(
   env: Env,
   purpose: string,
-  algorithm: AesDerivedKeyParams | HmacImportParams,
-  usages: KeyUsage[],
+  algorithm: SubtleCryptoImportKeyAlgorithm,
+  usages: string[],
   secretOverride?: string,
 ): Promise<CryptoKey> {
   const secret = secretOverride ?? (await masterSecret(env));

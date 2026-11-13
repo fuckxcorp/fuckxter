@@ -2074,3 +2074,8 @@ html[lang="vi-Hani"] body * {
   white-space: nowrap;
   border: 0;
 }
+
+/* 非简中用户：翻译套上之前不显示正文，见 Layout.astro 里的内联脚本 */
+html.i18n-pending body {
+  visibility: hidden;
+}

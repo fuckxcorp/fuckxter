@@ -1,9 +1,9 @@
 {
   "name": "fuckxter",
   "type": "module",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "engines": {
-    "node": ">=24.22.2"
+    "node": ">=24.22.3"
   },
   "scripts": {
     "dev": "astro dev",
@@ -11,18 +11,20 @@
     "preview": "astro preview",
     "astro": "astro",
     "format": "prettier . --write",
-    "check": "astro check && prettier . --check",
+    "types": "wrangler types worker/worker-configuration.d.ts",
+    "check": "pnpm types && astro check && tsc -p worker && prettier . --check",
+    "test": "node --import ./worker/testing/register.mjs --test \"worker/**/*.test.ts\"",
     "wrangler": "wrangler"
   },
   "dependencies": {
-    "astro": "7.4.4",
+    "astro": "7.4.11",
     "modern-normalize": "^3.0.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
-    "prettier": "3.9.10",
+    "prettier": "3.10.1",
     "prettier-plugin-astro": "1.1.2",
-    "wrangler": "4.156.0"
+    "wrangler": "~4.161.0"
   },
-  "packageManager": "pnpm@12.17.0+sha512.b8d223ebec04b580a89ed206daa71d1bccb6a1ee1d52efa95cc3b0db75271561df8f0d8e2c43add39c5ec08018af7a8a95108e7090f95a29f88727b7a40fd53d"
+  "packageManager": "pnpm@12.20.0+sha512.6ccc74997ccef4e67999788e18dbfbfa583e2a849668668db4707b6a8306662f47156e650232a985bd3ec24cf9364c1aa154d37e51ed7aac62c1cd1e3afc80c3"
 }

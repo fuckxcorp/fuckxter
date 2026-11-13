@@ -1,6 +1,7 @@
 import { HttpError } from "../shared/http";
 import type { Env } from "../shared/platform";
 import { usernameKey } from "./usernames";
+import { likePattern, normalizeSearch } from "../shared/search";
 import {
   buildAvatarUrl,
   buildHeaderUrl,
@@ -193,9 +194,9 @@ export async function getUserProfile(
 }
 
 export async function searchUsers(env: Env, query: string, limit = 10) {
-  const value = query.trim();
+  const value = normalizeSearch(query);
   if (!value) return [];
-  const pattern = `%${value}%`;
+  const pattern = likePattern(value);
   const result = await env.DB.prepare(
     `SELECT u.id, u.handle, u.name, u.verified, u.bio, u.avatar_media_id,
             u.avatar_key, u.updated_at, u.created_at,
@@ -206,7 +207,8 @@ export async function searchUsers(env: Env, query: string, limit = 10) {
             (SELECT COUNT(*) FROM follows f
               WHERE f.follower_id = u.id) AS following_count
      FROM users u
-     WHERE (u.handle LIKE ? OR u.name LIKE ?) AND u.deleted_at IS NULL
+     WHERE (u.handle LIKE ? ESCAPE '\\' OR u.name LIKE ? ESCAPE '\\')
+       AND u.deleted_at IS NULL
      ORDER BY CASE WHEN u.handle = ? THEN 0 ELSE 1 END, u.handle ASC
      LIMIT ?`,
   )

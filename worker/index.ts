@@ -1,131 +1,33 @@
-import {
-  rateLimit,
-  limitLogin,
-  limitAction,
-  limitViews,
-  cleanSecurityState,
-} from "./shared/rate-limit";
-import type { SecurityProof } from "./accounts/accounts";
-import {
-  beginTwoFactor,
-  changeEmail,
-  changePassword,
-  confirmTwoFactor,
-  loginOrRegister,
-  purgeDeletedAccounts,
-  replaceRecoveryCodes,
-  requestAccountDeletion,
-  updateDmPolicy,
-  updateProfile,
-} from "./accounts/accounts";
+import { cleanSecurityState } from "./shared/rate-limit";
+import { purgeDeletedAccounts } from "./accounts/accounts";
+import { pruneSearchIndex } from "./posts/posts";
 import {
   assertTrustedOrigin,
   corsHeaders,
   errorResponse,
   HttpError,
   json,
-  readJson,
 } from "./shared/http";
-import {
-  displayImage,
-  displayWidth,
-  getAvatar,
-  getHeader,
-  getMedia,
-  finalizeMediaUpload,
-  presignMediaUpload,
-  uploadAvatar,
-  uploadHeader,
-  uploadMedia,
-} from "./posts/media";
-import {
-  countUnreadMessages,
-  getConversation,
-  listConversations,
-  listMessageSuggestions,
-  markConversationRead,
-  recallMessage,
-  sendMessage,
-} from "./messages/messages";
-import {
-  getNotifications,
-  getUnreadNotificationCount,
-  markNotificationsRead,
-} from "./notifications/notifications";
 import { handleQueue } from "./jobs";
-import { enqueueJob } from "./shared/jobs";
-import type { Job, QueueBatch } from "./shared/jobs";
+import type { Job } from "./shared/jobs";
 import type { Env } from "./shared/platform";
-import {
-  createComment,
-  createPost,
-  deleteComment,
-  deletePost,
-  getComments,
-  quotePost,
-  getPostByID,
-  getPostByPath,
-  getPostsByUserPage,
-  getSavedPosts,
-  getTimeline,
-  normalizeVisibility,
-  recordPostView,
-  recordPostViews,
-  searchPosts,
-  setCommentInteraction,
-  setLike,
-  setRepost,
-  setSaved,
-  updatePost,
-} from "./posts/posts";
+import { routeSegments } from "./shared/router";
+import type { RouteHandler } from "./shared/router";
 import { withPostPageHtml } from "./posts/post-page";
 import { withConnectionsPageHtml } from "./accounts/connections-page";
 import { withUserPageHtml } from "./accounts/user-page";
 import { withMessagesPageHtml } from "./messages/messages-page";
 import { DirectMessageHub } from "./messages/live";
-import { testStorageConnection } from "./accounts/s3";
+import { authRoutes } from "./routes/auth";
+import { feedRoutes } from "./routes/feed";
+import { mediaRoutes } from "./routes/media";
+import { meRoutes } from "./routes/me";
+import { messageRoutes } from "./routes/messages";
+import { noticeRoutes } from "./routes/notice";
+import { postRoutes } from "./routes/posts";
+import { userRoutes } from "./routes/users";
 
 export { DirectMessageHub };
-import {
-  accountFromRow,
-  clearSessionCookie,
-  createSession,
-  deleteSession,
-  getOptionalUser,
-  requireUser,
-} from "./accounts/security";
-import {
-  deleteStorageConfig,
-  getStorageConfigs,
-  getStorageOptions,
-  saveStorageConfig,
-} from "./posts/storage";
-import {
-  clearAvatar,
-  clearHeader,
-  getFollowUsers,
-  getUserProfile,
-  searchUsers,
-  setBlock,
-  setFollow,
-} from "./accounts/users";
-
-function withCookie(response: Response, cookie: string): Response {
-  response.headers.append("Set-Cookie", cookie);
-  return response;
-}
-
-function segment(values: string[], index: number): string {
-  try {
-    return decodeURIComponent(values[index] ?? "");
-  } catch {
-    throw new HttpError(400, "INVALID_PATH", "请求路径无效。");
-  }
-}
-
-function routeSegments(pathname: string): string[] {
-  return ["", ...pathname.split("/").filter(Boolean)];
-}
 
 const POST_ASSET_PATH = /^\/post\/([^/]+)\/([^/]+)\/?$/i;
 const USER_ASSET_PATH = /^\/user\/([^/]+)\/?$/i;
@@ -155,10 +57,6 @@ function assetPagePath(pathname: string): string | null {
   return null;
 }
 
-interface WorkerExecutionContext {
-  waitUntil(promise: Promise<unknown>): void;
-}
-
 /**
  * 只有 Astro 构建产物能长期缓存：文件名里带内容哈希，改了就是新 URL。
  * public/ 下的文件（logo、默认头像）名字固定，换图后必须能及时刷出来。
@@ -167,15 +65,35 @@ function isHashedAsset(pathname: string): boolean {
   return pathname.startsWith("/_astro/");
 }
 
+/**
+ * 页面里有内联脚本和内联样式，上传还会直连用户自己的 S3，
+ * 所以这里不限制 script-src / connect-src，只收紧不会误伤功能的几项：
+ * 不许被别的站点嵌进 iframe、不许改 base、不许插件、表单只能提交回本站。
+ */
+const HTML_CSP =
+  "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'";
+
+function setHtmlHeaders(headers: Headers, secure: boolean): void {
+  headers.set("Cache-Control", "no-store, max-age=0");
+  headers.set("CDN-Cache-Control", "no-store");
+  headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+  headers.set("Content-Security-Policy", HTML_CSP);
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (secure) {
+    headers.set("Strict-Transport-Security", "max-age=31536000");
+  }
+}
+
 function cacheableAssetResponse(
   response: Response,
   immutable: boolean,
+  secure: boolean,
 ): Response {
   const headers = new Headers(response.headers);
   if ((headers.get("Content-Type") ?? "").includes("text/html")) {
-    headers.set("Cache-Control", "no-store, max-age=0");
-    headers.set("CDN-Cache-Control", "no-store");
-    headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+    setHtmlHeaders(headers, secure);
   } else if (immutable) {
     headers.set(
       "Cache-Control",
@@ -199,11 +117,12 @@ async function fetchAsset(
   env: Env,
   assetUrl: URL,
   cacheUrl: URL,
-  context: WorkerExecutionContext,
+  context: ExecutionContext,
   mode: "immutable" | "revalidate",
 ): Promise<Response> {
   const useWorkerCache = mode === "immutable";
-  const cache = (caches as CacheStorage & { default: Cache }).default;
+  const secure = new URL(request.url).protocol === "https:";
+  const cache = caches.default;
   const cacheKey = new Request(cacheUrl, { method: request.method });
   const cached = useWorkerCache ? await cache.match(cacheKey) : undefined;
   if (cached) {
@@ -232,9 +151,7 @@ async function fetchAsset(
   if (!response.ok || (request.method !== "GET" && request.method !== "HEAD")) {
     if ((response.headers.get("Content-Type") ?? "").includes("text/html")) {
       const headers = new Headers(response.headers);
-      headers.set("Cache-Control", "no-store, max-age=0");
-      headers.set("CDN-Cache-Control", "no-store");
-      headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+      setHtmlHeaders(headers, secure);
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
@@ -244,7 +161,7 @@ async function fetchAsset(
     return response;
   }
 
-  const stored = cacheableAssetResponse(response, useWorkerCache);
+  const stored = cacheableAssetResponse(response, useWorkerCache, secure);
   if (!useWorkerCache) return stored;
 
   const headers = new Headers(stored.headers);
@@ -277,914 +194,36 @@ function cachePage(response: Response): Response {
   });
 }
 
+/** 每组路由只认自己的前缀，顺序不影响结果。 */
+const ROUTES: RouteHandler[] = [
+  feedRoutes,
+  authRoutes,
+  noticeRoutes,
+  messageRoutes,
+  mediaRoutes,
+  meRoutes,
+  postRoutes,
+  userRoutes,
+];
+
 async function route(
   request: Request,
   env: Env,
   url: URL,
-  context: WorkerExecutionContext,
+  context: ExecutionContext,
 ): Promise<Response> {
-  const parts = routeSegments(url.pathname);
-  const method = request.method;
-
-  if (parts[1] === "health" && parts.length === 2 && method === "GET") {
-    const result = await env.DB.prepare("SELECT 1 AS ok").first<{
-      ok: number;
-    }>();
-    return json(
-      { ok: result?.ok === 1, service: "fuckxter-api" },
-      request,
-      env,
-    );
+  const input = {
+    request,
+    env,
+    url,
+    context,
+    parts: routeSegments(url.pathname),
+    method: request.method,
+  };
+  for (const handler of ROUTES) {
+    const response = await handler(input);
+    if (response) return response;
   }
-
-  if (parts[1] === "auth") {
-    if (parts[2] === "me" && parts.length === 3 && method === "GET") {
-      const user = await getOptionalUser(request, env);
-      return json(
-        { account: user ? await accountFromRow(env, user) : null },
-        request,
-        env,
-      );
-    }
-
-    if (
-      (parts[2] === "login" || parts[2] === "register") &&
-      parts.length === 3 &&
-      method === "POST"
-    ) {
-      const body = await readJson<{
-        identifier?: string;
-        password?: string;
-        code?: string;
-        recoveryCode?: string;
-      }>(request);
-      await limitLogin(env, request, body.identifier ?? "");
-      const result = await loginOrRegister(
-        env,
-        body.identifier ?? "",
-        body.password ?? "",
-        body.code,
-        body.recoveryCode,
-        request.headers.get("CF-Connecting-IP") || "unknown",
-      );
-      const response = json(
-        { account: result.account, restored: Boolean(result.restored) },
-        request,
-        env,
-      );
-      // 新注册：欢迎通知丢后台，不占注册响应的时间
-      if (result.created) {
-        context.waitUntil(
-          enqueueJob(env, {
-            type: "notification.welcome",
-            userId: result.userId,
-          }),
-        );
-      }
-      return withCookie(
-        response,
-        await createSession(env, result.userId, request),
-      );
-    }
-
-    if (parts[2] === "logout" && parts.length === 3 && method === "POST") {
-      await deleteSession(request, env);
-      const response = json({ ok: true }, request, env);
-      return withCookie(response, clearSessionCookie(request));
-    }
-  }
-
-  if (parts[1] === "notice" && parts.length === 2) {
-    const user = await requireUser(request, env);
-    if (method === "GET") {
-      const [page, unread] = await Promise.all([
-        getNotifications(
-          env,
-          user.id,
-          url.searchParams.get("cursor"),
-          url.searchParams.get("limit"),
-        ),
-        getUnreadNotificationCount(env, user.id),
-      ]);
-      return json({ ...page, unread }, request, env);
-    }
-    if (method === "POST") {
-      const body = await readJson<{ id?: unknown }>(request);
-      if (body.id !== undefined && typeof body.id !== "string") {
-        throw new HttpError(400, "INVALID_NOTICE", "通知 ID 无效。");
-      }
-      await markNotificationsRead(env, user.id, body.id);
-      return json(
-        { unread: await getUnreadNotificationCount(env, user.id) },
-        request,
-        env,
-      );
-    }
-  }
-
-  if (parts[1] === "messages") {
-    const user = await requireUser(request, env);
-
-    if (parts.length === 3 && parts[2] === "live" && method === "GET") {
-      if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
-        throw new HttpError(426, "UPGRADE_REQUIRED", "需要 WebSocket 连接。");
-      }
-      const hub = env.DM_HUB.get(env.DM_HUB.idFromName(user.id));
-      return hub.fetch(new Request("https://dm-hub/connect", request));
-    }
-
-    if (parts.length === 2 && method === "GET") {
-      const [threads, unread, suggestions] = await Promise.all([
-        listConversations(env, user.id),
-        countUnreadMessages(env, user.id),
-        listMessageSuggestions(env, user.id),
-      ]);
-      return json({ threads, unread, suggestions }, request, env);
-    }
-
-    if (parts.length === 3) {
-      const handle = segment(parts, 2);
-      if (method === "GET") {
-        const conversation = await getConversation(
-          env,
-          user.id,
-          handle,
-          url.searchParams.get("before"),
-          url.searchParams.get("after"),
-        );
-        return json(
-          { ...conversation, unread: await countUnreadMessages(env, user.id) },
-          request,
-          env,
-        );
-      }
-      if (method === "POST") {
-        const body = await readJson<{ text?: unknown }>(request);
-        if (typeof body.text !== "string") {
-          throw new HttpError(400, "INVALID_MESSAGE", "私信内容无效。");
-        }
-        await limitAction(env, request, user, "message", handle);
-        return json(
-          await sendMessage(env, user.id, handle, body.text, (promise) =>
-            context.waitUntil(promise),
-          ),
-          request,
-          env,
-          { status: 201 },
-        );
-      }
-    }
-
-    if (parts.length === 4 && parts[3] === "read" && method === "POST") {
-      await limitAction(env, request, user, "interact");
-      await markConversationRead(env, user.id, segment(parts, 2));
-      return json(
-        { unread: await countUnreadMessages(env, user.id) },
-        request,
-        env,
-      );
-    }
-
-    if (parts.length === 4 && method === "DELETE") {
-      await limitAction(env, request, user, "interact");
-      const handle = segment(parts, 2);
-      return json(
-        await recallMessage(env, user.id, handle, segment(parts, 3)),
-        request,
-        env,
-      );
-    }
-  }
-
-  if (parts[1] === "timeline" && parts.length === 2 && method === "GET") {
-    const user = await getOptionalUser(request, env);
-    return json(
-      await getTimeline(
-        env,
-        user?.id ?? null,
-        url.searchParams.get("tab") ?? "foryou",
-        url.searchParams.get("cursor"),
-        url.searchParams.get("limit"),
-      ),
-      request,
-      env,
-    );
-  }
-
-  if (parts[1] === "media") {
-    if (parts.length === 3 && parts[2] === "uploads" && method === "POST") {
-      const user = await requireUser(request, env);
-      await rateLimit(env, `upload:${user.id}`, 100, 3600);
-      const body = await readJson<{
-        storageConfigId?: unknown;
-        fileName?: unknown;
-        contentType?: unknown;
-      }>(request);
-      return json(
-        {
-          upload: await presignMediaUpload(env, user.id, {
-            storageConfigId:
-              typeof body.storageConfigId === "string"
-                ? body.storageConfigId
-                : undefined,
-            fileName:
-              typeof body.fileName === "string" ? body.fileName : undefined,
-            contentType:
-              typeof body.contentType === "string"
-                ? body.contentType
-                : undefined,
-          }),
-        },
-        request,
-        env,
-        { status: 201 },
-      );
-    }
-
-    if (parts.length === 3 && parts[2] === "finalize" && method === "POST") {
-      const user = await requireUser(request, env);
-      const body = await readJson<{
-        objectKey?: unknown;
-        originalName?: unknown;
-        contentType?: unknown;
-        storageConfigId?: unknown;
-      }>(request);
-      return json(
-        {
-          media: await finalizeMediaUpload(env, user.id, {
-            objectKey:
-              typeof body.objectKey === "string" ? body.objectKey : undefined,
-            originalName:
-              typeof body.originalName === "string"
-                ? body.originalName
-                : undefined,
-            contentType:
-              typeof body.contentType === "string"
-                ? body.contentType
-                : undefined,
-            storageConfigId:
-              typeof body.storageConfigId === "string"
-                ? body.storageConfigId
-                : null,
-          }),
-        },
-        request,
-        env,
-        { status: 201 },
-      );
-    }
-
-    if (parts.length === 2 && method === "POST") {
-      const user = await requireUser(request, env);
-      await rateLimit(env, `upload:${user.id}`, 100, 3600);
-      return json(
-        { media: await uploadMedia(request, env, user.id) },
-        request,
-        env,
-        { status: 201 },
-      );
-    }
-
-    if (parts.length === 3 && method === "GET") {
-      const viewer = await getOptionalUser(request, env);
-      const width = displayWidth(url);
-      const source = await getMedia(
-        env,
-        segment(parts, 2),
-        viewer?.id ?? null,
-        width === null && url.searchParams.get("preview") === "640",
-      );
-      const media = await displayImage(env, source, width);
-      const headers = corsHeaders(request, env);
-      headers.set("Content-Type", media.contentType);
-      headers.set("Content-Length", String(media.size));
-      headers.set("Content-Disposition", "inline");
-      headers.set("X-Content-Type-Options", "nosniff");
-      headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
-      headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-      headers.set("Cache-Control", "private, no-store");
-      headers.append("Vary", "Cookie");
-      headers.set("ETag", `"${media.etag}"`);
-      return new Response(media.body, { status: 200, headers });
-    }
-  }
-
-  if (
-    parts[1] === "avatars" &&
-    parts.length === 3 &&
-    (method === "GET" || method === "HEAD")
-  ) {
-    const width = displayWidth(url);
-    const avatar = await displayImage(
-      env,
-      await getAvatar(env, segment(parts, 2)),
-      width,
-    );
-    const headers = corsHeaders(request, env);
-    headers.set("Content-Type", avatar.contentType);
-    headers.set("Content-Length", String(avatar.size));
-    headers.set("Content-Disposition", "inline");
-    headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
-    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-    headers.set("Cache-Control", "public, max-age=300, must-revalidate");
-    headers.set("ETag", `"${avatar.etag}"`);
-    return new Response(method === "HEAD" ? null : avatar.body, {
-      status: 200,
-      headers,
-    });
-  }
-
-  if (
-    parts[1] === "headers" &&
-    parts.length === 3 &&
-    (method === "GET" || method === "HEAD")
-  ) {
-    const width = displayWidth(url);
-    const header = await displayImage(
-      env,
-      await getHeader(env, segment(parts, 2)),
-      width,
-    );
-    const headers = corsHeaders(request, env);
-    headers.set("Content-Type", header.contentType);
-    headers.set("Content-Length", String(header.size));
-    headers.set("Content-Disposition", "inline");
-    headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("Content-Security-Policy", "default-src 'none'; sandbox");
-    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
-    headers.set("Cache-Control", "public, max-age=300, must-revalidate");
-    headers.set("ETag", `"${header.etag}"`);
-    return new Response(method === "HEAD" ? null : header.body, {
-      status: 200,
-      headers,
-    });
-  }
-
-  if (parts[1] === "search" && parts.length === 2 && method === "GET") {
-    const user = await getOptionalUser(request, env);
-    const query = url.searchParams.get("q") ?? "";
-    const [postResult, users] = await Promise.all([
-      searchPosts(env, user?.id ?? null, query),
-      searchUsers(env, query),
-    ]);
-    return json({ ...postResult, users }, request, env);
-  }
-
-  if (parts[1] === "me") {
-    const user = await requireUser(request, env);
-    if (!["GET", "HEAD"].includes(method))
-      await rateLimit(env, `security:${user.id}`, 30, 600);
-
-    if (parts.length === 2 && method === "PATCH") {
-      const body = await readJson<Record<string, string>>(request);
-      return json(
-        { account: await updateProfile(env, user.id, body) },
-        request,
-        env,
-      );
-    }
-
-    if (parts.length === 2 && method === "DELETE") {
-      await requestAccountDeletion(env, user.id);
-      const response = json({ ok: true }, request, env);
-      return withCookie(response, clearSessionCookie(request));
-    }
-
-    // 私信权限单独一个接口：资料那套 PATCH 会把没传的字段当空值写回去
-    if (parts[2] === "dm-policy" && parts.length === 3 && method === "PATCH") {
-      const body = await readJson<{ policy?: unknown }>(request);
-      await updateDmPolicy(env, user.id, body.policy);
-      const updated = await requireUser(request, env);
-      return json(
-        { account: await accountFromRow(env, updated) },
-        request,
-        env,
-      );
-    }
-
-    if (parts[2] === "email" && parts.length === 3 && method === "PUT") {
-      const body = await readJson<{ email?: string; password?: string }>(
-        request,
-      );
-      return json(
-        {
-          account: await changeEmail(
-            env,
-            user.id,
-            body.email ?? "",
-            body.password ?? "",
-          ),
-        },
-        request,
-        env,
-      );
-    }
-
-    if (parts[2] === "password" && parts.length === 3 && method === "PUT") {
-      const body = await readJson<{ current?: string; next?: string }>(request);
-      await changePassword(env, user.id, body.current ?? "", body.next ?? "");
-      return withCookie(
-        json({ ok: true }, request, env),
-        await createSession(env, user.id, request),
-      );
-    }
-
-    if (parts[2] === "saved" && parts.length === 3 && method === "GET") {
-      return json({ posts: await getSavedPosts(env, user.id) }, request, env);
-    }
-
-    if (
-      parts[2] === "avatar" &&
-      parts.length === 3 &&
-      (method === "PUT" || method === "DELETE")
-    ) {
-      if (method === "PUT") {
-        await uploadAvatar(request, env, user.id, user.handle);
-      } else await clearAvatar(env, user.id);
-      const updated = await requireUser(request, env);
-      return json(
-        { account: await accountFromRow(env, updated) },
-        request,
-        env,
-      );
-    }
-
-    if (
-      parts[2] === "header" &&
-      parts.length === 3 &&
-      (method === "PUT" || method === "DELETE")
-    ) {
-      if (method === "PUT") {
-        await uploadHeader(request, env, user.id, user.handle);
-      } else await clearHeader(env, user.handle);
-      const updated = await requireUser(request, env);
-      return json(
-        { account: await accountFromRow(env, updated) },
-        request,
-        env,
-      );
-    }
-
-    if (parts[2] === "2fa" && parts[3] === "setup" && method === "POST") {
-      const proof = await readJson<SecurityProof>(request);
-      return json(
-        await beginTwoFactor(env, user.id, user.session_id, proof),
-        request,
-        env,
-      );
-    }
-
-    if (parts[2] === "2fa" && parts[3] === "confirm" && method === "POST") {
-      const body = await readJson<{ code?: string }>(request);
-      return json(
-        await confirmTwoFactor(env, user.id, user.session_id, body.code ?? ""),
-        request,
-        env,
-      );
-    }
-
-    if (
-      parts[2] === "2fa" &&
-      parts[3] === "recovery-codes" &&
-      method === "POST"
-    ) {
-      const proof = await readJson<SecurityProof>(request);
-      return json(
-        await replaceRecoveryCodes(env, user.id, proof),
-        request,
-        env,
-      );
-    }
-
-    if (parts[2] === "storage" && parts[3] === "options" && method === "GET") {
-      return json(
-        { options: await getStorageOptions(env, user.id) },
-        request,
-        env,
-      );
-    }
-
-    if (parts[2] === "storage" && parts.length === 3) {
-      if (method === "GET") {
-        const configs = await getStorageConfigs(env, user.id);
-        return json(
-          {
-            configs,
-            defaultId: configs.find((config) => config.isDefault)?.id ?? null,
-          },
-          request,
-          env,
-        );
-      }
-      if (method === "POST") {
-        const body = await readJson<Record<string, unknown>>(request);
-        return json(
-          {
-            config: await saveStorageConfig(env, user.id, {
-              endpoint: String(body.endpoint ?? ""),
-              region: String(body.region ?? ""),
-              bucket: String(body.bucket ?? ""),
-              accessKeyId: String(body.accessKeyId ?? ""),
-              secretAccessKey: String(body.secretAccessKey ?? ""),
-              pathStyle: Boolean(body.pathStyle),
-              name: String(body.name ?? ""),
-              isDefault: Boolean(body.isDefault),
-              enabled: body.enabled !== false,
-            }),
-          },
-          request,
-          env,
-          { status: 201 },
-        );
-      }
-    }
-
-    if (parts[2] === "storage" && parts.length === 4) {
-      const configId = segment(parts, 3);
-      if (method === "PUT") {
-        const body = await readJson<Record<string, unknown>>(request);
-        return json(
-          {
-            config: await saveStorageConfig(env, user.id, {
-              id: configId,
-              endpoint: String(body.endpoint ?? ""),
-              region: String(body.region ?? ""),
-              bucket: String(body.bucket ?? ""),
-              accessKeyId: String(body.accessKeyId ?? ""),
-              secretAccessKey: String(body.secretAccessKey ?? ""),
-              pathStyle: Boolean(body.pathStyle),
-              name: String(body.name ?? ""),
-              isDefault: Boolean(body.isDefault),
-              enabled: body.enabled !== false,
-            }),
-          },
-          request,
-          env,
-        );
-      }
-      if (method === "DELETE") {
-        const result = await deleteStorageConfig(env, user.id, configId);
-        return json({ ok: true, ...result }, request, env);
-      }
-    }
-
-    if (parts[2] === "storage" && parts[3] === "test" && method === "POST") {
-      const body = await readJson<Record<string, unknown>>(request);
-      return json(
-        {
-          message: await testStorageConnection({
-            endpoint: String(body.endpoint ?? ""),
-            region: String(body.region ?? ""),
-            bucket: String(body.bucket ?? ""),
-            accessKeyId: String(body.accessKeyId ?? ""),
-            secretAccessKey: String(body.secretAccessKey ?? ""),
-            pathStyle: Boolean(body.pathStyle),
-          }),
-        },
-        request,
-        env,
-      );
-    }
-  }
-
-  if (parts[1] === "posts") {
-    if (parts[2] === "views" && parts.length === 3 && method === "POST") {
-      const body = await readJson<{ ids?: unknown }>(request);
-      if (
-        !Array.isArray(body.ids) ||
-        body.ids.length > 20 ||
-        body.ids.some((id) => typeof id !== "string")
-      )
-        throw new HttpError(400, "INVALID_POST", "帖子参数无效。");
-      const viewer = await getOptionalUser(request, env);
-      await limitViews(env, request, viewer);
-      return json(
-        await recordPostViews(
-          env,
-          request,
-          viewer?.id ?? null,
-          body.ids as string[],
-        ),
-        request,
-        env,
-      );
-    }
-    if (parts.length === 2 && method === "POST") {
-      const user = await requireUser(request, env);
-      const body = await readJson<{ text?: unknown; mediaIDs?: unknown }>(
-        request,
-      );
-      if (typeof body.text !== "string") {
-        throw new HttpError(400, "INVALID_POST", "帖子内容不能为空。");
-      }
-      if (
-        body.mediaIDs !== undefined &&
-        (!Array.isArray(body.mediaIDs) ||
-          body.mediaIDs.length > 10 ||
-          body.mediaIDs.some((id) => typeof id !== "string"))
-      ) {
-        throw new HttpError(400, "INVALID_MEDIA", "图片引用无效。");
-      }
-      await limitAction(env, request, user, "publish");
-      const payload = body as { visibility?: unknown };
-      return json(
-        await createPost(
-          env,
-          user.id,
-          body.text,
-          body.mediaIDs as string[] | undefined,
-          normalizeVisibility(payload.visibility),
-          (body as { hdr?: unknown }).hdr === true,
-        ),
-        request,
-        env,
-        { status: 201 },
-      );
-    }
-
-    if (parts.length === 3) {
-      const postId = segment(parts, 2);
-      const user = await getOptionalUser(request, env);
-
-      if (method === "GET") {
-        const post = await getPostByID(env, user?.id ?? null, postId);
-        if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
-        return json(post, request, env);
-      }
-
-      if (method === "PATCH" || method === "DELETE") {
-        const actor = await requireUser(request, env);
-        await limitAction(env, request, actor, "interact");
-        if (method === "DELETE") {
-          await deletePost(env, actor.id, postId);
-          return json({ ok: true }, request, env);
-        }
-        const body = await readJson<{
-          text?: string;
-          visibility?: unknown;
-          hdr?: unknown;
-        }>(request);
-        return json(
-          await updatePost(
-            env,
-            actor.id,
-            postId,
-            body.text ?? "",
-            typeof body.visibility === "string"
-              ? normalizeVisibility(body.visibility)
-              : undefined,
-            typeof body.hdr === "boolean" ? body.hdr : undefined,
-          ),
-          request,
-          env,
-        );
-      }
-    }
-
-    if (parts.length === 4) {
-      const postId = segment(parts, 2);
-      const action = parts[3];
-
-      if (action === "quote" && method === "POST") {
-        const user = await requireUser(request, env);
-        const body = await readJson<{ text?: unknown }>(request);
-        if (body.text !== undefined && typeof body.text !== "string")
-          throw new HttpError(400, "INVALID_POST", "评论内容无效。");
-        await limitAction(env, request, user, "publish");
-        return json(
-          await quotePost(
-            env,
-            user.id,
-            postId,
-            typeof body.text === "string" ? body.text : "",
-          ),
-          request,
-          env,
-          { status: 201 },
-        );
-      }
-      if (action === "view" && method === "POST") {
-        const user = await getOptionalUser(request, env);
-        await limitViews(env, request, user);
-        return json(
-          await recordPostView(env, request, user?.id ?? null, postId),
-          request,
-          env,
-        );
-      }
-
-      if (action === "comments" && method === "GET") {
-        const user = await getOptionalUser(request, env);
-        return json(
-          await getComments(
-            env,
-            user?.id ?? null,
-            postId,
-            url.searchParams.get("cursor"),
-            url.searchParams.get("focus"),
-          ),
-          request,
-          env,
-        );
-      }
-
-      if (action === "comments" && method === "POST") {
-        const user = await requireUser(request, env);
-        const body = await readJson<{
-          text?: string;
-          parentId?: unknown;
-          mediaIDs?: unknown;
-        }>(request);
-        if (body.parentId !== undefined && typeof body.parentId !== "string") {
-          throw new HttpError(400, "INVALID_COMMENT", "回覆的目标无效。");
-        }
-        if (
-          body.mediaIDs !== undefined &&
-          (!Array.isArray(body.mediaIDs) ||
-            body.mediaIDs.some((id) => typeof id !== "string"))
-        ) {
-          throw new HttpError(400, "INVALID_MEDIA", "图片参数无效。");
-        }
-        await limitAction(env, request, user, "publish");
-        return json(
-          {
-            comment: await createComment(
-              env,
-              user.id,
-              postId,
-              body.text ?? "",
-              body.parentId,
-              body.mediaIDs as string[] | undefined,
-            ),
-          },
-          request,
-          env,
-          { status: 201 },
-        );
-      }
-
-      if (
-        (action === "like" || action === "repost" || action === "save") &&
-        (method === "PUT" || method === "DELETE")
-      ) {
-        const user = await requireUser(request, env);
-        const active = method === "PUT";
-        await limitAction(
-          env,
-          request,
-          user,
-          action === "repost" && active ? "publish" : "interact",
-        );
-        if (action === "like") {
-          return json(
-            await setLike(env, user.id, postId, active),
-            request,
-            env,
-          );
-        }
-        if (action === "repost") {
-          return json(
-            await setRepost(env, user.id, postId, active),
-            request,
-            env,
-          );
-        }
-        return json(
-          { posts: await setSaved(env, user.id, postId, active) },
-          request,
-          env,
-        );
-      }
-    }
-
-    if (parts.length === 5 && parts[3] === "comments" && method === "DELETE") {
-      const user = await requireUser(request, env);
-      await limitAction(env, request, user, "interact");
-      const deleted = await deleteComment(
-        env,
-        user.id,
-        segment(parts, 2),
-        segment(parts, 4),
-      );
-      return json({ ok: true, deleted }, request, env);
-    }
-
-    if (
-      parts.length === 6 &&
-      parts[3] === "comments" &&
-      (parts[5] === "like" || parts[5] === "repost") &&
-      (method === "PUT" || method === "DELETE")
-    ) {
-      const user = await requireUser(request, env);
-      await limitAction(
-        env,
-        request,
-        user,
-        parts[5] === "repost" && method === "PUT" ? "publish" : "interact",
-      );
-      return json(
-        await setCommentInteraction(
-          env,
-          user.id,
-          segment(parts, 2),
-          segment(parts, 4),
-          parts[5] === "like" ? "like" : "repost",
-          method === "PUT",
-        ),
-        request,
-        env,
-      );
-    }
-
-    if (parts.length === 4 && method === "GET") {
-      const user = await getOptionalUser(request, env);
-      const post = await getPostByPath(
-        env,
-        user?.id ?? null,
-        segment(parts, 2),
-        segment(parts, 3),
-      );
-      if (!post) throw new HttpError(404, "POST_NOT_FOUND", "帖子不存在。");
-      return json(post, request, env);
-    }
-  }
-
-  if (
-    parts[1] === "users" &&
-    (parts[3] === "followers" || parts[3] === "following") &&
-    parts.length === 4 &&
-    method === "GET"
-  ) {
-    return json(
-      {
-        users: await getFollowUsers(
-          env,
-          segment(parts, 2),
-          parts[3] === "followers" ? "followers" : "following",
-        ),
-      },
-      request,
-      env,
-    );
-  }
-
-  if (parts[1] === "users" && parts.length === 3 && method === "GET") {
-    const user = await getOptionalUser(request, env);
-    const profile = await getUserProfile(
-      env,
-      user?.id ?? null,
-      segment(parts, 2),
-    );
-    if (!profile) throw new HttpError(404, "USER_NOT_FOUND", "用户不存在。");
-    return json({ user: profile }, request, env);
-  }
-
-  if (
-    parts[1] === "users" &&
-    parts[3] === "follow" &&
-    parts.length === 4 &&
-    (method === "PUT" || method === "DELETE")
-  ) {
-    const user = await requireUser(request, env);
-    await limitAction(env, request, user, "interact");
-    return json(
-      await setFollow(env, user.id, segment(parts, 2), method === "PUT"),
-      request,
-      env,
-    );
-  }
-
-  if (
-    parts[1] === "users" &&
-    parts[3] === "block" &&
-    parts.length === 4 &&
-    (method === "PUT" || method === "DELETE")
-  ) {
-    const user = await requireUser(request, env);
-    await limitAction(env, request, user, "interact");
-    return json(
-      await setBlock(env, user.id, segment(parts, 2), method === "PUT"),
-      request,
-      env,
-    );
-  }
-
-  if (parts[1] === "users" && parts[3] === "posts" && method === "GET") {
-    const user = await getOptionalUser(request, env);
-    return json(
-      await getPostsByUserPage(
-        env,
-        user?.id ?? null,
-        segment(parts, 2),
-        url.searchParams.get("cursor"),
-        url.searchParams.get("limit"),
-      ),
-      request,
-      env,
-    );
-  }
-
   throw new HttpError(404, "NOT_FOUND", "接口不存在。");
 }
 
@@ -1192,7 +231,7 @@ export default {
   async fetch(
     request: Request,
     env: Env,
-    context: WorkerExecutionContext,
+    context: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
     const hostname = url.hostname.toLowerCase();
@@ -1282,12 +321,13 @@ export default {
     }
   },
 
-  async queue(batch: QueueBatch<Job>, env: Env): Promise<void> {
+  async queue(batch: MessageBatch<Job>, env: Env): Promise<void> {
     await handleQueue(batch, env);
   },
 
   async scheduled(_event: unknown, env: Env): Promise<void> {
     await cleanSecurityState(env);
+    await pruneSearchIndex(env);
     const purged = await purgeDeletedAccounts(env);
     if (purged > 0) console.log("Purged deleted accounts", purged);
   },

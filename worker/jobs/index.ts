@@ -3,11 +3,11 @@ import {
   deleteNotification,
 } from "../notifications/notifications";
 import type { NotificationInput } from "../notifications/notifications";
-import type { Job, QueueBatch } from "../shared/jobs";
+import type { Job } from "../shared/jobs";
 import type { Env } from "../shared/platform";
 
 export async function handleQueue(
-  batch: QueueBatch<Job>,
+  batch: MessageBatch<Job>,
   env: Env,
 ): Promise<void> {
   for (const message of batch.messages) {

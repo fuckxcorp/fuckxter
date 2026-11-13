@@ -58,6 +58,22 @@ class_name = "DirectMessageHub"
 tag = "v1"
 new_sqlite_classes = ["DirectMessageHub"]
 
+[[ratelimits]]
+name = "READ_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 300
+  period = 60
+
+[[ratelimits]]
+name = "SEARCH_LIMITER"
+namespace_id = "1002"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
 [[queues.producers]]
 binding = "JOBS"
 queue = "fuckxchat"

@@ -21,7 +21,7 @@ function hex(bytes: ArrayBuffer): string {
 }
 
 async function hmacSha256(
-  key: ArrayBuffer | Uint8Array<ArrayBuffer>,
+  key: ArrayBuffer | Uint8Array,
   value: string,
 ): Promise<ArrayBuffer> {
   const cryptoKey = await crypto.subtle.importKey(

@@ -1,8 +1,6 @@
-import type { Env, HtmlRewriterConstructor } from "../shared/platform";
+import type { Env } from "../shared/platform";
 import { getPostsByUserPage } from "../posts/posts";
 import { getUserProfile } from "./users";
-
-declare const HTMLRewriter: HtmlRewriterConstructor;
 
 const PATH = /^\/user\/([^/]+)\/?$/i;
 
